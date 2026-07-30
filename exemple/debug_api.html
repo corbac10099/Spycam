@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html><head><title>API Debug</title>
+<style>body{background:#0a0e14;color:#e8eaed;font-family:monospace;padding:20px;} pre{background:#111823;padding:16px;border-radius:8px;overflow:auto;max-height:600px;font-size:12px;} h2{color:#00f0ff;} .btn{background:#ff4655;color:white;border:none;padding:10px 20px;cursor:pointer;border-radius:6px;font-size:14px;margin:5px;} .ok{color:#00e676;} .err{color:#ff4655;}</style>
+</head><body>
+<h1>🔍 Valorant Tracker - API Debug</h1>
+<p>Ce script teste les appels API exactement comme le fait l'app avec tes clés sauvegardées.</p>
+
+<div style="margin-bottom: 20px; background: #1a2233; padding: 15px; border-radius: 8px; max-width: 600px;">
+    <label style="display:block; margin-bottom:5px; font-weight:bold;">Ta clé API HenrikDev (HENV-...) :</label>
+    <input type="text" id="direct-key-input" placeholder="HENV-..." style="width: 70%; padding: 8px; background: #0a0e14; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+    <button class="btn" onclick="saveKeyAndRun()">💾 Enregistrer & Tester</button>
+</div>
+
+<button class="btn" style="background:#22c55e;" onclick="runDebug()">▶ Lancer le diagnostic (avec clé sauvegardée)</button>
+<div id="output"></div>
+
+<script>
+const CONFIG_KEY = 'valorant_tracker_settings';
+
+async function saveKeyAndRun() {
+    const key = document.getElementById('direct-key-input').value.trim();
+    if (!key) {
+        alert('Veuillez coller votre clé HenrikDev');
+        return;
+    }
+    const settings = { henrikKey: key, mode: 'auto' };
+    await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    });
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(settings));
+    runDebug();
+}
+
+async function runDebug() {
+    const out = document.getElementById('output');
+    out.innerHTML = '<p>⏳ Chargement des paramètres...</p>';
+    
+    let settings = {};
+    try {
+        const confRes = await fetch('/api/config?t=' + Date.now());
+        if (confRes.ok) {
+            settings = await confRes.json();
+        }
+    } catch(e) {}
+
+    if (!settings.henrikKey || settings.henrikKey === 'TEST_KEY_123') {
+        try {
+            const local = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+            if (local.henrikKey) settings = { ...local, ...settings };
+        } catch(e) {}
+    }
+    
+    if (settings.henrikKey && document.getElementById('direct-key-input')) {
+        document.getElementById('direct-key-input').value = settings.henrikKey;
+    }
+
+    out.innerHTML += `<h2>1. Paramètres chargés (Fichier serveur / localStorage)</h2>
+        <pre>${JSON.stringify(settings, null, 2)}</pre>`;
+    
+    if (!settings.henrikKey || settings.henrikKey === 'TEST_KEY_123') {
+        out.innerHTML += `<p class="err">❌ AUCUNE CLÉ VALIDE trouvée ! Colle ta vraie clé HenrikDev (commençant par HENV-) dans le champ ci-dessus et clique sur "💾 Enregistrer & Tester".</p>`;
+        return;
+    }
+    out.innerHTML += `<p class="ok">✅ Clé HenrikDev active: ${settings.henrikKey.substring(0, 12)}...</p>`;
+
+    // Test 1: Account
+    out.innerHTML += `<h2>2. Test: /api/henrik/v1/account/Gr4phØ/0001</h2>`;
+    try {
+        const accRes = await fetch('/api/henrik/v1/account/Gr4ph%C3%98/0001', {
+            headers: { 'Authorization': settings.henrikKey }
+        });
+        const accJson = await accRes.json();
+        out.innerHTML += `<p>Status: ${accRes.status}</p>`;
+        out.innerHTML += `<pre>${JSON.stringify(accJson, null, 2).substring(0, 3000)}</pre>`;
+        
+        if (!accJson.data) {
+            out.innerHTML += `<p class="err">❌ Pas de data dans la réponse account</p>`;
+            return;
+        }
+        const acc = accJson.data;
+        out.innerHTML += `<p class="ok">✅ Compte trouvé: ${acc.name}#${acc.tag} | PUUID: ${acc.puuid} | Region: ${acc.region}</p>`;
+        
+        // Test 2: MMR
+        out.innerHTML += `<h2>3. Test: MMR v3</h2>`;
+        const mmrUrl = `/api/henrik/v3/by-puuid/mmr/${acc.region || 'eu'}/pc/${acc.puuid}`;
+        out.innerHTML += `<p>URL: ${mmrUrl}</p>`;
+        try {
+            const mmrRes = await fetch(mmrUrl, { headers: { 'Authorization': settings.henrikKey }});
+            const mmrJson = await mmrRes.json();
+            out.innerHTML += `<p>Status: ${mmrRes.status}</p>`;
+            out.innerHTML += `<pre>${JSON.stringify(mmrJson, null, 2).substring(0, 2000)}</pre>`;
+        } catch(e) {
+            out.innerHTML += `<p class="err">MMR Error: ${e.message}</p>`;
+        }
+        
+        // Test 3: Matches V4 (mode=competitive)
+        out.innerHTML += `<h2>4. Test: Matches V4 (mode=competitive)</h2>`;
+        const matchUrl = `/api/henrik/v4/by-puuid/matches/${acc.region || 'eu'}/pc/${acc.puuid}?mode=competitive&size=20`;
+        out.innerHTML += `<p>URL: ${matchUrl}</p>`;
+        try {
+            const matchRes = await fetch(matchUrl, { headers: { 'Authorization': settings.henrikKey }});
+            const matchJson = await matchRes.json();
+            out.innerHTML += `<p>Status: ${matchRes.status}</p>`;
+            
+            if (matchJson.data && matchJson.data.length > 0) {
+                out.innerHTML += `<p class="ok">✅ ${matchJson.data.length} matchs récupérés !</p>`;
+                
+                // Dump structure of first match completely
+                const m = matchJson.data[0];
+                out.innerHTML += `<h3>Structure du 1er match :</h3>`;
+                out.innerHTML += `<pre>${JSON.stringify(m, null, 2).substring(0, 8000)}</pre>`;
+                
+                // Show key paths
+                out.innerHTML += `<h3>Clés importantes du 1er match :</h3>`;
+                out.innerHTML += `<pre>
+metadata.match_id: ${m.metadata?.match_id}
+metadata.map: ${JSON.stringify(m.metadata?.map)}
+metadata.mode: ${m.metadata?.mode}
+metadata.queue: ${m.metadata?.queue}
+metadata.rounds_played: ${m.metadata?.rounds_played}
+metadata.game_start: ${m.metadata?.game_start}
+metadata.game_length: ${m.metadata?.game_length}
+
+teams keys: ${JSON.stringify(Object.keys(m.teams || {}))}
+teams.red: ${JSON.stringify(m.teams?.red)}
+teams.blue: ${JSON.stringify(m.teams?.blue)}
+
+players type: ${typeof m.players}
+players is array: ${Array.isArray(m.players)}
+players keys: ${typeof m.players === 'object' && !Array.isArray(m.players) ? JSON.stringify(Object.keys(m.players)) : 'N/A'}
+players.all_players exists: ${!!m.players?.all_players}
+players.all_players length: ${m.players?.all_players?.length || 'N/A'}
+players array length: ${Array.isArray(m.players) ? m.players.length : 'N/A'}
+                </pre>`;
+                
+                // Find the player in the match
+                const allPlayers = m.players?.all_players || (Array.isArray(m.players) ? m.players : []);
+                out.innerHTML += `<h3>Tous les joueurs du match (${allPlayers.length}):</h3>`;
+                allPlayers.forEach((p, i) => {
+                    const agentName = (typeof p.agent === 'object' ? p.agent?.name : p.agent) || p.character || 'Inconnu';
+                    const teamName = p.team_id || p.team || 'Inconnu';
+                    out.innerHTML += `<p>${i}: ${p.name}#${p.tag} | Agent: <b>${agentName}</b> | Team: ${teamName} | K/D/A: ${p.stats?.kills}/${p.stats?.deaths}/${p.stats?.assists} | Score: ${p.stats?.score}</p>`;
+                });
+                
+                const me = allPlayers.find(p => p.puuid === acc.puuid);
+                if (me) {
+                    const myAgent = (typeof me.agent === 'object' ? me.agent?.name : me.agent) || me.character;
+                    const myTeam = me.team_id || me.team;
+                    out.innerHTML += `<p class="ok">✅ Joueur Gr4phØ trouvé dans le match ! Agent: <b>${myAgent}</b> | Équipe: <b>${myTeam}</b></p>`;
+                } else {
+                    const meByName = allPlayers.find(p => p.name?.toLowerCase() === acc.name.toLowerCase());
+                    if (meByName) {
+                        const myAgent = (typeof meByName.agent === 'object' ? meByName.agent?.name : meByName.agent) || meByName.character;
+                        out.innerHTML += `<p class="ok">✅ Joueur trouvé par NOM: ${meByName.name} | Agent: <b>${myAgent}</b></p>`;
+                    } else {
+                        out.innerHTML += `<p class="err">❌ Joueur NON TROUVÉ dans le match ! PUUID cherché: ${acc.puuid}</p>`;
+                    }
+                }
+            } else {
+                out.innerHTML += `<p class="err">❌ Aucun match retourné ! JSON: ${JSON.stringify(matchJson).substring(0, 2000)}</p>`;
+                
+                // Try stored-matches fallback
+                out.innerHTML += `<h2>5. Fallback: stored-matches V1</h2>`;
+                const storedUrl = `/api/henrik/v1/stored-matches/${acc.region || 'eu'}/${encodeURIComponent(acc.name)}/${encodeURIComponent(acc.tag)}?mode=competitive&size=5`;
+                out.innerHTML += `<p>URL: ${storedUrl}</p>`;
+                try {
+                    const storedRes = await fetch(storedUrl, { headers: { 'Authorization': settings.henrikKey }});
+                    const storedJson = await storedRes.json();
+                    out.innerHTML += `<p>Status: ${storedRes.status}</p>`;
+                    out.innerHTML += `<pre>${JSON.stringify(storedJson, null, 2).substring(0, 5000)}</pre>`;
+                } catch(e) {
+                    out.innerHTML += `<p class="err">Stored matches error: ${e.message}</p>`;
+                }
+            }
+        } catch(e) {
+            out.innerHTML += `<p class="err">Matches Error: ${e.message}</p>`;
+        }
+    } catch(e) {
+        out.innerHTML += `<p class="err">Account Error: ${e.message}</p>`;
+    }
+}
+</script>
+</body></html>
