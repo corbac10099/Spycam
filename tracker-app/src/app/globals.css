@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  
+  --color-val-red: #ff4655;
+  --color-val-dark: #0f1923;
+  --color-val-light: #ece8e1;
+  
+  /* Default: Dark theme */
+  --color-background: #0a0e13;
+  --color-surface: rgba(15, 25, 35, 0.6);
+  --color-surface-hover: rgba(25, 35, 45, 0.8);
+  --color-text-primary: #ece8e1;
+  --color-text-secondary: #8b97a3;
+  --color-text-on-surface: #ffffff;
+  --color-border: rgba(255, 255, 255, 0.05);
+  --color-glass-shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Theme: Light ===== */
+.theme-light {
+  --color-background: #f0f1f5;
+  --color-surface: rgba(255, 255, 255, 0.75);
+  --color-surface-hover: rgba(255, 255, 255, 0.95);
+  --color-text-primary: #0f1923;
+  --color-text-secondary: #525f6e;
+  --color-text-on-surface: #0f1923;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-glass-shadow: rgba(0, 0, 0, 0.06);
+}
+
+/* ===== Theme: Midnight (deep purple) ===== */
+.theme-midnight {
+  --color-background: #0d0b1a;
+  --color-surface: rgba(20, 15, 40, 0.7);
+  --color-surface-hover: rgba(35, 25, 60, 0.8);
+  --color-text-primary: #e0d8f0;
+  --color-text-secondary: #7b6f9e;
+  --color-text-on-surface: #ffffff;
+  --color-border: rgba(140, 100, 255, 0.08);
+  --color-glass-shadow: rgba(80, 40, 180, 0.15);
+}
+
+/* ===== Theme: Crimson (dark red/blood) ===== */
+.theme-crimson {
+  --color-background: #120808;
+  --color-surface: rgba(30, 10, 10, 0.7);
+  --color-surface-hover: rgba(50, 15, 15, 0.8);
+  --color-text-primary: #f0e0e0;
+  --color-text-secondary: #a07070;
+  --color-text-on-surface: #ffffff;
+  --color-border: rgba(255, 70, 85, 0.08);
+  --color-glass-shadow: rgba(180, 30, 30, 0.15);
+}
+
+/* ===== Theme: Ocean (deep teal) ===== */
+.theme-ocean {
+  --color-background: #071014;
+  --color-surface: rgba(10, 25, 35, 0.7);
+  --color-surface-hover: rgba(15, 40, 55, 0.8);
+  --color-text-primary: #d8ece8;
+  --color-text-secondary: #6a9e94;
+  --color-text-on-surface: #ffffff;
+  --color-border: rgba(50, 200, 180, 0.08);
+  --color-glass-shadow: rgba(20, 100, 120, 0.15);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(255, 70, 85, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, var(--color-surface) 0px, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: var(--color-surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 8px 32px 0 var(--color-glass-shadow);
+  }
+}
