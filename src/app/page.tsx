@@ -138,6 +138,57 @@ function BannerCatalogModal({ isOpen, onClose, onSelect }: { isOpen: boolean; on
 function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, p, canEditProfile }: any) {
   const [settingsTab, setSettingsTab] = useState("features");
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Draft State
+  const [draftSmartRating, setDraftSmartRating] = useState(smartRating);
+  const [draftTheme, setDraftTheme] = useState(theme);
+  const [draftBannerUrl, setDraftBannerUrl] = useState(bannerUrl);
+  const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
+
+  // Preview theme live
+  useEffect(() => {
+    document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
+    if (draftTheme !== 'dark') document.body.classList.add(`theme-${draftTheme}`);
+    
+    // Cleanup on unmount (restore original theme if not saved)
+    return () => {
+      document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
+      if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
+    };
+  }, [draftTheme, theme]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smartRating: draftSmartRating,
+          theme: draftTheme,
+          bannerUrl: draftBannerUrl,
+          bannerOffsetY: draftBannerOffsetY
+        })
+      });
+      if (res.ok) {
+        setSmartRating(draftSmartRating);
+        setTheme(draftTheme);
+        setBannerUrl(draftBannerUrl);
+        setBannerOffsetY(draftBannerOffsetY);
+        onClose();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reverts to original theme automatically via useEffect cleanup
+    onClose();
+  };
   
   // Default banners
   const banners = [
@@ -176,9 +227,9 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                   <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Notation Intelligente</h3>
                   <p className="text-sm text-[var(--color-text-secondary)] mt-1">Affiche des indicateurs visuels sur les stats en dessous de la moyenne.</p>
                 </div>
-                <button onClick={() => setSmartRating(!smartRating)}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${smartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
-                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${smartRating ? 'translate-x-7' : 'translate-x-1'}`}></span>
+                <button onClick={() => setDraftSmartRating(!draftSmartRating)}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftSmartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
+                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftSmartRating ? 'translate-x-7' : 'translate-x-1'}`}></span>
                 </button>
               </div>
             </div>
@@ -198,14 +249,14 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                     { id: 'crimson', name: 'Crimson', bg: '#120808', surface: '#1e0a0a', accent: '#ff4655' },
                     { id: 'ocean', name: 'Océan', bg: '#071014', surface: '#0a1923', accent: '#32c8b4' },
                   ].map(t => (
-                    <button key={t.id} onClick={() => setTheme(t.id)}
-                      className={`relative rounded-xl p-3 flex flex-col items-center gap-2 border-2 transition-all duration-300 cursor-pointer ${theme === t.id ? 'border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105' : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'}`}>
+                    <button key={t.id} onClick={() => setDraftTheme(t.id)}
+                      className={`relative rounded-xl p-3 flex flex-col items-center gap-2 border-2 transition-all duration-300 cursor-pointer ${draftTheme === t.id ? 'border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105' : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'}`}>
                       <div className="w-full aspect-[4/3] rounded-lg overflow-hidden flex flex-col" style={{ backgroundColor: t.bg }}>
                         <div className="flex-1"></div>
                         <div className="h-[40%] rounded-t-md mx-1" style={{ backgroundColor: t.surface, border: `1px solid ${t.accent}20` }}></div>
                       </div>
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-primary)]">{t.name}</span>
-                      {theme === t.id && <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-val-red)] rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+                      {draftTheme === t.id && <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-val-red)] rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
                     </button>
                   ))}
                 </div>
@@ -229,8 +280,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                   <>
                     <div className="flex gap-4 mb-6 flex-wrap">
                       {banners.map((b, i) => b.url && (
-                        <button key={i} onClick={() => setBannerUrl(b.url)}
-                          className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all ${bannerUrl === b.url || (!bannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
+                        <button key={i} onClick={() => setDraftBannerUrl(b.url)}
+                          className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all ${draftBannerUrl === b.url || (!draftBannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
                           <img src={b.url} alt={b.name} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                             <span className="text-white text-xs font-bold">{b.name}</span>
@@ -250,12 +301,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                     <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4 max-w-xl">
                       <div className="flex items-center justify-between">
                         <label className="font-bold text-sm text-[var(--color-text-primary)]">Cadrage vertical (Hauteur)</label>
-                        <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{bannerOffsetY}%</span>
+                        <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{draftBannerOffsetY}%</span>
                       </div>
 
                       {/* Visualiseur de cadre en temps réel */}
                       <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
-                        <img src={bannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${bannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
+                        <img src={draftBannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
                         <div className="absolute inset-0 bg-black/40"></div>
                         <div className="relative z-10 p-3 flex items-center justify-between h-full">
                           <div className="flex items-center gap-2">
@@ -268,12 +319,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                         </div>
                       </div>
 
-                      <input type="range" min="0" max="100" value={bannerOffsetY} onChange={e => setBannerOffsetY(Number(e.target.value))}
+                      <input type="range" min="0" max="100" value={draftBannerOffsetY} onChange={e => setDraftBannerOffsetY(Number(e.target.value))}
                         className="w-full accent-[var(--color-val-red)] cursor-pointer h-2 bg-[var(--color-surface)] rounded-lg appearance-none" />
                       <p className="text-[11px] text-[var(--color-text-secondary)]">Glissez le curseur pour voir l&apos;image s&apos;ajuster en temps réel dans le cadre ci-dessus.</p>
                     </div>
                     
-                    <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setBannerUrl(url)} />
+                    <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setDraftBannerUrl(url)} />
                   </>
                 )}
               </div>
@@ -286,6 +337,20 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">Application de suivi de performances pour Valorant. Utilise l'API officielle de Riot Games.</p>
              </div>
            )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-[var(--color-border)]">
+            <button onClick={handleCancel} disabled={loading}
+              className="px-6 py-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold rounded-xl transition-all border border-[var(--color-border)] disabled:opacity-50">
+              Annuler
+            </button>
+            <button onClick={handleSave} disabled={loading}
+              className="px-6 py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center gap-2">
+              {loading ? (
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Enregistrement...</>
+              ) : 'Sauvegarder'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -406,12 +471,10 @@ function HomeContent() {
       if (!user.onboardingDone && !isSimulatedNewUser) {
         router.replace('/onboarding');
       } else {
-        const savedSettings = localStorage.getItem(storageKey);
-        if (savedSettings) {
-          try { const s = JSON.parse(savedSettings); if (s.theme) setTheme(s.theme); } catch {}
-        } else if (user.theme) {
-          setTheme(user.theme);
-        }
+        if (user.theme) setTheme(user.theme);
+        if (user.smartRating !== undefined) setSmartRating(user.smartRating);
+        if (user.bannerUrl !== undefined) setBannerUrl(user.bannerUrl || '');
+        if (user.bannerOffsetY !== undefined) setBannerOffsetY(user.bannerOffsetY ?? 50);
 
         if (!playerData && !loading) {
           let initialRiotId = user.riotId;
@@ -511,53 +574,11 @@ function HomeContent() {
     };
   }, [playerData?.player?.stats, gameMode, selectedSeason, filteredMatches]);
 
-  // Load viewer settings on mount (theme, smartRating)
+  // Apply theme to body on change
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const s = JSON.parse(saved);
-        if (s.smartRating !== undefined) setSmartRating(s.smartRating);
-        if (s.theme) setTheme(s.theme);
-      } catch (e) {}
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Load banner settings when profile changes (banner belongs to the profile, not the viewer)
-  useEffect(() => {
-    const profileName = playerData?.player?.gameName;
-    if (profileName) {
-      const bannerKey = `val-banner-${profileName}`;
-      const saved = localStorage.getItem(bannerKey);
-      if (saved) {
-        try {
-          const s = JSON.parse(saved);
-          if (s.bannerUrl !== undefined) setBannerUrl(s.bannerUrl);
-          if (s.bannerOffsetY !== undefined) setBannerOffsetY(s.bannerOffsetY);
-        } catch {}
-      } else {
-        setBannerUrl('');
-        setBannerOffsetY(50);
-      }
-    }
-  }, [playerData?.player?.gameName]);
-
-  // Save viewer settings on change
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify({ smartRating, theme }));
     document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
     if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
-  }, [smartRating, theme, storageKey]);
-
-  // Save banner settings when changed (keyed by profile name)
-  useEffect(() => {
-    const profileName = playerData?.player?.gameName;
-    if (profileName && canEditProfile) {
-      const bannerKey = `val-banner-${profileName}`;
-      localStorage.setItem(bannerKey, JSON.stringify({ bannerUrl, bannerOffsetY }));
-    }
-  }, [bannerUrl, bannerOffsetY, playerData?.player?.gameName, canEditProfile]);
+  }, [theme]);
 
   useEffect(() => {
     const ep = searchParams?.get('error');

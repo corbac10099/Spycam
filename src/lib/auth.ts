@@ -137,6 +137,9 @@ export const authOptions: NextAuthOptions = {
           token.firstName = dbUser.firstName;
           token.lastName = dbUser.lastName;
           token.riotConnected = dbUser.riotConnected;
+          token.bannerUrl = dbUser.bannerUrl;
+          token.bannerOffsetY = dbUser.bannerOffsetY;
+          token.smartRating = dbUser.smartRating;
         }
       }
       return token;
@@ -151,6 +154,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).firstName = token.firstName;
         (session.user as any).lastName = token.lastName;
         (session.user as any).riotConnected = token.riotConnected;
+        (session.user as any).bannerUrl = token.bannerUrl;
+        (session.user as any).bannerOffsetY = token.bannerOffsetY;
+        (session.user as any).smartRating = token.smartRating;
       }
       return session;
     },
