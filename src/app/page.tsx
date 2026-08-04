@@ -577,11 +577,19 @@ function HomeContent() {
     };
   }, [playerData?.player?.stats, gameMode, selectedSeason, filteredMatches]);
 
-  // Apply theme to body on change
+  // Active theme: profile owner's custom theme from BDD when viewing profile, or viewer's theme
+  const activeTheme = useMemo(() => {
+    if (playerData?.player?.customTheme) {
+      return playerData.player.customTheme;
+    }
+    return theme;
+  }, [playerData?.player?.customTheme, theme]);
+
+  // Apply active theme to body on change
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
-    if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
-  }, [theme]);
+    if (activeTheme !== 'dark') document.body.classList.add(`theme-${activeTheme}`);
+  }, [activeTheme]);
 
   // Set profile banner when playerData changes: use custom banner saved in BDD by profile owner if available
   useEffect(() => {
@@ -732,7 +740,7 @@ function HomeContent() {
           };
           const s = p.stats;
           const w = getWarnings(s);
-          const profileThemeClass = (!canEditProfile && p.gameName === 'Gr4phØ') ? 'theme-crimson' : '';
+          const profileThemeClass = (p.customTheme && p.customTheme !== 'dark') ? `theme-${p.customTheme}` : '';
 
           return (
             <div className={`w-full flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 ${profileThemeClass}`}>

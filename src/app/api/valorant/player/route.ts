@@ -543,6 +543,7 @@ export async function POST(request: Request) {
           rankUrl: "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/20/largeicon.png",
           customBannerUrl: riotTestOwner?.bannerUrl || null,
           customBannerOffsetY: riotTestOwner?.bannerOffsetY ?? null,
+          customTheme: riotTestOwner?.theme || null,
           mainAgent: mockData.mainAgent,
           stats: mockData.stats,
           agentStats: mockData.agentStats,
@@ -637,25 +638,34 @@ export async function POST(request: Request) {
 
     const mockData = realParsedData || generateMockData();
 
-    // Look up profile owner custom banner settings from Prisma database
-    let customOwnerSettings = null;
+    // Look up profile owner custom banner and theme settings from Prisma database
+    let customOwnerSettings: any = null;
     try {
+      let knownEmail = null;
+      if (gameName.toLowerCase() === 'gr4phø') {
+        knownEmail = 'laffont.romain64@gmail.com';
+      } else if (gameName.toLowerCase() === 'riot_test') {
+        knownEmail = 'spycam_riot_temp@gmail.com';
+      }
+
       const owner = await (prisma.user as any).findFirst({
         where: {
           OR: [
+            knownEmail ? { email: knownEmail } : undefined,
             { riotGameName: { equals: gameName, mode: 'insensitive' } },
             { email: { startsWith: gameName.toLowerCase() } }
-          ]
+          ].filter(Boolean)
         }
       });
       if (owner) {
         customOwnerSettings = {
           bannerUrl: owner.bannerUrl,
           bannerOffsetY: owner.bannerOffsetY,
+          theme: owner.theme,
         };
       }
     } catch (e) {
-      console.warn('Could not fetch owner custom banner:', e);
+      console.warn('Could not fetch owner custom settings:', e);
     }
 
     return NextResponse.json({
@@ -670,6 +680,7 @@ export async function POST(request: Request) {
         rankUrl: realAccount?.rankUrl || "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/19/largeicon.png",
         customBannerUrl: customOwnerSettings?.bannerUrl || null,
         customBannerOffsetY: customOwnerSettings?.bannerOffsetY ?? null,
+        customTheme: customOwnerSettings?.theme || null,
         mainAgent: mockData.mainAgent,
         stats: mockData.stats,
         agentStats: mockData.agentStats,
