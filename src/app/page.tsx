@@ -554,6 +554,7 @@ function HomeContent() {
     (playerData?.player?.puuid?.startsWith('debug-')) || 
     (session?.user?.email === 'laffont.romain64@gmail.com' && playerData?.player?.gameName === 'Gr4phØ') ||
     (session?.user?.email === 'spycam_riot_temp@gmail.com' && playerData?.player?.gameName?.toLowerCase() === 'riot_test') ||
+    (session?.user?.email === 'romain.lft64@gmail.com' && playerData?.player?.gameName?.toLowerCase() === 'biflette64') ||
     ((session?.user as any)?.riotPuuid && (session?.user as any)?.riotPuuid === playerData?.player?.puuid)
   );
 
@@ -579,6 +580,8 @@ function HomeContent() {
              initialRiotId = 'Gr4phØ#0001';
            } else if (!isSimulatedNewUser && user.email === 'spycam_riot_temp@gmail.com') {
              initialRiotId = 'riot_test#TEST';
+           } else if (!isSimulatedNewUser && user.email === 'romain.lft64@gmail.com') {
+             initialRiotId = 'biflette64#1294';
            }
            
            if (initialRiotId) setMyRiotId(initialRiotId);

@@ -574,6 +574,7 @@ export async function POST(request: Request) {
         'gr4ph0': 'laffont.romain64@gmail.com',
         'riot_test': 'spycam_riot_temp@gmail.com',
         'riot': 'spycam_riot_temp@gmail.com',
+        'biflette64': 'romain.lft64@gmail.com',
       };
       const cleanNameForPrivacy = gameName.toLowerCase().replace('#', '').trim();
       const privacyEmail = emailMap[cleanNameForPrivacy] || emailMap[gameName.toLowerCase()];
@@ -695,6 +696,7 @@ export async function POST(request: Request) {
         'gr4ph0': 'laffont.romain64@gmail.com',
         'riot_test': 'spycam_riot_temp@gmail.com',
         'riot': 'spycam_riot_temp@gmail.com',
+        'biflette64': 'romain.lft64@gmail.com',
       };
       const cleanName = gameName.toLowerCase().replace('#', '').trim();
       const knownEmail = emailMap[cleanName] || emailMap[gameName.toLowerCase()];
