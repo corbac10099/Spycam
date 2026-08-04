@@ -731,7 +731,19 @@ function HomeContent() {
         />
       ) : (
         <div className="flex-1 flex flex-col items-center px-8 z-10 w-full max-w-6xl mx-auto">
-        {error && <div className="bg-red-500/20 border border-red-500 text-red-200 px-6 py-3 rounded-lg mb-6 text-center max-w-lg">{error}</div>}
+        {error && (
+          error.includes('privé') ? (
+            <div className="glass-panel rounded-2xl p-10 flex flex-col items-center text-center max-w-lg mb-6 animate-in fade-in duration-500">
+              <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff4655" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <h3 className="text-xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-2">Profil Privé</h3>
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{error}</p>
+            </div>
+          ) : (
+            <div className="bg-red-500/20 border border-red-500 text-red-200 px-6 py-3 rounded-lg mb-6 text-center max-w-lg">{error}</div>
+          )
+        )}
         {loading && <div className="text-[var(--color-text-secondary)] animate-pulse mt-10 text-xl font-bold tracking-widest uppercase">Chargement...</div>}
 
         {!playerData && !loading && (

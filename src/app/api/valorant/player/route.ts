@@ -567,6 +567,37 @@ export async function POST(request: Request) {
     let realAccount: any = null;
     let realParsedData: any = null;
 
+    // === PRIVACY CHECK: block access to private profiles BEFORE calling external APIs ===
+    try {
+      const emailMap: Record<string, string> = {
+        'gr4phø': 'laffont.romain64@gmail.com',
+        'gr4ph0': 'laffont.romain64@gmail.com',
+        'riot_test': 'spycam_riot_temp@gmail.com',
+        'riot': 'spycam_riot_temp@gmail.com',
+      };
+      const cleanNameForPrivacy = gameName.toLowerCase().replace('#', '').trim();
+      const privacyEmail = emailMap[cleanNameForPrivacy] || emailMap[gameName.toLowerCase()];
+      
+      if (privacyEmail) {
+        const privacyOwner = await prisma.user.findUnique({ where: { email: privacyEmail } });
+        console.log('[PRIVACY] Owner found:', privacyOwner?.email, 'isPublic:', (privacyOwner as any)?.isPublic);
+        
+        if (privacyOwner && (privacyOwner as any).isPublic === false) {
+          const session = await getServerSession(authOptions);
+          const callerEmail = session?.user?.email;
+          console.log('[PRIVACY] Profile is PRIVATE. Caller email:', callerEmail);
+          
+          if (!callerEmail || callerEmail.toLowerCase() !== privacyEmail.toLowerCase()) {
+            return NextResponse.json({ 
+              error: "Ce profil est privé. Le propriétaire a restreint l'accès à ses statistiques." 
+            }, { status: 403 });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[PRIVACY] Error checking privacy:', e);
+    }
+
     const headers: Record<string, string> = {};
     if (HENRIK_API_KEY && HENRIK_API_KEY !== 'votre_cle_henrikdev_ici') {
       headers['Authorization'] = HENRIK_API_KEY;
