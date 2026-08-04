@@ -459,7 +459,7 @@ function HomeContent() {
   const canEditProfile = !isSimulatedNewUser && (
     (playerData?.player?.puuid?.startsWith('debug-')) || 
     (session?.user?.email === 'laffont.romain64@gmail.com' && playerData?.player?.gameName === 'Gr4phØ') ||
-    (session?.user?.email === 'spycam_riot_temp@gmail.com') ||
+    (session?.user?.email === 'spycam_riot_temp@gmail.com' && playerData?.player?.gameName?.toLowerCase() === 'riot_test') ||
     ((session?.user as any)?.riotPuuid && (session?.user as any)?.riotPuuid === playerData?.player?.puuid)
   );
 

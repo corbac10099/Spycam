@@ -521,13 +521,8 @@ export async function POST(request: Request) {
       const mockData = generateMockData();
       let riotTestOwner = null;
       try {
-        riotTestOwner = await (prisma.user as any).findFirst({
-          where: {
-            OR: [
-              { email: 'spycam_riot_temp@gmail.com' },
-              { riotGameName: 'riot_test' }
-            ]
-          }
+        riotTestOwner = await prisma.user.findUnique({
+          where: { email: 'spycam_riot_temp@gmail.com' }
         });
       } catch (e) {}
 
@@ -641,22 +636,27 @@ export async function POST(request: Request) {
     // Look up profile owner custom banner and theme settings from Prisma database
     let customOwnerSettings: any = null;
     try {
-      let knownEmail = null;
-      if (gameName.toLowerCase() === 'gr4phø') {
-        knownEmail = 'laffont.romain64@gmail.com';
-      } else if (gameName.toLowerCase() === 'riot_test') {
-        knownEmail = 'spycam_riot_temp@gmail.com';
+      // Known email mappings for profile owners
+      const emailMap: Record<string, string> = {
+        'gr4phø': 'laffont.romain64@gmail.com',
+        'riot_test': 'spycam_riot_temp@gmail.com',
+      };
+      const knownEmail = emailMap[gameName.toLowerCase()];
+
+      let owner = null;
+      // First: try by known email (reliable, uses a known Prisma field)
+      if (knownEmail) {
+        owner = await prisma.user.findUnique({ where: { email: knownEmail } });
+      }
+      // Fallback: try by riotGameName field
+      if (!owner) {
+        try {
+          owner = await (prisma.user as any).findFirst({
+            where: { riotGameName: { equals: gameName, mode: 'insensitive' } }
+          });
+        } catch (e) { /* riotGameName field may not exist in cached client */ }
       }
 
-      const owner = await (prisma.user as any).findFirst({
-        where: {
-          OR: [
-            knownEmail ? { email: knownEmail } : undefined,
-            { riotGameName: { equals: gameName, mode: 'insensitive' } },
-            { email: { startsWith: gameName.toLowerCase() } }
-          ].filter(Boolean)
-        }
-      });
       if (owner) {
         customOwnerSettings = {
           bannerUrl: owner.bannerUrl,
