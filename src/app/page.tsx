@@ -752,59 +752,62 @@ function HomeContent() {
       <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-val-red)] opacity-10 blur-[120px] rounded-full pointer-events-none"></div>
       <DebugPanel isOpen={debugOpen} onClose={() => setDebugOpen(false)} onGenerate={handleDebugGenerate} />
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 w-full z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] backdrop-blur-md sticky top-0 mb-8">
-        <div className="flex-1">
-          <div className="w-12 h-12 bg-[var(--color-val-red)] rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer"
-            onDoubleClick={() => setDebugOpen(true)}>V</div>
-        </div>
-        <div className="flex-[2] flex justify-center items-center gap-2">
-          {/* Home button */}
-          {myRiotId && (
-            <button onClick={goHome} title="Retour à mon profil"
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-            </button>
-          )}
-          <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center">
-            <input type="text" placeholder="Rechercher Pseudo#Tag" value={riotId} onChange={(e) => setRiotId(e.target.value)}
-              onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
-              className={`bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-6 py-3 rounded-full outline-none transition-all duration-500 ease-in-out ${isFocused ? 'w-full shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'w-64'}`} required />
-            <button type="submit" className="hidden"></button>
-          </form>
-        </div>
-        <div className="flex-1 flex justify-end gap-3 items-center">
-          {session?.user && (
-            <span className="text-sm text-[var(--color-text-secondary)] hidden sm:block mr-1">
-              {(session.user as any).firstName || session.user.name || session.user.email}
-            </span>
-          )}
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-4 py-2 rounded-full items-center text-sm gap-2 border border-[var(--color-border)]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Déconnexion
-          </button>
-          <button onClick={() => setSettingsOpen(!settingsOpen)} className={`w-10 h-10 rounded-full transition-colors flex items-center justify-center border ${settingsOpen ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]'}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </header>
-
-      {/* Favorites bar */}
-      {favorites.length > 0 && !settingsOpen && (
-        <div className="w-full px-6 py-2 flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]/50 backdrop-blur-sm overflow-x-auto z-10">
-          <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">Favoris</span>
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {favorites.map(fav => (
-              <button key={fav.riotId} onClick={() => searchPlayer(fav.riotId)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 text-xs font-bold border flex-shrink-0 ${playerData?.player?.gameName === fav.gameName ? 'bg-[var(--color-val-red)]/15 border-[var(--color-val-red)]/40 text-[var(--color-val-red)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
-                {fav.cardUrl && <img src={fav.cardUrl} alt="" className="w-5 h-5 rounded-full object-cover" />}
-                <span>{fav.gameName}</span>
-                <span className="text-[var(--color-text-secondary)] opacity-50">#{fav.tagLine}</span>
+      {/* Header Container */}
+      <header className="w-full z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] backdrop-blur-md sticky top-0 mb-8 flex flex-col">
+        {/* Top Navbar */}
+        <div className="flex items-center justify-between px-6 py-4 w-full">
+          <div className="flex-1">
+            <div className="w-12 h-12 bg-[var(--color-val-red)] rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer"
+              onDoubleClick={() => setDebugOpen(true)}>V</div>
+          </div>
+          <div className="flex-[2] flex justify-center items-center gap-2">
+            {/* Home button */}
+            {myRiotId && (
+              <button onClick={goHome} title="Retour à mon profil"
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
               </button>
-            ))}
+            )}
+            <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center">
+              <input type="text" placeholder="Rechercher Pseudo#Tag" value={riotId} onChange={(e) => setRiotId(e.target.value)}
+                onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
+                className={`bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-6 py-3 rounded-full outline-none transition-all duration-500 ease-in-out ${isFocused ? 'w-full shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'w-64'}`} required />
+              <button type="submit" className="hidden"></button>
+            </form>
+          </div>
+          <div className="flex-1 flex justify-end gap-3 items-center">
+            {session?.user && (
+              <span className="text-sm text-[var(--color-text-secondary)] hidden sm:block mr-1">
+                {(session.user as any).firstName || session.user.name || session.user.email}
+              </span>
+            )}
+            <button onClick={() => signOut({ callbackUrl: '/login' })} className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-4 py-2 rounded-full items-center text-sm gap-2 border border-[var(--color-border)]">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Déconnexion
+            </button>
+            <button onClick={() => setSettingsOpen(!settingsOpen)} className={`w-10 h-10 rounded-full transition-colors flex items-center justify-center border ${settingsOpen ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
           </div>
         </div>
-      )}
+        
+        {/* Favorites bar - Attached to header like Chrome Bookmarks */}
+        {favorites.length > 0 && !settingsOpen && (
+          <div className="w-full px-6 py-2 flex items-center gap-2 border-t border-[var(--color-border)]/50 bg-[var(--color-background)]/50 overflow-x-auto">
+            <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">Favoris</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {favorites.map(fav => (
+                <button key={fav.riotId} onClick={() => searchPlayer(fav.riotId)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 text-xs font-bold border flex-shrink-0 ${playerData?.player?.gameName === fav.gameName ? 'bg-[var(--color-val-red)]/15 border-[var(--color-val-red)]/40 text-[var(--color-val-red)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
+                  {fav.cardUrl && <img src={fav.cardUrl} alt="" className="w-5 h-5 rounded-full object-cover" />}
+                  <span>{fav.gameName}</span>
+                  <span className="text-[var(--color-text-secondary)] opacity-50">#{fav.tagLine}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </header>
 
       {settingsOpen ? (
         <SettingsView 
