@@ -18,6 +18,8 @@ model User {
   bannerUrl       String?
   bannerOffsetY   Int       @default(50)
   smartRating     Boolean   @default(true)
+  isPublic        Boolean   @default(true)
+  riotGameName    String?
   riotConnected   Boolean   @default(false)
   riotPuuid       String?
   onboardingDone  Boolean   @default(false)

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
@@ -533,6 +535,13 @@ export async function POST(request: Request) {
           where: { email: 'spycam_riot_temp@gmail.com' }
         });
       } catch (e) {}
+      if (riotTestOwner && (riotTestOwner as any).isPublic === false) {
+        const session = await getServerSession(authOptions);
+        const callerEmail = session?.user?.email;
+        if (!callerEmail || callerEmail.toLowerCase() !== 'spycam_riot_temp@gmail.com') {
+          return NextResponse.json({ error: "Ce profil est privé. Le propriétaire a restreint l'accès à ses statistiques." }, { status: 403 });
+        }
+      }
 
       return NextResponse.json({
         player: {
@@ -669,6 +678,14 @@ export async function POST(request: Request) {
       }
 
       if (owner) {
+        if ((owner as any).isPublic === false) {
+          const session = await getServerSession(authOptions);
+          const callerEmail = session?.user?.email;
+          if (!callerEmail || callerEmail.toLowerCase() !== owner.email.toLowerCase()) {
+            return NextResponse.json({ error: "Ce profil est privé. Le propriétaire a restreint l'accès à ses statistiques." }, { status: 403 });
+          }
+        }
+
         customOwnerSettings = {
           bannerUrl: owner.bannerUrl,
           bannerOffsetY: owner.bannerOffsetY,

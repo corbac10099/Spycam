@@ -15,13 +15,14 @@ export async function PUT(req: Request) {
     const body = await req.json();
 
     // Extraire uniquement les champs autorisés
-    const { theme, bannerUrl, bannerOffsetY, smartRating } = body;
+    const { theme, bannerUrl, bannerOffsetY, smartRating, isPublic } = body;
     const updateData: any = {};
 
     if (theme !== undefined) updateData.theme = theme;
     if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
     if (bannerOffsetY !== undefined) updateData.bannerOffsetY = bannerOffsetY;
     if (smartRating !== undefined) updateData.smartRating = smartRating;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
 
     // S'il n'y a rien à mettre à jour
     if (Object.keys(updateData).length === 0) {

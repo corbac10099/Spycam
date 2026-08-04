@@ -135,7 +135,7 @@ function BannerCatalogModal({ isOpen, onClose, onSelect }: { isOpen: boolean; on
 }
 
 // ==================== Settings View ====================
-function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, p, canEditProfile }: any) {
+function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, isPublic, setIsPublic, p, canEditProfile }: any) {
   const [settingsTab, setSettingsTab] = useState("features");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -145,6 +145,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   const [draftTheme, setDraftTheme] = useState(theme);
   const [draftBannerUrl, setDraftBannerUrl] = useState(bannerUrl);
   const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
+  const [draftIsPublic, setDraftIsPublic] = useState(isPublic ?? true);
 
   // Preview theme live
   useEffect(() => {
@@ -168,7 +169,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
           smartRating: draftSmartRating,
           theme: draftTheme,
           bannerUrl: draftBannerUrl,
-          bannerOffsetY: draftBannerOffsetY
+          bannerOffsetY: draftBannerOffsetY,
+          isPublic: draftIsPublic
         })
       });
       if (res.ok) {
@@ -176,6 +178,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
         setTheme(draftTheme);
         setBannerUrl(draftBannerUrl);
         setBannerOffsetY(draftBannerOffsetY);
+        if (setIsPublic) setIsPublic(draftIsPublic);
         onClose();
       }
     } catch (e) {
@@ -210,7 +213,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex flex-col gap-2">
-          {[{id:'features', label:'Fonctionnalités'}, {id:'appearance', label:'Apparence'}, {id:'about', label:'À propos'}].map(tab => (
+          {[{id:'features', label:'Fonctionnalités'}, {id:'privacy', label:'Confidentialité'}, {id:'appearance', label:'Apparence'}, {id:'about', label:'À propos'}].map(tab => (
             <button key={tab.id} onClick={() => setSettingsTab(tab.id)}
               className={`text-left px-5 py-4 rounded-xl font-bold uppercase tracking-wider text-sm transition-all ${settingsTab === tab.id ? 'bg-[var(--color-surface-hover)] border-l-4 border-[var(--color-val-red)] text-[var(--color-text-primary)] shadow-md' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'}`}>
               {tab.label}
@@ -230,6 +233,41 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                 <button onClick={() => setDraftSmartRating(!draftSmartRating)}
                   className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftSmartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
                   <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftSmartRating ? 'translate-x-7' : 'translate-x-1'}`}></span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {settingsTab === 'privacy' && (
+            <div className="glass-panel rounded-2xl p-8 space-y-6">
+              <div>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Confidentialité du profil</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mt-1">Gérez la visibilité de votre profil et de vos statistiques par les autres utilisateurs.</p>
+              </div>
+
+              <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl ${draftIsPublic ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                    {draftIsPublic ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-base text-[var(--color-text-primary)]">
+                      {draftIsPublic ? 'Profil Public' : 'Profil Privé'}
+                    </h4>
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-md">
+                      {draftIsPublic 
+                        ? 'Votre profil et vos statistiques sont visibles par n\'importe quel utilisateur qui recherche votre nom.' 
+                        : 'Seul vous pouvez consulter vos statistiques lorsque vous êtes connecté. Les autres utilisateurs verront un message indiquant que votre profil est privé.'}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setDraftIsPublic(!draftIsPublic)}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${draftIsPublic ? 'bg-green-500' : 'bg-gray-600'}`}>
+                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftIsPublic ? 'translate-x-7' : 'translate-x-1'}`}></span>
                 </button>
               </div>
             </div>
@@ -441,6 +479,7 @@ function HomeContent() {
   const [theme, setTheme] = useState('dark');
   const [bannerUrl, setBannerUrl] = useState('');
   const [bannerOffsetY, setBannerOffsetY] = useState(50);
+  const [isPublic, setIsPublic] = useState(true);
 
   const storageKey = isSimulatedNewUser ? 'val-tracker-settings-sim' : 'val-tracker-settings';
 
@@ -464,6 +503,7 @@ function HomeContent() {
         if (user.smartRating !== undefined) setSmartRating(user.smartRating);
         if (user.bannerUrl !== undefined) setBannerUrl(user.bannerUrl || '');
         if (user.bannerOffsetY !== undefined) setBannerOffsetY(user.bannerOffsetY ?? 50);
+        if (user.isPublic !== undefined) setIsPublic(user.isPublic);
 
         if (!playerData && !loading) {
           let initialRiotId = user.riotId;
@@ -684,6 +724,8 @@ function HomeContent() {
           setBannerUrl={setBannerUrl} 
           bannerOffsetY={bannerOffsetY} 
           setBannerOffsetY={setBannerOffsetY} 
+          isPublic={isPublic}
+          setIsPublic={setIsPublic}
           p={playerData?.player} 
           canEditProfile={canEditProfile}
         />

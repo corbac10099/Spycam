@@ -21,7 +21,7 @@ export const authOptions: NextAuthOptions = {
           const hashedPassword = await bcrypt.hash('8fb0518f-23af-4755-a994-ef21cd161b25', 10);
           const demoUser = await prisma.user.upsert({
             where: { email: 'spycam_riot_temp@gmail.com' },
-            update: { onboardingDone: true },
+            update: { onboardingDone: true, riotGameName: 'riot_test' },
             create: {
               email: 'spycam_riot_temp@gmail.com',
               password: hashedPassword,
@@ -30,6 +30,7 @@ export const authOptions: NextAuthOptions = {
               onboardingDone: true,
               theme: 'dark',
               language: 'fr',
+              riotGameName: 'riot_test',
             },
           });
           return {
@@ -163,6 +164,18 @@ export const authOptions: NextAuthOptions = {
           token.bannerUrl = dbUser.bannerUrl;
           token.bannerOffsetY = dbUser.bannerOffsetY;
           token.smartRating = dbUser.smartRating;
+          token.isPublic = (dbUser as any).isPublic ?? true;
+
+          // Auto-set riotGameName for known users
+          if (!dbUser.riotGameName) {
+            const gameNameMap: Record<string, string> = {
+              'laffont.romain64@gmail.com': 'Gr4phØ',
+            };
+            const mappedName = gameNameMap[dbUser.email];
+            if (mappedName) {
+              await prisma.user.update({ where: { id: dbUser.id }, data: { riotGameName: mappedName } });
+            }
+          }
         }
       }
       return token;
@@ -180,6 +193,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).bannerUrl = token.bannerUrl;
         (session.user as any).bannerOffsetY = token.bannerOffsetY;
         (session.user as any).smartRating = token.smartRating;
+        (session.user as any).isPublic = token.isPublic ?? true;
       }
       return session;
     },
