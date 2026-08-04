@@ -521,7 +521,7 @@ export async function POST(request: Request) {
       const mockData = generateMockData();
       let riotTestOwner = null;
       try {
-        riotTestOwner = await prisma.user.findFirst({
+        riotTestOwner = await (prisma.user as any).findFirst({
           where: {
             OR: [
               { email: 'spycam_riot_temp@gmail.com' },
@@ -640,7 +640,7 @@ export async function POST(request: Request) {
     // Look up profile owner custom banner settings from Prisma database
     let customOwnerSettings = null;
     try {
-      const owner = await prisma.user.findFirst({
+      const owner = await (prisma.user as any).findFirst({
         where: {
           OR: [
             { riotGameName: { equals: gameName, mode: 'insensitive' } },
