@@ -583,6 +583,23 @@ function HomeContent() {
     if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
   }, [theme]);
 
+  // Reset banner when profile changes: only apply saved banner on own profile
+  useEffect(() => {
+    if (!playerData) return;
+    const user = session?.user as any;
+    const isOwnProfile = canEditProfile;
+    if (isOwnProfile && user) {
+      // Load saved banner from user's DB settings
+      setBannerUrl(user.bannerUrl || '');
+      setBannerOffsetY(user.bannerOffsetY ?? 50);
+    } else {
+      // Viewing someone else's profile: reset to default
+      setBannerUrl('');
+      setBannerOffsetY(50);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerData?.player?.puuid, canEditProfile]);
+
   useEffect(() => {
     const ep = searchParams?.get('error');
     if (ep) setError(ep === 'missing_credentials' ? "Client ID RSO manquant." : ep === 'token_exchange_failed' ? "Échec token Riot." : "Erreur connexion.");
