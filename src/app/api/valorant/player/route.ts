@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
 
@@ -518,6 +519,18 @@ export async function POST(request: Request) {
     // Dedicated simulated account for Riot reviewer testing
     if (gameName.toLowerCase() === 'riot_test') {
       const mockData = generateMockData();
+      let riotTestOwner = null;
+      try {
+        riotTestOwner = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: 'spycam_riot_temp@gmail.com' },
+              { riotGameName: 'riot_test' }
+            ]
+          }
+        });
+      } catch (e) {}
+
       return NextResponse.json({
         player: {
           gameName: "riot_test",
@@ -528,6 +541,8 @@ export async function POST(request: Request) {
           cardUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/displayicon.png",
           cardWideUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
           rankUrl: "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/20/largeicon.png",
+          customBannerUrl: riotTestOwner?.bannerUrl || null,
+          customBannerOffsetY: riotTestOwner?.bannerOffsetY ?? null,
           mainAgent: mockData.mainAgent,
           stats: mockData.stats,
           agentStats: mockData.agentStats,
@@ -622,6 +637,27 @@ export async function POST(request: Request) {
 
     const mockData = realParsedData || generateMockData();
 
+    // Look up profile owner custom banner settings from Prisma database
+    let customOwnerSettings = null;
+    try {
+      const owner = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { riotGameName: { equals: gameName, mode: 'insensitive' } },
+            { email: { startsWith: gameName.toLowerCase() } }
+          ]
+        }
+      });
+      if (owner) {
+        customOwnerSettings = {
+          bannerUrl: owner.bannerUrl,
+          bannerOffsetY: owner.bannerOffsetY,
+        };
+      }
+    } catch (e) {
+      console.warn('Could not fetch owner custom banner:', e);
+    }
+
     return NextResponse.json({
       player: {
         gameName: realAccount?.gameName || gameName,
@@ -632,6 +668,8 @@ export async function POST(request: Request) {
         cardUrl: realAccount?.cardUrl || "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/displayicon.png",
         cardWideUrl: realAccount?.cardWideUrl || "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
         rankUrl: realAccount?.rankUrl || "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/19/largeicon.png",
+        customBannerUrl: customOwnerSettings?.bannerUrl || null,
+        customBannerOffsetY: customOwnerSettings?.bannerOffsetY ?? null,
         mainAgent: mockData.mainAgent,
         stats: mockData.stats,
         agentStats: mockData.agentStats,

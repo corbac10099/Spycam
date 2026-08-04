@@ -583,22 +583,23 @@ function HomeContent() {
     if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
   }, [theme]);
 
-  // Reset banner when profile changes: only apply saved banner on own profile
+  // Set profile banner when playerData changes: use custom banner saved in BDD by profile owner if available
   useEffect(() => {
-    if (!playerData) return;
-    const user = session?.user as any;
-    const isOwnProfile = canEditProfile;
-    if (isOwnProfile && user) {
-      // Load saved banner from user's DB settings
+    if (!playerData?.player) return;
+    const p = playerData.player;
+    if (p.customBannerUrl !== undefined && p.customBannerUrl !== null) {
+      setBannerUrl(p.customBannerUrl);
+      setBannerOffsetY(p.customBannerOffsetY ?? 50);
+    } else if (canEditProfile && session?.user) {
+      const user = session.user as any;
       setBannerUrl(user.bannerUrl || '');
       setBannerOffsetY(user.bannerOffsetY ?? 50);
     } else {
-      // Viewing someone else's profile: reset to default
       setBannerUrl('');
       setBannerOffsetY(50);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerData?.player?.puuid, canEditProfile]);
+  }, [playerData?.player?.gameName, playerData?.player?.customBannerUrl, playerData?.player?.customBannerOffsetY, canEditProfile]);
 
   useEffect(() => {
     const ep = searchParams?.get('error');
