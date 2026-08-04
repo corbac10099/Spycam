@@ -695,9 +695,10 @@ export async function POST(request: Request) {
       console.warn('Erreur HenrikDev API:', e);
     }
 
-    // Si on n'a trouvé aucun compte via l'API, et que ce n'est pas un compte de test autorisé, on retourne une erreur
-    if (!realAccount && !gameName.toLowerCase().startsWith('gr4ph')) {
-      return NextResponse.json({ error: `Le joueur ${gameName}#${tagLine} est introuvable.` }, { status: 404 });
+    // Si on n'a trouvé aucun match via l'API, et que ce n'est pas un compte de test autorisé, on retourne une erreur
+    // On utilise realParsedData plutôt que realAccount car realAccount peut être trouvé par l'API Riot officielle même si le joueur n'a pas joué à Valorant
+    if (!realParsedData && !gameName.toLowerCase().startsWith('gr4ph')) {
+      return NextResponse.json({ error: `Le joueur ${gameName}#${tagLine} est introuvable ou n'a pas de stats Valorant.` }, { status: 404 });
     }
 
     const mockData = realParsedData || generateMockData();
