@@ -1,3 +1,9 @@
+for riot, You can test the application at this link: https://spycam-tan.vercel.app/
+
+If you don't want to sign up, you can enter `spycam_riot_temp@gmail.com` as the email and use the key found in `riot.txt` as the password; you will be logged in as a simulated Valorant user, and you can try searching for the player `Gr4phØ#0001` (that's my Valorant account).
+
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
