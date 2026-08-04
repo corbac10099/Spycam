@@ -514,6 +514,28 @@ export async function POST(request: Request) {
     }
 
     const [gameName, tagLine] = riotId.split('#');
+
+    // Dedicated simulated account for Riot reviewer testing
+    if (gameName.toLowerCase() === 'riot_test') {
+      const mockData = generateMockData();
+      return NextResponse.json({
+        player: {
+          gameName: "riot_test",
+          tagLine: tagLine || "TEST",
+          puuid: "debug-riot-test-puuid",
+          level: 150,
+          rank: "Diamant 3",
+          cardUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/displayicon.png",
+          cardWideUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
+          rankUrl: "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/20/largeicon.png",
+          mainAgent: mockData.mainAgent,
+          stats: mockData.stats,
+          agentStats: mockData.agentStats,
+          matchHistory: mockData.matchHistory,
+        }
+      });
+    }
+
     let realAccount: any = null;
     let realParsedData: any = null;
 
