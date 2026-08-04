@@ -485,18 +485,26 @@ function HomeContent() {
   // Favorites State (stored in localStorage)
   const [favorites, setFavorites] = useState<Array<{riotId: string, gameName: string, tagLine: string, cardUrl: string}>>([]);
 
+  const favoritesKey = session?.user?.email 
+    ? `spycam-favorites-${session.user.email}` 
+    : 'spycam-favorites';
+
   // Load favorites from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('spycam-favorites');
-      if (stored) setFavorites(JSON.parse(stored));
+      const stored = localStorage.getItem(favoritesKey);
+      if (stored) {
+        setFavorites(JSON.parse(stored));
+      } else {
+        setFavorites([]); // Clear favorites if changing to an account with no favorites
+      }
     } catch {}
-  }, []);
+  }, [favoritesKey]);
 
   // Save favorites to localStorage
   const saveFavorites = (newFavs: typeof favorites) => {
     setFavorites(newFavs);
-    try { localStorage.setItem('spycam-favorites', JSON.stringify(newFavs)); } catch {}
+    try { localStorage.setItem(favoritesKey, JSON.stringify(newFavs)); } catch {}
   };
 
   const toggleFavorite = (player: any) => {
