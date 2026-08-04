@@ -268,16 +268,6 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               <div>
                 <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">Personnalisation de la Bannière</h3>
                 
-                {!canEditProfile ? (
-                  <div className="bg-[rgba(255,180,50,0.08)] border border-[rgba(255,180,50,0.25)] rounded-2xl p-6 flex items-center gap-4 text-xs text-[#ffb432] font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    <div>
-                      <p className="font-bold text-sm mb-1">Personnalisation du profil verrouillée</p>
-                      <p className="text-[var(--color-text-secondary)]">La personnalisation du profil est disponible uniquement pour les propriétaire de compte riot et si le compte valorant leur apartient</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
                     <div className="flex gap-4 mb-6 flex-wrap">
                       {banners.map((b, i) => b.url && (
                         <button key={i} onClick={() => setDraftBannerUrl(b.url)}
@@ -325,8 +315,6 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                     </div>
                     
                     <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setDraftBannerUrl(url)} />
-                  </>
-                )}
               </div>
 
             </div>
@@ -577,37 +565,19 @@ function HomeContent() {
     };
   }, [playerData?.player?.stats, gameMode, selectedSeason, filteredMatches]);
 
-  // Active theme: profile owner's custom theme from BDD when viewing profile, or viewer's theme
+  // Active theme: profile owner's custom theme from BDD when viewing someone else's profile, or viewer's theme
   const activeTheme = useMemo(() => {
-    if (playerData?.player?.customTheme) {
+    if (!canEditProfile && playerData?.player?.customTheme) {
       return playerData.player.customTheme;
     }
     return theme;
-  }, [playerData?.player?.customTheme, theme]);
+  }, [playerData?.player?.customTheme, canEditProfile, theme]);
 
   // Apply active theme to body on change
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
     if (activeTheme !== 'dark') document.body.classList.add(`theme-${activeTheme}`);
   }, [activeTheme]);
-
-  // Set profile banner when playerData changes: use custom banner saved in BDD by profile owner if available
-  useEffect(() => {
-    if (!playerData?.player) return;
-    const p = playerData.player;
-    if (p.customBannerUrl !== undefined && p.customBannerUrl !== null) {
-      setBannerUrl(p.customBannerUrl);
-      setBannerOffsetY(p.customBannerOffsetY ?? 50);
-    } else if (canEditProfile && session?.user) {
-      const user = session.user as any;
-      setBannerUrl(user.bannerUrl || '');
-      setBannerOffsetY(user.bannerOffsetY ?? 50);
-    } else {
-      setBannerUrl('');
-      setBannerOffsetY(50);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerData?.player?.gameName, playerData?.player?.customBannerUrl, playerData?.player?.customBannerOffsetY, canEditProfile]);
 
   useEffect(() => {
     const ep = searchParams?.get('error');
@@ -740,14 +710,24 @@ function HomeContent() {
           };
           const s = p.stats;
           const w = getWarnings(s);
-          const profileThemeClass = (p.customTheme && p.customTheme !== 'dark') ? `theme-${p.customTheme}` : '';
+
+          // Banner & theme determination: strictly separate owner settings from viewer settings
+          const profileBannerUrl = canEditProfile 
+            ? (bannerUrl || p.customBannerUrl || p.cardWideUrl)
+            : (p.customBannerUrl || p.cardWideUrl);
+
+          const profileBannerOffsetY = canEditProfile 
+            ? (bannerOffsetY ?? p.customBannerOffsetY ?? 50)
+            : (p.customBannerOffsetY ?? 50);
+
+          const profileThemeClass = (!canEditProfile && p.customTheme && p.customTheme !== 'dark') ? `theme-${p.customTheme}` : '';
 
           return (
             <div className={`w-full flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 ${profileThemeClass}`}>
               {/* ===== Bannière paysage compacte ===== */}
               <div className="w-full relative rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-[0_8px_30px_var(--color-glass-shadow)] bg-[#0a0e13] aspect-[3.8/1] min-h-[140px] max-h-[300px]">
                 {/* Image de fond avec lissage haute qualité et positionnement vertical */}
-                <img src={bannerUrl || p.cardWideUrl} alt="Banner" style={{ objectPosition: `center ${bannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" />
+                <img src={profileBannerUrl} alt="Banner" style={{ objectPosition: `center ${profileBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" />
                 
                 {/* Overlay sombre léger pour la lisibilité globale */}
                 <div className="absolute inset-0 bg-black/40"></div>
