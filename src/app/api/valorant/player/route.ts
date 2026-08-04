@@ -630,6 +630,11 @@ export async function POST(request: Request) {
         `https://api.henrikdev.xyz/valorant/v1/account/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
         { headers }
       );
+      
+      if (henrikRes.status === 429) {
+        return NextResponse.json({ error: "Trop de requêtes vers l'API Valorant. Veuillez patienter un petit peu." }, { status: 429 });
+      }
+      
       if (henrikRes.ok) {
         const hData = await henrikRes.json();
         if (hData.status === 200 && hData.data) {
@@ -648,6 +653,9 @@ export async function POST(request: Request) {
               `https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr/eu/${hData.data.puuid}`,
               { headers }
             );
+            if (mmrRes.status === 429) {
+              return NextResponse.json({ error: "Trop de requêtes vers l'API Valorant. Veuillez patienter un petit peu." }, { status: 429 });
+            }
             if (mmrRes.ok) {
               const mmrData = await mmrRes.json();
               if (mmrData.data?.current_data) {
@@ -665,14 +673,21 @@ export async function POST(request: Request) {
               `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/${hData.data.puuid}?size=50`,
               { headers }
             );
+            if (matchesRes.status === 429) {
+              return NextResponse.json({ error: "Trop de requêtes vers l'API Valorant. Veuillez patienter un petit peu." }, { status: 429 });
+            }
             if (matchesRes.ok) {
               const mData = await matchesRes.json();
               if (mData.data && Array.isArray(mData.data) && mData.data.length > 0) {
                 realParsedData = parseHenrikDevData(realAccount, mData.data);
               }
+            } else {
+              // Si la récupération des matchs échoue (ex: 500), on signale une erreur pour ne pas afficher de fausses stats
+              return NextResponse.json({ error: "Impossible de récupérer l'historique des matchs du joueur." }, { status: matchesRes.status });
             }
           } catch (e) {
             console.warn('Erreur HenrikDev Matches:', e);
+            return NextResponse.json({ error: "Impossible de récupérer l'historique des matchs." }, { status: 500 });
           }
         }
       }
