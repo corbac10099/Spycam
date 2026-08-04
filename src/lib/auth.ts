@@ -57,11 +57,6 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       // For OAuth providers, auto-create the user if they don't exist
       if (account?.provider === 'google' && user.email) {
-        // SUR VERCEL : SQLite est en lecture seule. On passe directement pour ne pas bloquer.
-        if (process.env.VERCEL) {
-          return true;
-        }
-
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email },
         });
@@ -131,28 +126,17 @@ export const authOptions: NextAuthOptions = {
 
       // Always fetch fresh user data
       if (token.email) {
-        if (process.env.VERCEL) {
-          // Mode démo sur Vercel (sans BDD)
-          token.id = 'demo-id';
-          token.onboardingDone = true;
-          token.theme = 'dark';
-          token.language = 'fr';
-          token.firstName = token.name?.split(' ')[0] || 'Riot';
-          token.lastName = 'Games';
-          token.riotConnected = false;
-        } else {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email },
-          });
-          if (dbUser) {
-            token.id = dbUser.id;
-            token.onboardingDone = dbUser.onboardingDone;
-            token.theme = dbUser.theme;
-            token.language = dbUser.language;
-            token.firstName = dbUser.firstName;
-            token.lastName = dbUser.lastName;
-            token.riotConnected = dbUser.riotConnected;
-          }
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+        });
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.onboardingDone = dbUser.onboardingDone;
+          token.theme = dbUser.theme;
+          token.language = dbUser.language;
+          token.firstName = dbUser.firstName;
+          token.lastName = dbUser.lastName;
+          token.riotConnected = dbUser.riotConnected;
         }
       }
       return token;
