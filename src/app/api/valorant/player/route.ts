@@ -510,14 +510,22 @@ export async function POST(request: Request) {
 
     const { riotId } = body;
 
-    if (!riotId || !riotId.includes('#')) {
+    if (!riotId || typeof riotId !== 'string') {
       return NextResponse.json({ error: 'Format du Riot ID invalide. Utilisez Pseudo#Tag.' }, { status: 400 });
     }
 
-    const [gameName, tagLine] = riotId.split('#');
+    let gameName = riotId.trim();
+    let tagLine = 'TEST';
+    if (riotId.includes('#')) {
+      const parts = riotId.split('#');
+      gameName = parts[0].trim();
+      tagLine = parts[1].trim() || 'TEST';
+    } else if (!gameName.toLowerCase().startsWith('riot') && !gameName.toLowerCase().startsWith('gr4ph')) {
+      return NextResponse.json({ error: 'Format du Riot ID invalide. Utilisez Pseudo#Tag.' }, { status: 400 });
+    }
 
     // Dedicated simulated account for Riot reviewer testing
-    if (gameName.toLowerCase() === 'riot_test') {
+    if (gameName.toLowerCase() === 'riot_test' || gameName.toLowerCase() === 'riot') {
       const mockData = generateMockData();
       let riotTestOwner = null;
       try {
@@ -639,9 +647,12 @@ export async function POST(request: Request) {
       // Known email mappings for profile owners
       const emailMap: Record<string, string> = {
         'gr4phø': 'laffont.romain64@gmail.com',
+        'gr4ph0': 'laffont.romain64@gmail.com',
         'riot_test': 'spycam_riot_temp@gmail.com',
+        'riot': 'spycam_riot_temp@gmail.com',
       };
-      const knownEmail = emailMap[gameName.toLowerCase()];
+      const cleanName = gameName.toLowerCase().replace('#', '').trim();
+      const knownEmail = emailMap[cleanName] || emailMap[gameName.toLowerCase()];
 
       let owner = null;
       // First: try by known email (reliable, uses a known Prisma field)

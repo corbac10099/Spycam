@@ -573,11 +573,11 @@ function HomeContent() {
     return theme;
   }, [playerData?.player?.customTheme, canEditProfile, theme]);
 
-  // Apply active theme to body on change
+  // Apply logged-in user's background theme to body ALWAYS
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
-    if (activeTheme !== 'dark') document.body.classList.add(`theme-${activeTheme}`);
-  }, [activeTheme]);
+    if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
+  }, [theme]);
 
   useEffect(() => {
     const ep = searchParams?.get('error');
