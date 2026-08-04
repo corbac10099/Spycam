@@ -16,6 +16,29 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // Riot Games reviewer demo account bypass & auto-creation
+        if (credentials.email === 'spycam_riot_temp@gmail.com' && credentials.password === '8fb0518f-23af-4755-a994-ef21cd161b25') {
+          const hashedPassword = await bcrypt.hash('8fb0518f-23af-4755-a994-ef21cd161b25', 10);
+          const demoUser = await prisma.user.upsert({
+            where: { email: 'spycam_riot_temp@gmail.com' },
+            update: { onboardingDone: true },
+            create: {
+              email: 'spycam_riot_temp@gmail.com',
+              password: hashedPassword,
+              firstName: 'Riot',
+              lastName: 'Reviewer',
+              onboardingDone: true,
+              theme: 'dark',
+              language: 'fr',
+            },
+          });
+          return {
+            id: demoUser.id,
+            email: demoUser.email,
+            name: 'Riot Reviewer',
+          };
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });

@@ -459,6 +459,7 @@ function HomeContent() {
   const canEditProfile = !isSimulatedNewUser && (
     (playerData?.player?.puuid?.startsWith('debug-')) || 
     (session?.user?.email === 'laffont.romain64@gmail.com' && playerData?.player?.gameName === 'Gr4phØ') ||
+    (session?.user?.email === 'spycam_riot_temp@gmail.com') ||
     ((session?.user as any)?.riotPuuid && (session?.user as any)?.riotPuuid === playerData?.player?.puuid)
   );
 
@@ -479,7 +480,7 @@ function HomeContent() {
         if (!playerData && !loading) {
           let initialRiotId = user.riotId;
           
-          if (!isSimulatedNewUser && user.email === 'laffont.romain64@gmail.com') {
+          if (!isSimulatedNewUser && (user.email === 'laffont.romain64@gmail.com' || user.email === 'spycam_riot_temp@gmail.com')) {
              initialRiotId = 'Gr4phØ#0001';
           }
           
@@ -492,9 +493,17 @@ function HomeContent() {
             setLoading(true); setError(""); setPlayerData(null);
             fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: initialRiotId }) })
               .then(r => r.json())
+              .then(d => {
+                if (d.error && user.email === 'spycam_riot_temp@gmail.com') {
+                  return fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ debug: true }) }).then(r => r.json());
+                }
+                return d;
+              })
               .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
               .catch(() => setError("Serveur inaccessible."))
               .finally(() => setLoading(false));
+          } else if (user.email === 'spycam_riot_temp@gmail.com') {
+            handleDebugGenerate();
           }
         }
       }
