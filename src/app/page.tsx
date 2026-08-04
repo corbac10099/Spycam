@@ -453,6 +453,7 @@ function HomeContent() {
   const status = isSimulatedNewUser ? 'authenticated' as const : realStatus;
 
   const [riotId, setRiotId] = useState("");
+  const [myRiotId, setMyRiotId] = useState("");
   const [loading, setLoading] = useState(false);
   const [playerData, setPlayerData] = useState<any>(null);
   const [error, setError] = useState("");
@@ -480,6 +481,64 @@ function HomeContent() {
   const [bannerUrl, setBannerUrl] = useState('');
   const [bannerOffsetY, setBannerOffsetY] = useState(50);
   const [isPublic, setIsPublic] = useState(true);
+
+  // Favorites State (stored in localStorage)
+  const [favorites, setFavorites] = useState<Array<{riotId: string, gameName: string, tagLine: string, cardUrl: string}>>([]);
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('spycam-favorites');
+      if (stored) setFavorites(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  // Save favorites to localStorage
+  const saveFavorites = (newFavs: typeof favorites) => {
+    setFavorites(newFavs);
+    try { localStorage.setItem('spycam-favorites', JSON.stringify(newFavs)); } catch {}
+  };
+
+  const toggleFavorite = (player: any) => {
+    const id = `${player.gameName}#${player.tagLine}`;
+    const exists = favorites.some(f => f.riotId === id);
+    if (exists) {
+      saveFavorites(favorites.filter(f => f.riotId !== id));
+    } else {
+      saveFavorites([...favorites, {
+        riotId: id,
+        gameName: player.gameName,
+        tagLine: player.tagLine,
+        cardUrl: player.cardUrl || ''
+      }]);
+    }
+  };
+
+  const isFavorited = (gameName: string, tagLine: string) => {
+    return favorites.some(f => f.riotId === `${gameName}#${tagLine}`);
+  };
+
+  const goHome = () => {
+    if (myRiotId) {
+      setRiotId(myRiotId);
+      setLoading(true); setError(""); setPlayerData(null);
+      fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: myRiotId }) })
+        .then(r => r.json())
+        .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
+        .catch(() => setError("Serveur inaccessible."))
+        .finally(() => setLoading(false));
+    }
+  };
+
+  const searchPlayer = (searchId: string) => {
+    setRiotId(searchId);
+    setLoading(true); setError(""); setPlayerData(null);
+    fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: searchId }) })
+      .then(r => r.json())
+      .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
+      .catch(() => setError("Serveur inaccessible."))
+      .finally(() => setLoading(false));
+  };
 
   const storageKey = isSimulatedNewUser ? 'val-tracker-settings-sim' : 'val-tracker-settings';
 
@@ -510,9 +569,11 @@ function HomeContent() {
           
           if (!isSimulatedNewUser && user.email === 'laffont.romain64@gmail.com') {
              initialRiotId = 'Gr4phØ#0001';
-          } else if (!isSimulatedNewUser && user.email === 'spycam_riot_temp@gmail.com') {
+           } else if (!isSimulatedNewUser && user.email === 'spycam_riot_temp@gmail.com') {
              initialRiotId = 'riot_test#TEST';
-          }
+           }
+           
+           if (initialRiotId) setMyRiotId(initialRiotId);
           
           if (isSimulatedNewUser) {
              initialRiotId = null; 
@@ -689,7 +750,14 @@ function HomeContent() {
           <div className="w-12 h-12 bg-[var(--color-val-red)] rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer"
             onDoubleClick={() => setDebugOpen(true)}>V</div>
         </div>
-        <div className="flex-[2] flex justify-center">
+        <div className="flex-[2] flex justify-center items-center gap-2">
+          {/* Home button */}
+          {myRiotId && (
+            <button onClick={goHome} title="Retour à mon profil"
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </button>
+          )}
           <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center">
             <input type="text" placeholder="Rechercher Pseudo#Tag" value={riotId} onChange={(e) => setRiotId(e.target.value)}
               onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
@@ -712,6 +780,23 @@ function HomeContent() {
           </button>
         </div>
       </header>
+
+      {/* Favorites bar */}
+      {favorites.length > 0 && !settingsOpen && (
+        <div className="w-full px-6 py-2 flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]/50 backdrop-blur-sm overflow-x-auto z-10">
+          <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">Favoris</span>
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {favorites.map(fav => (
+              <button key={fav.riotId} onClick={() => searchPlayer(fav.riotId)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 text-xs font-bold border flex-shrink-0 ${playerData?.player?.gameName === fav.gameName ? 'bg-[var(--color-val-red)]/15 border-[var(--color-val-red)]/40 text-[var(--color-val-red)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
+                {fav.cardUrl && <img src={fav.cardUrl} alt="" className="w-5 h-5 rounded-full object-cover" />}
+                <span>{fav.gameName}</span>
+                <span className="text-[var(--color-text-secondary)] opacity-50">#{fav.tagLine}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {settingsOpen ? (
         <SettingsView 
@@ -823,13 +908,23 @@ function HomeContent() {
                     </div>
                   </div>
 
-                  {/* Droite : Rang */}
+                  {/* Droite : Rang + Favori */}
                   <div className="flex items-center gap-4 justify-self-end">
                     <div className="flex flex-col items-end" style={{ textShadow: '0px 2px 10px rgba(0,0,0,0.8)' }}>
                       <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">Rang</span>
                       <span className="text-lg font-black text-white uppercase tracking-wider">{p.rank}</span>
                     </div>
                     <img src={p.rankUrl} alt={p.rank} className="w-20 h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
+                    
+                    {/* Favorite button */}
+                    {!canEditProfile && (
+                      <button onClick={() => toggleFavorite(p)} title={isFavorited(p.gameName, p.tagLine) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm border ${isFavorited(p.gameName, p.tagLine) ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-black/30 border-white/10 text-white/50 hover:text-yellow-400 hover:border-yellow-500/30'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={isFavorited(p.gameName, p.tagLine) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                      </button>
+                    )}
                   </div>
                   
                 </div>
