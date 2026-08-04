@@ -679,6 +679,11 @@ export async function POST(request: Request) {
       console.warn('Erreur HenrikDev API:', e);
     }
 
+    // Si on n'a trouvé aucun compte via l'API, et que ce n'est pas un compte de test autorisé, on retourne une erreur
+    if (!realAccount && !gameName.toLowerCase().startsWith('gr4ph')) {
+      return NextResponse.json({ error: `Le joueur ${gameName}#${tagLine} est introuvable.` }, { status: 404 });
+    }
+
     const mockData = realParsedData || generateMockData();
 
     // Look up profile owner custom banner and theme settings from Prisma database
