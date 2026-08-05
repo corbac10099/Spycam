@@ -88,3 +88,8 @@
     box-shadow: 0 8px 32px 0 var(--color-glass-shadow);
   }
 }
+
+/* Invert white mode icons to dark on light theme */
+.theme-light .mode-icon {
+  filter: brightness(0);
+}

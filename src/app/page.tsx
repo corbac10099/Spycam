@@ -753,6 +753,7 @@ function HomeContent() {
 
 
   return (
+    <>
     <main className="flex-1 flex flex-col relative overflow-hidden min-h-screen pb-20">
       <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-val-red)] opacity-10 blur-[120px] rounded-full pointer-events-none"></div>
       <DebugPanel isOpen={debugOpen} onClose={() => setDebugOpen(false)} onGenerate={handleDebugGenerate} />
@@ -1057,7 +1058,7 @@ function HomeContent() {
                             className={`glass-panel rounded-2xl p-4 flex items-center gap-4 transition-all duration-300 border-l-4 cursor-pointer ${match.won ? 'border-l-emerald-500 hover:border-l-emerald-400' : 'border-l-red-500 hover:border-l-red-400'} ${isExpanded ? 'bg-[var(--color-surface-hover)] shadow-lg' : 'hover:bg-[var(--color-surface-hover)]'}`}
                           >
                             {/* Mode Icon */}
-                            {match.modeIcon && <img src={match.modeIcon} alt={match.mode} className="w-8 h-8 opacity-70 drop-shadow-md" title={match.mode} />}
+                            {match.modeIcon && <img src={match.modeIcon} alt={match.mode} className="w-8 h-8 opacity-70 drop-shadow-md mode-icon" title={match.mode} />}
                             
                             <img src={match.agentIcon} alt={match.agent} className="w-12 h-12 rounded-xl border border-[rgba(255,255,255,0.1)] shadow-md" />
                             <div className="flex-1 min-w-0">
@@ -1098,10 +1099,7 @@ function HomeContent() {
                         </button>
                       </div>
                     )}
-                    {/* Legal Disclaimer */}
-                    <div className="w-full text-center px-4 py-8 max-w-4xl mx-auto opacity-40 text-[10px] md:text-xs text-[var(--color-text-secondary)] font-mono uppercase tracking-widest leading-relaxed">
-                      Spycam n'est pas affilié à Riot Games et ne reflète pas les opinions de Riot Games ni de toute personne impliquée dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
-                    </div>
+
                   </div>
                 )}
               </div>
@@ -1111,6 +1109,11 @@ function HomeContent() {
         </div>
       )}
     </main>
+      {/* Legal Disclaimer - Always visible at the very bottom */}
+      <footer className="w-full text-center px-4 py-8 max-w-4xl mx-auto opacity-40 text-[10px] md:text-xs text-[var(--color-text-secondary)] leading-relaxed">
+        Spycam n&apos;est pas affilié à Riot Games et ne reflète pas les opinions de Riot Games ni de toute personne impliquée dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
+      </footer>
+    </>
   );
 }
 // ==================== Expanded Match Components ====================
@@ -1167,25 +1170,21 @@ function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id:
                     <img src={p.agentIcon} className="w-8 h-8 rounded-lg shadow-sm" alt={p.agent} />
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5">
-                        {p.isPublicProfile ? (
-                          <button 
-                            type="button" 
-                            onClick={(e) => {
-                              e.stopPropagation();
+                        <button 
+                          type="button" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (p.isPublicProfile && p.tag) {
                               searchPlayer(`${p.name}#${p.tag}`);
-                            }}
-                            className={`font-bold hover:underline cursor-pointer ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}
-                          >
-                            {p.name}
-                          </button>
-                        ) : (
-                          <span className={`font-bold opacity-70 ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}>
-                            {p.name}
-                          </span>
-                        )}
+                            }
+                          }}
+                          className={`font-bold ${p.isPublicProfile ? 'hover:underline cursor-pointer' : 'cursor-default opacity-70'} ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}
+                        >
+                          {p.name}
+                        </button>
                         {!p.isPublicProfile && (
-                          <span className="text-[8px] bg-[var(--color-background)] border border-[var(--color-border)] px-1 rounded text-[var(--color-text-secondary)] opacity-75">
-                            Privé
+                          <span className="text-[8px] bg-[var(--color-background)] border border-[var(--color-border)] px-1.5 py-0.5 rounded text-[var(--color-text-secondary)] opacity-75 whitespace-nowrap">
+                            Profil privé
                           </span>
                         )}
                       </div>
