@@ -15,13 +15,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { language, theme } = body;
+    const { language, theme, isPublic } = body;
 
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },
       data: {
         language: language || 'fr',
         theme: theme || 'dark',
+        isPublic: isPublic === true,
         onboardingDone: true,
       },
     });
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
       user: {
         language: updatedUser.language,
         theme: updatedUser.theme,
+        isPublic: updatedUser.isPublic,
         onboardingDone: updatedUser.onboardingDone,
       },
     });

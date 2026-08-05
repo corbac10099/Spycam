@@ -77,6 +77,7 @@ export default function OnboardingPage() {
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState<boolean>(false);
 
   // Authentication check
   useEffect(() => {
@@ -118,7 +119,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/auth/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language, theme }),
+        body: JSON.stringify({ language, theme, isPublic }),
       });
 
       if (res.ok) {
@@ -427,6 +428,21 @@ export default function OnboardingPage() {
               <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed mb-6 max-w-sm">
                 Synchronisez automatiquement vos rangs, historiques de parties et statistiques d'agents directement depuis Riot.
               </p>
+
+              {/* Privacy Checkbox */}
+              <div className="w-full max-w-md mb-6 flex items-start gap-3 bg-[var(--color-background)]/50 p-4 rounded-xl border border-[var(--color-border)] text-left">
+                <input 
+                  type="checkbox" 
+                  id="privacy-opt-in" 
+                  checked={isPublic} 
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-val-red)] focus:ring-[var(--color-val-red)] focus:ring-offset-[var(--color-surface)]"
+                />
+                <label htmlFor="privacy-opt-in" className="text-xs text-[var(--color-text-secondary)] leading-relaxed cursor-pointer">
+                  <strong className="text-[var(--color-text-primary)] block mb-1">J'accepte de rendre mon profil public</strong>
+                  En cochant cette case, j'accepte que mes statistiques Valorant puissent être recherchées et vues par les autres utilisateurs de la plateforme. (Vous pourrez repasser en privé à tout moment dans les paramètres).
+                </label>
+              </div>
 
               {/* Connect Riot Button (with opacity-60 and '(Bientôt disponible)') */}
               <button

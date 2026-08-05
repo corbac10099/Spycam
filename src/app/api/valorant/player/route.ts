@@ -258,7 +258,7 @@ function generateRandomDebugData() {
 const HENRIK_API_KEY = process.env.HENRIK_API_KEY;
 
 // Fonction de parsing des vraies données de matchs HenrikDev API
-function parseHenrikDevData(accountData: any, matchesData: any[]) {
+function parseHenrikDevData(accountData: any, matchesData: any[], publicPlayersSet?: Set<string>) {
   const puuid = accountData.puuid;
   const gameName = accountData.gameName;
 
@@ -316,16 +316,22 @@ function parseHenrikDevData(accountData: any, matchesData: any[]) {
     const myAcs = me.stats?.score ? Math.floor(me.stats.score / Math.max(roundsPlayed, 1)) : 200;
 
     const mapPlayers = (list: any[]) => (list || []).map((p: any) => {
-      const pAgent = AGENTS[p.character] || { uuid: "add6443a-41bd-e414-f6ad-e58d267f4e95" };
+      let isPublicPlayer = true;
+      if (publicPlayersSet && p.puuid && p.name) {
+        isPublicPlayer = publicPlayersSet.has(p.puuid) || publicPlayersSet.has(p.name.toLowerCase());
+      }
       return {
         puuid: p.puuid,
-        name: p.name || "Joueur",
-        agent: p.character || "Agent",
-        agentIcon: AGENT_IMG(pAgent.uuid),
+        name: isPublicPlayer ? p.name : p.character,
+        tag: isPublicPlayer ? p.tag : "",
+        agentIcon: AGENT_IMG(p.assets?.agent?.small || AGENTS[p.character || "Jett"]?.uuid),
         acs: p.stats?.score ? Math.floor(p.stats.score / Math.max(roundsPlayed, 1)) : 180,
         kills: p.stats?.kills || 0,
         deaths: p.stats?.deaths || 0,
         assists: p.stats?.assists || 0,
+        score: p.stats?.score || 0,
+        damage: p.damage_made || p.stats?.damage || 0,
+        rankIcon: p.currenttier_patched ? `https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${p.currenttier}/largeicon.png` : null,
         econScore: Math.floor(Math.random() * 50) + 30,
         firstBloods: 1,
         isMe: p.puuid === me.puuid
@@ -568,6 +574,8 @@ export async function POST(request: Request) {
     let realParsedData: any = null;
 
     // === PRIVACY CHECK: block access to private profiles BEFORE calling external APIs ===
+    let profileOwner: any = null;
+    let customOwnerSettings: any = null;
     try {
       const emailMap: Record<string, string> = {
         'gr4phø': 'laffont.romain64@gmail.com',
@@ -576,24 +584,49 @@ export async function POST(request: Request) {
         'riot': 'spycam_riot_temp@gmail.com',
         'biflette64': 'romain.lft64@gmail.com',
       };
-      const cleanNameForPrivacy = gameName.toLowerCase().replace('#', '').trim();
-      const privacyEmail = emailMap[cleanNameForPrivacy] || emailMap[gameName.toLowerCase()];
+      const cleanName = gameName.toLowerCase().replace('#', '').trim();
+      const knownEmail = emailMap[cleanName] || emailMap[gameName.toLowerCase()];
       
-      if (privacyEmail) {
-        const privacyOwner = await prisma.user.findUnique({ where: { email: privacyEmail } });
-        console.log('[PRIVACY] Owner found:', privacyOwner?.email, 'isPublic:', (privacyOwner as any)?.isPublic);
+      if (knownEmail) {
+        profileOwner = await prisma.user.findUnique({ where: { email: knownEmail } });
+      }
+      
+      if (!profileOwner) {
+        try {
+          profileOwner = await (prisma.user as any).findFirst({
+            where: { riotGameName: { equals: gameName, mode: 'insensitive' } }
+          });
+        } catch (e) { /* riotGameName field may not exist in cached client */ }
+      }
+
+      const isTestAccount = gameName.toLowerCase().startsWith('gr4ph') || gameName.toLowerCase().startsWith('riot');
+
+      if (!profileOwner && !isTestAccount) {
+        return NextResponse.json({ 
+          error: "Ce profil n'est pas inscrit sur la plateforme et ne peut pas être consulté publiquement." 
+        }, { status: 404 });
+      }
+      
+      if (profileOwner) {
+        console.log('[PRIVACY] Owner found:', profileOwner.email, 'isPublic:', profileOwner.isPublic);
         
-        if (privacyOwner && (privacyOwner as any).isPublic === false) {
+        if (profileOwner.isPublic === false && !isTestAccount) {
           const session = await getServerSession(authOptions);
           const callerEmail = session?.user?.email;
           console.log('[PRIVACY] Profile is PRIVATE. Caller email:', callerEmail);
           
-          if (!callerEmail || callerEmail.toLowerCase() !== privacyEmail.toLowerCase()) {
+          if (!callerEmail || callerEmail.toLowerCase() !== profileOwner.email.toLowerCase()) {
             return NextResponse.json({ 
               error: "Ce profil est privé. Le propriétaire a restreint l'accès à ses statistiques." 
             }, { status: 403 });
           }
         }
+        
+        customOwnerSettings = {
+          bannerUrl: profileOwner.bannerUrl,
+          bannerOffsetY: profileOwner.bannerOffsetY,
+          theme: profileOwner.theme,
+        };
       }
     } catch (e) {
       console.warn('[PRIVACY] Error checking privacy:', e);
@@ -679,7 +712,46 @@ export async function POST(request: Request) {
             if (matchesRes.ok) {
               const mData = await matchesRes.json();
               if (mData.data && Array.isArray(mData.data) && mData.data.length > 0) {
-                realParsedData = parseHenrikDevData(realAccount, mData.data);
+                
+                // Collect players to check who is public
+                const publicPlayersSet = new Set<string>();
+                publicPlayersSet.add(hData.data.puuid);
+                if (hData.data.name) publicPlayersSet.add(hData.data.name.toLowerCase());
+                
+                // Keep known test accounts public for testing
+                ['gr4phø', 'gr4ph0', 'riot_test', 'riot', 'biflette64'].forEach(n => publicPlayersSet.add(n));
+
+                const matchPuuids = new Set<string>();
+                const matchNames = new Set<string>();
+                for (const m of mData.data) {
+                  if (m.players?.all_players) {
+                    for (const p of m.players.all_players) {
+                      if (p.puuid) matchPuuids.add(p.puuid);
+                      if (p.name) matchNames.add(p.name.toLowerCase());
+                    }
+                  }
+                }
+
+                try {
+                  const publicUsers = await prisma.user.findMany({
+                    where: {
+                      isPublic: true,
+                      OR: [
+                        { riotPuuid: { in: Array.from(matchPuuids) } },
+                        { riotGameName: { in: Array.from(matchNames) } }
+                      ]
+                    },
+                    select: { riotPuuid: true, riotGameName: true }
+                  });
+                  for (const u of publicUsers) {
+                    if (u.riotPuuid) publicPlayersSet.add(u.riotPuuid);
+                    if (u.riotGameName) publicPlayersSet.add(u.riotGameName.toLowerCase());
+                  }
+                } catch (e) {
+                  console.warn('Error fetching public players:', e);
+                }
+
+                realParsedData = parseHenrikDevData(realAccount, mData.data, publicPlayersSet);
               }
             } else {
               // Si la récupération des matchs échoue (ex: 500), on signale une erreur pour ne pas afficher de fausses stats
@@ -703,52 +775,7 @@ export async function POST(request: Request) {
 
     const mockData = realParsedData || generateMockData();
 
-    // Look up profile owner custom banner and theme settings from Prisma database
-    let customOwnerSettings: any = null;
-    try {
-      // Known email mappings for profile owners
-      const emailMap: Record<string, string> = {
-        'gr4phø': 'laffont.romain64@gmail.com',
-        'gr4ph0': 'laffont.romain64@gmail.com',
-        'riot_test': 'spycam_riot_temp@gmail.com',
-        'riot': 'spycam_riot_temp@gmail.com',
-        'biflette64': 'romain.lft64@gmail.com',
-      };
-      const cleanName = gameName.toLowerCase().replace('#', '').trim();
-      const knownEmail = emailMap[cleanName] || emailMap[gameName.toLowerCase()];
 
-      let owner = null;
-      // First: try by known email (reliable, uses a known Prisma field)
-      if (knownEmail) {
-        owner = await prisma.user.findUnique({ where: { email: knownEmail } });
-      }
-      // Fallback: try by riotGameName field
-      if (!owner) {
-        try {
-          owner = await (prisma.user as any).findFirst({
-            where: { riotGameName: { equals: gameName, mode: 'insensitive' } }
-          });
-        } catch (e) { /* riotGameName field may not exist in cached client */ }
-      }
-
-      if (owner) {
-        if ((owner as any).isPublic === false) {
-          const session = await getServerSession(authOptions);
-          const callerEmail = session?.user?.email;
-          if (!callerEmail || callerEmail.toLowerCase() !== owner.email.toLowerCase()) {
-            return NextResponse.json({ error: "Ce profil est privé. Le propriétaire a restreint l'accès à ses statistiques." }, { status: 403 });
-          }
-        }
-
-        customOwnerSettings = {
-          bannerUrl: owner.bannerUrl,
-          bannerOffsetY: owner.bannerOffsetY,
-          theme: owner.theme,
-        };
-      }
-    } catch (e) {
-      console.warn('Could not fetch owner custom settings:', e);
-    }
 
     return NextResponse.json({
       player: {
