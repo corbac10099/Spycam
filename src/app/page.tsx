@@ -8,7 +8,7 @@ import { useSession, signOut } from "next-auth/react";
 function Tooltip({ message }: { message: string }) {
   return (
     <div className="group relative inline-flex ml-1.5 cursor-help">
-      <div className="w-5 h-5 rounded-full bg-[rgba(255,180,50,0.2)] border border-[rgba(255,180,50,0.6)] flex items-center justify-center text-[11px] font-black text-[#ffb432]">!</div>
+      <div className="w-5 h-5 rounded-full bg-[var(--color-val-red)]/10 border border-[var(--color-val-red)]/40 flex items-center justify-center text-[11px] font-black text-[var(--color-val-red)]">!</div>
       <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-50">
         <div className="bg-[#1a1f2e] border border-[rgba(255,180,50,0.3)] rounded-xl px-4 py-3 text-xs text-[var(--color-text-secondary)] leading-relaxed shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
           {message}
@@ -302,58 +302,60 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               
               <hr className="border-[var(--color-border)]" />
 
-              {/* Bannière */}
-              <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">Personnalisation de la Bannière</h3>
-                
-                    <div className="flex gap-4 mb-6 flex-wrap">
-                      {banners.map((b, i) => b.url && (
-                        <button key={i} onClick={() => setDraftBannerUrl(b.url)}
-                          className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all ${draftBannerUrl === b.url || (!draftBannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
-                          <img src={b.url} alt={b.name} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                            <span className="text-white text-xs font-bold">{b.name}</span>
-                          </div>
-                        </button>
-                      ))}
-                      <button onClick={() => setCatalogOpen(true)}
-                        className="relative w-32 h-16 rounded-lg overflow-hidden border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-val-red)] transition-all flex items-center justify-center group bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,70,85,0.1)] cursor-pointer">
-                        <span className="text-[var(--color-text-secondary)] group-hover:text-[var(--color-val-red)] text-xs font-bold uppercase tracking-widest transition-colors flex flex-col items-center gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                          Voir plus
-                        </span>
-                      </button>
-                    </div>
-                    
-                    {/* Slider interactif avec APERÇU EN DIRECT */}
-                    <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4 max-w-xl">
-                      <div className="flex items-center justify-between">
-                        <label className="font-bold text-sm text-[var(--color-text-primary)]">Cadrage vertical (Hauteur)</label>
-                        <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{draftBannerOffsetY}%</span>
-                      </div>
-
-                      {/* Visualiseur de cadre en temps réel */}
-                      <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
-                        <img src={draftBannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
-                        <div className="absolute inset-0 bg-black/40"></div>
-                        <div className="relative z-10 p-3 flex items-center justify-between h-full">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/20">
-                              <img src={p?.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
+              {/* Bannière - Only show if user has a Valorant profile to preview with */}
+              {p && (
+                <div>
+                  <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">Personnalisation de la Bannière</h3>
+                  
+                      <div className="flex gap-4 mb-6 flex-wrap">
+                        {banners.map((b, i) => b.url && (
+                          <button key={i} onClick={() => setDraftBannerUrl(b.url)}
+                            className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all ${draftBannerUrl === b.url || (!draftBannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
+                            <img src={b.url} alt={b.name} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <span className="text-white text-xs font-bold">{b.name}</span>
                             </div>
-                            <span className="text-xs font-black text-white drop-shadow-md">{p?.gameName || "Joueur"}</span>
-                          </div>
-                          <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">Aperçu en direct</span>
-                        </div>
+                          </button>
+                        ))}
+                        <button onClick={() => setCatalogOpen(true)}
+                          className="relative w-32 h-16 rounded-lg overflow-hidden border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-val-red)] transition-all flex items-center justify-center group bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,70,85,0.1)] cursor-pointer">
+                          <span className="text-[var(--color-text-secondary)] group-hover:text-[var(--color-val-red)] text-xs font-bold uppercase tracking-widest transition-colors flex flex-col items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                            Voir plus
+                          </span>
+                        </button>
                       </div>
+                      
+                      {/* Slider interactif avec APERÇU EN DIRECT */}
+                      <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4 max-w-xl">
+                        <div className="flex items-center justify-between">
+                          <label className="font-bold text-sm text-[var(--color-text-primary)]">Cadrage vertical (Hauteur)</label>
+                          <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{draftBannerOffsetY}%</span>
+                        </div>
 
-                      <input type="range" min="0" max="100" value={draftBannerOffsetY} onChange={e => setDraftBannerOffsetY(Number(e.target.value))}
-                        className="w-full accent-[var(--color-val-red)] cursor-pointer h-2 bg-[var(--color-surface)] rounded-lg appearance-none" />
-                      <p className="text-[11px] text-[var(--color-text-secondary)]">Glissez le curseur pour voir l&apos;image s&apos;ajuster en temps réel dans le cadre ci-dessus.</p>
-                    </div>
-                    
-                    <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setDraftBannerUrl(url)} />
-              </div>
+                        {/* Visualiseur de cadre en temps réel */}
+                        <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
+                          <img src={draftBannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
+                          <div className="absolute inset-0 bg-black/40"></div>
+                          <div className="relative z-10 p-3 flex items-center justify-between h-full">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/20">
+                                <img src={p?.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
+                              </div>
+                              <span className="text-xs font-black text-white drop-shadow-md">{p?.gameName || "Joueur"}</span>
+                            </div>
+                            <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">Aperçu en direct</span>
+                          </div>
+                        </div>
+
+                        <input type="range" min="0" max="100" value={draftBannerOffsetY} onChange={e => setDraftBannerOffsetY(Number(e.target.value))}
+                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)]" />
+                        <p className="text-[11px] text-[var(--color-text-secondary)]">Glissez le curseur pour voir l&apos;image s&apos;ajuster en temps réel dans le cadre ci-dessus.</p>
+                      </div>
+                      
+                      <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setDraftBannerUrl(url)} />
+                </div>
+              )}
 
             </div>
           )}
@@ -1080,7 +1082,7 @@ function HomeContent() {
                             </div>
                           </div>
                           
-                          {isExpanded && <ExpandedMatch match={match} />}
+                          {isExpanded && <ExpandedMatch match={match} searchPlayer={searchPlayer} />}
                         </div>
                       );
                     })}
@@ -1096,6 +1098,10 @@ function HomeContent() {
                         </button>
                       </div>
                     )}
+                    {/* Legal Disclaimer */}
+                    <div className="w-full text-center px-4 py-8 max-w-4xl mx-auto opacity-40 text-[10px] md:text-xs text-[var(--color-text-secondary)] font-mono uppercase tracking-widest leading-relaxed">
+                      Spycam n'est pas affilié à Riot Games et ne reflète pas les opinions de Riot Games ni de toute personne impliquée dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
+                    </div>
                   </div>
                 )}
               </div>
@@ -1109,7 +1115,7 @@ function HomeContent() {
 }
 // ==================== Expanded Match Components ====================
 
-function ExpandedMatch({ match }: { match: any }) {
+function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id: string) => void }) {
   const [tab, setTab] = useState<'overview' | 'scoreboard' | 'timeline' | 'duels'>('overview');
   
   return (
@@ -1160,7 +1166,29 @@ function ExpandedMatch({ match }: { match: any }) {
                   <td className="py-2 px-2 flex items-center gap-3">
                     <img src={p.agentIcon} className="w-8 h-8 rounded-lg shadow-sm" alt={p.agent} />
                     <div className="flex flex-col">
-                      <span className={`font-bold ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}>{p.name}</span>
+                      <div className="flex items-center gap-1.5">
+                        {p.isPublicProfile ? (
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              searchPlayer(`${p.name}#${p.tag}`);
+                            }}
+                            className={`font-bold hover:underline cursor-pointer ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}
+                          >
+                            {p.name}
+                          </button>
+                        ) : (
+                          <span className={`font-bold opacity-70 ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}>
+                            {p.name}
+                          </span>
+                        )}
+                        {!p.isPublicProfile && (
+                          <span className="text-[8px] bg-[var(--color-background)] border border-[var(--color-border)] px-1 rounded text-[var(--color-text-secondary)] opacity-75">
+                            Privé
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-wider">{p.agent}</span>
                     </div>
                   </td>

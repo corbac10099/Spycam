@@ -322,8 +322,9 @@ function parseHenrikDevData(accountData: any, matchesData: any[], publicPlayersS
       }
       return {
         puuid: p.puuid,
-        name: isPublicPlayer ? p.name : p.character,
-        tag: isPublicPlayer ? p.tag : "",
+        name: p.name || p.character,
+        tag: p.tag || "",
+        isPublicProfile: isPublicPlayer,
         agentIcon: AGENT_IMG(p.assets?.agent?.small || AGENTS[p.character || "Jett"]?.uuid),
         acs: p.stats?.score ? Math.floor(p.stats.score / Math.max(roundsPlayed, 1)) : 180,
         kills: p.stats?.kills || 0,
