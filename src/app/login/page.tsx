@@ -1,17 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { status } = useSession();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  const [showLogin, setShowLogin] = useState(false);
+
+  useEffect(() => {
+    // Anti-loop : si la session est chargée ou si ça fait plus de 2 secondes, on affiche la page
+    if (status !== 'loading') {
+      setShowLogin(true);
+      if (status === 'authenticated') {
+        router.replace('/');
+      }
+    }
+    const timer = setTimeout(() => setShowLogin(true), 2000);
+    return () => clearTimeout(timer);
+  }, [status, router]);
 
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
@@ -63,8 +78,9 @@ export default function LoginPage() {
       }
 
       if (res?.ok) {
-        router.refresh();
-        router.push('/');
+        setLoadingCredentials(false);
+        window.location.assign('/');
+        return;
       }
     } catch (err) {
       console.error('Erreur de connexion:', err);
@@ -84,6 +100,17 @@ export default function LoginPage() {
       setLoadingGoogle(false);
     }
   };
+
+  if (!showLogin) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[var(--color-background)]">
+        <div className="flex flex-col items-center gap-6 animate-pulse">
+          <div className="w-20 h-20 bg-[var(--color-val-red)] rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(255,70,85,0.3)]"><span className="text-white text-4xl font-black">V</span></div>
+          <p className="text-[var(--color-text-secondary)] uppercase tracking-widest text-sm font-bold">Connexion...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[var(--color-background)]">

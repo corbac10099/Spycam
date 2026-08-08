@@ -142,22 +142,50 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   
   // Draft State
   const [draftSmartRating, setDraftSmartRating] = useState(smartRating);
-  const [draftTheme, setDraftTheme] = useState(theme);
+  const [draftTheme, setDraftTheme] = useState(theme?.startsWith('custom:') ? 'custom' : theme);
+  const [draftCustomBg, setDraftCustomBg] = useState(() => {
+    if (theme?.startsWith('custom:')) {
+      const match = theme.match(/bg=([^,]+)/);
+      return match ? match[1] : '#0a0e13';
+    }
+    return '#0a0e13';
+  });
+  const [draftCustomAccent, setDraftCustomAccent] = useState(() => {
+    if (theme?.startsWith('custom:')) {
+      const match = theme.match(/accent=([^,]+)/);
+      return match ? match[1] : '#ff4655';
+    }
+    return '#ff4655';
+  });
   const [draftBannerUrl, setDraftBannerUrl] = useState(bannerUrl);
   const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
   const [draftIsPublic, setDraftIsPublic] = useState(isPublic ?? true);
 
   // Preview theme live
   useEffect(() => {
-    document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
-    if (draftTheme !== 'dark') document.body.classList.add(`theme-${draftTheme}`);
+    document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean', 'theme-custom');
+    if (draftTheme !== 'dark' && draftTheme !== 'custom') document.body.classList.add(`theme-${draftTheme}`);
+    if (draftTheme === 'custom') {
+      document.body.classList.add('theme-custom');
+      document.documentElement.style.setProperty('--custom-bg', draftCustomBg);
+      document.documentElement.style.setProperty('--custom-accent', draftCustomAccent);
+    }
     
     // Cleanup on unmount (restore original theme if not saved)
     return () => {
-      document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
-      if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
+      document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean', 'theme-custom');
+      document.documentElement.style.removeProperty('--custom-bg');
+      document.documentElement.style.removeProperty('--custom-accent');
+      if (theme !== 'dark' && !theme?.startsWith('custom:')) document.body.classList.add(`theme-${theme}`);
+      if (theme?.startsWith('custom:')) {
+        document.body.classList.add('theme-custom');
+        const matchBg = theme.match(/bg=([^,]+)/);
+        const matchAccent = theme.match(/accent=([^,]+)/);
+        if (matchBg) document.documentElement.style.setProperty('--custom-bg', matchBg[1]);
+        if (matchAccent) document.documentElement.style.setProperty('--custom-accent', matchAccent[1]);
+      }
     };
-  }, [draftTheme, theme]);
+  }, [draftTheme, draftCustomBg, draftCustomAccent, theme]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -167,7 +195,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           smartRating: draftSmartRating,
-          theme: draftTheme,
+          theme: draftTheme === 'custom' ? `custom:bg=${draftCustomBg},accent=${draftCustomAccent}` : draftTheme,
           bannerUrl: draftBannerUrl,
           bannerOffsetY: draftBannerOffsetY,
           isPublic: draftIsPublic
@@ -175,7 +203,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
       });
       if (res.ok) {
         setSmartRating(draftSmartRating);
-        setTheme(draftTheme);
+        setTheme(draftTheme === 'custom' ? `custom:bg=${draftCustomBg},accent=${draftCustomAccent}` : draftTheme);
         setBannerUrl(draftBannerUrl);
         setBannerOffsetY(draftBannerOffsetY);
         if (setIsPublic) setIsPublic(draftIsPublic);
@@ -286,6 +314,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                     { id: 'midnight', name: 'Midnight', bg: '#0d0b1a', surface: '#140f28', accent: '#8c64ff' },
                     { id: 'crimson', name: 'Crimson', bg: '#120808', surface: '#1e0a0a', accent: '#ff4655' },
                     { id: 'ocean', name: 'Océan', bg: '#071014', surface: '#0a1923', accent: '#32c8b4' },
+                    { id: 'custom', name: 'Personnalisé', bg: draftCustomBg, surface: draftCustomBg, accent: draftCustomAccent },
                   ].map(t => (
                     <button key={t.id} onClick={() => setDraftTheme(t.id)}
                       className={`relative rounded-xl p-3 flex flex-col items-center gap-2 border-2 transition-all duration-300 cursor-pointer ${draftTheme === t.id ? 'border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105' : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'}`}>
@@ -301,6 +330,31 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               </div>
               
               <hr className="border-[var(--color-border)]" />
+              
+              {/* Option Couleur Custom */}
+              {draftTheme === 'custom' && (
+                <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] animate-in fade-in duration-300">
+                  <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-4">Personnalisation des couleurs</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">Couleur d'accentuation</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs uppercase font-mono">{draftCustomAccent}</span>
+                        <input type="color" value={draftCustomAccent} onChange={e => setDraftCustomAccent(e.target.value)} 
+                          className="w-10 h-10 p-0 border-0 rounded overflow-hidden cursor-pointer bg-transparent" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">Couleur de fond</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs uppercase font-mono">{draftCustomBg}</span>
+                        <input type="color" value={draftCustomBg} onChange={e => setDraftCustomBg(e.target.value)} 
+                          className="w-10 h-10 p-0 border-0 rounded overflow-hidden cursor-pointer bg-transparent" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Bannière - Only show if user has a Valorant profile to preview with */}
               {p && (
@@ -435,6 +489,177 @@ function DebugPanel({ isOpen, onClose, onGenerate }: { isOpen: boolean; onClose:
 
 import { Suspense } from "react";
 
+// ==================== News View Component ====================
+function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setNewsItems: (items: any[]) => void }) {
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState('');
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    setNewsLoading(true);
+    fetch('http://localhost:8000/api/news')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setNewsItems(data);
+        else setNewsItems([]);
+      })
+      .catch(() => setNewsError('Impossible de charger les actualités. Vérifiez qu\'AppControl est démarré sur le port 8000.'))
+      .finally(() => setNewsLoading(false));
+  }, [setNewsItems]);
+
+  // Tick every second for live timers
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatDuration = (ms: number) => {
+    const totalSec = Math.abs(Math.floor(ms / 1000));
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (d > 0) return `${d}j ${h}h ${m}m ${s}s`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
+  };
+
+  const renderBlock = (block: any) => {
+    switch (block.type) {
+      case 'text':
+        return block.style === 'heading'
+          ? <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2">{block.content}</h3>
+          : <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{block.content}</p>;
+
+      case 'image':
+        return (
+          <div className="rounded-xl overflow-hidden border border-[var(--color-border)]">
+            <img src={block.url} alt={block.caption || ''} className="w-full object-cover max-h-[300px]" />
+            {block.caption && <p className="text-xs text-[var(--color-text-secondary)] p-3 text-center">{block.caption}</p>}
+          </div>
+        );
+
+      case 'countdown': {
+        const target = new Date(block.targetDate).getTime();
+        const remaining = target - Date.now();
+        const expired = remaining <= 0;
+        return (
+          <div className="glass-panel rounded-xl p-4 flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${expired ? 'bg-green-500/20 text-green-400' : 'bg-[var(--color-val-red)]/20 text-[var(--color-val-red)]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mb-1">{block.label || 'Compte à rebours'}</div>
+              <div className={`text-lg font-black ${expired ? 'text-green-400' : 'text-[var(--color-text-primary)]'}`}>
+                {expired ? 'Terminé' : formatDuration(remaining)}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case 'stopwatch': {
+        const elapsed = Date.now() - new Date(block.startDate).getTime();
+        return (
+          <div className="glass-panel rounded-xl p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mb-1">{block.label || 'Chronomètre'}</div>
+              <div className="text-lg font-black text-[var(--color-text-primary)]">{formatDuration(elapsed)}</div>
+            </div>
+          </div>
+        );
+      }
+
+      case 'resolvable_timer': {
+        const resolved = block.resolved;
+        const elapsed = resolved
+          ? new Date(block.resolvedAt).getTime() - new Date(block.startDate).getTime()
+          : Date.now() - new Date(block.startDate).getTime();
+        return (
+          <div className={`glass-panel rounded-xl p-4 flex items-center gap-4 ${resolved ? 'border-green-500/30' : 'border-orange-500/30'}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${resolved ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400 animate-pulse'}`}>
+              {resolved
+                ? <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                : <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              }
+            </div>
+            <div>
+              <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mb-1">{block.label || 'Timer'}</div>
+              <div className={`text-lg font-black ${resolved ? 'text-green-400' : 'text-orange-400'}`}>
+                {resolved ? `Résolu en ${formatDuration(elapsed)}` : formatDuration(elapsed)}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      default:
+        return null;
+    }
+  };
+
+  // Sort: pinned first, then by date
+  const sortedNews = [...newsItems].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  return (
+    <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Actualités</h2>
+      </div>
+
+      {newsLoading && (
+        <div className="text-center text-[var(--color-text-secondary)] animate-pulse py-20 uppercase tracking-widest font-bold">
+          Chargement des actualités...
+        </div>
+      )}
+
+      {newsError && (
+        <div className="glass-panel rounded-2xl p-8 text-center">
+          <p className="text-[var(--color-text-secondary)] mb-2">{newsError}</p>
+          <p className="text-xs text-[var(--color-text-secondary)]">Démarrez AppControl sur le port 8000 pour afficher les actualités.</p>
+        </div>
+      )}
+
+      {!newsLoading && !newsError && sortedNews.length === 0 && (
+        <div className="glass-panel rounded-2xl p-10 text-center">
+          <p className="text-lg text-[var(--color-text-secondary)] font-bold">Aucune actualité pour le moment</p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-6">
+        {sortedNews.map(item => (
+          <div key={item.id} className="glass-panel rounded-2xl p-6 hover:bg-[var(--color-surface-hover)] transition-all duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              {item.pinned && (
+                <span className="bg-[var(--color-val-red)]/20 text-[var(--color-val-red)] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-[var(--color-val-red)]/30">
+                  Épinglé
+                </span>
+              )}
+              <h3 className="text-lg font-bold text-[var(--color-text-primary)]">{item.title}</h3>
+              <span className="text-[10px] text-[var(--color-text-secondary)] ml-auto">
+                {item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+              </span>
+            </div>
+            <div className="flex flex-col gap-4">
+              {(item.blocks || []).map((block: any, i: number) => (
+                <div key={block.id || i}>{renderBlock(block)}</div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function HomeContent() {
   const { data: realSession, status: realStatus } = useSession();
   const router = useRouter();
@@ -463,6 +688,8 @@ function HomeContent() {
   const [activeTab, setActiveTab] = useState("performance");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [newsView, setNewsView] = useState(false);
+  const [newsItems, setNewsItems] = useState<any[]>([]);
   const [gameMode, setGameMode] = useState('all');
   const [selectedSeason, setSelectedSeason] = useState('all');
   const [visibleMatchesCount, setVisibleMatchesCount] = useState(10);
@@ -562,6 +789,10 @@ function HomeContent() {
 
   // Auth redirect & Initial fetch
   useEffect(() => {
+    if (status === 'loading') {
+      return;
+    }
+
     if (status === 'unauthenticated' && !isSimulatedNewUser) {
       router.replace('/login');
     } else if (status === 'authenticated' && session?.user) {
@@ -689,8 +920,19 @@ function HomeContent() {
 
   // Apply logged-in user's background theme to body ALWAYS
   useEffect(() => {
-    document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean');
-    if (theme !== 'dark') document.body.classList.add(`theme-${theme}`);
+    document.body.classList.remove('theme-light', 'theme-midnight', 'theme-crimson', 'theme-ocean', 'theme-custom');
+    document.documentElement.style.removeProperty('--custom-bg');
+    document.documentElement.style.removeProperty('--custom-accent');
+    
+    if (theme !== 'dark' && !theme?.startsWith('custom:')) {
+      document.body.classList.add(`theme-${theme}`);
+    } else if (theme?.startsWith('custom:')) {
+      document.body.classList.add('theme-custom');
+      const matchBg = theme.match(/bg=([^,]+)/);
+      const matchAccent = theme.match(/accent=([^,]+)/);
+      if (matchBg) document.documentElement.style.setProperty('--custom-bg', matchBg[1]);
+      if (matchAccent) document.documentElement.style.setProperty('--custom-accent', matchAccent[1]);
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -769,11 +1011,16 @@ function HomeContent() {
           <div className="flex-[2] flex justify-center items-center gap-2">
             {/* Home button */}
             {myRiotId && (
-              <button onClick={goHome} title="Retour à mon profil"
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+              <button onClick={() => { goHome(); setNewsView(false); setSettingsOpen(false); }} title="Retour à mon profil"
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${!newsView && playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
               </button>
             )}
+            {/* News button */}
+            <button onClick={() => { setNewsView(!newsView); setSettingsOpen(false); }} title="Actualités"
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${newsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+            </button>
             <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center">
               <input type="text" placeholder="Rechercher Pseudo#Tag" value={riotId} onChange={(e) => setRiotId(e.target.value)}
                 onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
@@ -831,6 +1078,8 @@ function HomeContent() {
           p={playerData?.player} 
           canEditProfile={canEditProfile}
         />
+      ) : newsView ? (
+        <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} />
       ) : (
         <div className="flex-1 flex flex-col items-center px-8 z-10 w-full max-w-6xl mx-auto">
         {error && (

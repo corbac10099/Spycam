@@ -325,7 +325,11 @@ function parseHenrikDevData(accountData: any, matchesData: any[], publicPlayersS
         name: p.name || p.character,
         tag: p.tag || "",
         isPublicProfile: isPublicPlayer,
-        agentIcon: AGENT_IMG(p.assets?.agent?.small || AGENTS[p.character || "Jett"]?.uuid),
+        agentIcon: (() => {
+          const raw = p.assets?.agent?.small;
+          if (raw && raw.startsWith('http')) return raw;
+          return AGENT_IMG(AGENTS[p.character || "Jett"]?.uuid || "add6443a-41bd-e414-f6ad-e58d267f4e95");
+        })(),
         acs: p.stats?.score ? Math.floor(p.stats.score / Math.max(roundsPlayed, 1)) : 180,
         kills: p.stats?.kills || 0,
         deaths: p.stats?.deaths || 0,

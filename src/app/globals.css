@@ -66,6 +66,19 @@
   --color-glass-shadow: rgba(20, 100, 120, 0.15);
 }
 
+/* ===== Theme: Custom ===== */
+.theme-custom {
+  --color-background: var(--custom-bg, #1a1a1a);
+  --color-surface: color-mix(in srgb, var(--custom-bg) 60%, black 40%);
+  --color-surface-hover: color-mix(in srgb, var(--custom-bg) 40%, black 60%);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-on-surface: #ffffff;
+  --color-border: color-mix(in srgb, var(--custom-accent) 20%, transparent);
+  --color-glass-shadow: color-mix(in srgb, var(--custom-accent) 15%, transparent);
+  --color-val-red: var(--custom-accent, #ff4655);
+}
+
 @layer base {
   body {
     background-color: var(--color-background);
