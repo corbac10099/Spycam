@@ -488,123 +488,32 @@ function DebugPanel({ isOpen, onClose, onGenerate }: { isOpen: boolean; onClose:
 }
 
 import { Suspense } from "react";
+import RichTextRenderer from "@/components/RichTextRenderer";
 
-// ==================== News View Component ====================
+// ==================== News View Component (BDD Neon) ====================
 function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setNewsItems: (items: any[]) => void }) {
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
-  const [, setTick] = useState(0);
 
   useEffect(() => {
     setNewsLoading(true);
-    fetch('http://localhost:8000/api/news')
+    fetch('/api/cms/news')
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) setNewsItems(data);
         else setNewsItems([]);
       })
-      .catch(() => setNewsError('Impossible de charger les actualités. Vérifiez qu\'AppControl est démarré sur le port 8000.'))
+      .catch(() => setNewsError('Impossible de charger les actualités.'))
       .finally(() => setNewsLoading(false));
   }, [setNewsItems]);
 
-  // Tick every second for live timers
-  useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatDuration = (ms: number) => {
-    const totalSec = Math.abs(Math.floor(ms / 1000));
-    const d = Math.floor(totalSec / 86400);
-    const h = Math.floor((totalSec % 86400) / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    if (d > 0) return `${d}j ${h}h ${m}m ${s}s`;
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    return `${m}m ${s}s`;
+  // Résout le nœud actif de chaque actualité (arbre de décision)
+  const getActiveNode = (item: any) => {
+    const nodes = item.nodes || [];
+    return nodes.find((n: any) => n.id === item.currentNodeId) || nodes[0] || null;
   };
 
-  const renderBlock = (block: any) => {
-    switch (block.type) {
-      case 'text':
-        return block.style === 'heading'
-          ? <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2">{block.content}</h3>
-          : <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{block.content}</p>;
-
-      case 'image':
-        return (
-          <div className="rounded-xl overflow-hidden border border-[var(--color-border)]">
-            <img src={block.url} alt={block.caption || ''} className="w-full object-cover max-h-[300px]" />
-            {block.caption && <p className="text-xs text-[var(--color-text-secondary)] p-3 text-center">{block.caption}</p>}
-          </div>
-        );
-
-      case 'countdown': {
-        const target = new Date(block.targetDate).getTime();
-        const remaining = target - Date.now();
-        const expired = remaining <= 0;
-        return (
-          <div className="glass-panel rounded-xl p-4 flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${expired ? 'bg-green-500/20 text-green-400' : 'bg-[var(--color-val-red)]/20 text-[var(--color-val-red)]'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <div>
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mb-1">{block.label || 'Compte à rebours'}</div>
-              <div className={`text-lg font-black ${expired ? 'text-green-400' : 'text-[var(--color-text-primary)]'}`}>
-                {expired ? 'Terminé' : formatDuration(remaining)}
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      case 'stopwatch': {
-        const elapsed = Date.now() - new Date(block.startDate).getTime();
-        return (
-          <div className="glass-panel rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <div>
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mb-1">{block.label || 'Chronomètre'}</div>
-              <div className="text-lg font-black text-[var(--color-text-primary)]">{formatDuration(elapsed)}</div>
-            </div>
-          </div>
-        );
-      }
-
-      case 'resolvable_timer': {
-        const resolved = block.resolved;
-        const elapsed = resolved
-          ? new Date(block.resolvedAt).getTime() - new Date(block.startDate).getTime()
-          : Date.now() - new Date(block.startDate).getTime();
-        return (
-          <div className={`glass-panel rounded-xl p-4 flex items-center gap-4 ${resolved ? 'border-green-500/30' : 'border-orange-500/30'}`}>
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${resolved ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400 animate-pulse'}`}>
-              {resolved
-                ? <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-                : <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              }
-            </div>
-            <div>
-              <div className="text-xs text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mb-1">{block.label || 'Timer'}</div>
-              <div className={`text-lg font-black ${resolved ? 'text-green-400' : 'text-orange-400'}`}>
-                {resolved ? `Résolu en ${formatDuration(elapsed)}` : formatDuration(elapsed)}
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      default:
-        return null;
-    }
-  };
-
-  // Sort: pinned first, then by date
   const sortedNews = [...newsItems].sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
@@ -623,7 +532,6 @@ function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setN
       {newsError && (
         <div className="glass-panel rounded-2xl p-8 text-center">
           <p className="text-[var(--color-text-secondary)] mb-2">{newsError}</p>
-          <p className="text-xs text-[var(--color-text-secondary)]">Démarrez AppControl sur le port 8000 pour afficher les actualités.</p>
         </div>
       )}
 
@@ -634,27 +542,132 @@ function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setN
       )}
 
       <div className="flex flex-col gap-6">
-        {sortedNews.map(item => (
-          <div key={item.id} className="glass-panel rounded-2xl p-6 hover:bg-[var(--color-surface-hover)] transition-all duration-300">
-            <div className="flex items-center gap-3 mb-4">
-              {item.pinned && (
-                <span className="bg-[var(--color-val-red)]/20 text-[var(--color-val-red)] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border border-[var(--color-val-red)]/30">
-                  Épinglé
+        {sortedNews.map(item => {
+          const activeNode = getActiveNode(item);
+          return (
+            <div key={item.id} className="glass-panel rounded-2xl p-6 hover:bg-[var(--color-surface-hover)] transition-all duration-300">
+              <div className="flex items-center gap-3 mb-4">
+                <h3 className="text-lg font-bold text-[var(--color-text-primary)]">{item.title}</h3>
+                <span className="text-[10px] text-[var(--color-text-secondary)] ml-auto">
+                  {item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                 </span>
+              </div>
+              {activeNode && (
+                <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  <RichTextRenderer content={activeNode.content || ''} />
+                </div>
               )}
-              <h3 className="text-lg font-bold text-[var(--color-text-primary)]">{item.title}</h3>
-              <span className="text-[10px] text-[var(--color-text-secondary)] ml-auto">
-                {item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
-              </span>
             </div>
-            <div className="flex flex-col gap-4">
-              {(item.blocks || []).map((block: any, i: number) => (
-                <div key={block.id || i}>{renderBlock(block)}</div>
-              ))}
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ==================== Agents Wiki Component ====================
+function AgentsWikiComponent() {
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/cms/agents')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setAgents(data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const abilitySlots = [
+    { key: 'C', label: 'C — Gratuite', color: '#22c55e' },
+    { key: 'Q', label: 'Q', color: '#3b82f6' },
+    { key: 'E', label: 'E — Signature', color: '#f59e0b' },
+    { key: 'X', label: 'X — Ultime', color: '#ef4444' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="text-center text-[var(--color-text-secondary)] animate-pulse py-20 uppercase tracking-widest font-bold">
+        Chargement des agents...
+      </div>
+    );
+  }
+
+  if (selectedAgent) {
+    const abilities = selectedAgent.abilities || {};
+    return (
+      <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
+        <button onClick={() => setSelectedAgent(null)} className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-val-red)] transition-colors mb-6 font-bold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Retour aux agents
+        </button>
+
+        <div className="glass-panel rounded-2xl p-8 mb-6">
+          <div className="flex items-center gap-6 mb-6">
+            {selectedAgent.iconUrl && (
+              <img src={selectedAgent.iconUrl} alt={selectedAgent.name} className="w-24 h-24 rounded-xl object-contain bg-[var(--color-background)] p-2 border border-[var(--color-border)]" />
+            )}
+            <div>
+              <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{selectedAgent.name}</h2>
+              <span className="text-sm font-bold uppercase tracking-widest text-[var(--color-val-red)]">{selectedAgent.role}</span>
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {abilitySlots.map(slot => {
+            const ab = abilities[slot.key];
+            if (!ab || !ab.name) return null;
+            return (
+              <div key={slot.key} className="glass-panel rounded-2xl p-6" style={{ borderLeft: `3px solid ${slot.color}` }}>
+                <div className="flex items-center gap-3 mb-3">
+                  {ab.iconUrl && <img src={ab.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-[var(--color-background)] p-1 border border-[var(--color-border)]" />}
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: slot.color }}>{slot.label}</span>
+                    <h3 className="text-lg font-bold text-[var(--color-text-primary)]">{ab.name}</h3>
+                  </div>
+                </div>
+                {ab.description && (
+                  <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                    <RichTextRenderer content={ab.description} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
+      <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-8">Agents</h2>
+      
+      {agents.length === 0 ? (
+        <div className="glass-panel rounded-2xl p-10 text-center">
+          <p className="text-lg text-[var(--color-text-secondary)] font-bold">Aucun agent configuré</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {agents.map(agent => (
+            <button key={agent.id} onClick={() => setSelectedAgent(agent)}
+              className="glass-panel rounded-2xl p-4 flex flex-col items-center gap-3 hover:bg-[var(--color-surface-hover)] transition-all duration-300 group cursor-pointer border-none">
+              {agent.iconUrl ? (
+                <img src={agent.iconUrl} alt={agent.name} className="w-20 h-20 rounded-xl object-contain bg-[var(--color-background)] p-1 border border-[var(--color-border)] group-hover:border-[var(--color-val-red)] transition-colors" />
+              ) : (
+                <div className="w-20 h-20 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-secondary)]">?</div>
+              )}
+              <div className="text-center">
+                <div className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[var(--color-val-red)] transition-colors">{agent.name}</div>
+                <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-secondary)]">{agent.role}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -689,6 +702,7 @@ function HomeContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [newsView, setNewsView] = useState(false);
+  const [agentsView, setAgentsView] = useState(false);
   const [newsItems, setNewsItems] = useState<any[]>([]);
   const [gameMode, setGameMode] = useState('all');
   const [selectedSeason, setSelectedSeason] = useState('all');
@@ -1011,17 +1025,22 @@ function HomeContent() {
           <div className="flex-[2] flex justify-center items-center gap-2">
             {/* Home button */}
             {myRiotId && (
-              <button onClick={() => { goHome(); setNewsView(false); setSettingsOpen(false); }} title="Retour à mon profil"
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${!newsView && playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+              <button onClick={() => { goHome(); setNewsView(false); setAgentsView(false); setSettingsOpen(false); }} title="Retour à mon profil"
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${(!newsView && !agentsView) && playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
               </button>
             )}
             {/* News button */}
-            <button onClick={() => { setNewsView(!newsView); setSettingsOpen(false); }} title="Actualités"
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${newsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+            <button onClick={() => { setNewsView(true); setAgentsView(false); setSettingsOpen(false); }} title="Actualités"
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${newsView && !agentsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
             </button>
-            <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center">
+            {/* Agents Wiki button */}
+            <button onClick={() => { setAgentsView(true); setNewsView(false); setSettingsOpen(false); }} title="Wiki Agents"
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${agentsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </button>
+            <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center ml-2">
               <input type="text" placeholder="Rechercher Pseudo#Tag" value={riotId} onChange={(e) => setRiotId(e.target.value)}
                 onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
                 className={`bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-6 py-3 rounded-full outline-none transition-all duration-500 ease-in-out ${isFocused ? 'w-full shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'w-64'}`} required />
@@ -1078,8 +1097,10 @@ function HomeContent() {
           p={playerData?.player} 
           canEditProfile={canEditProfile}
         />
-      ) : newsView ? (
+      ) : newsView && !agentsView ? (
         <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} />
+      ) : agentsView && !newsView ? (
+        <AgentsWikiComponent />
       ) : (
         <div className="flex-1 flex flex-col items-center px-8 z-10 w-full max-w-6xl mx-auto">
         {error && (
