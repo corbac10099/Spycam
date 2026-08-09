@@ -120,12 +120,6 @@ function parseContent(content: string): ParsedToken[] {
   return tokens;
 }
 
-/**
- * Splits plain text segments by newline characters (\n) and inserts <br /> elements.
- *
- * @param text - Plain text string
- * @returns Array of React elements / strings preserving newlines
- */
 function renderTextWithNewlines(text: string) {
   const lines = text.split('\n');
   return lines.flatMap((line, index) => (
@@ -133,10 +127,6 @@ function renderTextWithNewlines(text: string) {
   ));
 }
 
-/**
- * File Download Button component that fetches the file asynchronously
- * and triggers a browser download without page navigation.
- */
 function FileDownloadButton({ url, label }: { url: string; label: string }) {
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -204,6 +194,26 @@ function FileDownloadButton({ url, label }: { url: string; label: string }) {
   );
 }
 
+function escapeHtmlText(unsafe: string) {
+  return unsafe
+       .replace(/&/g, "&amp;")
+       .replace(/</g, "&lt;")
+       .replace(/>/g, "&gt;")
+       .replace(/"/g, "&quot;")
+       .replace(/'/g, "&#039;");
+}
+
+function renderBBCodeAndNewlines(text: string) {
+  let html = escapeHtmlText(text);
+  html = html.replace(/\n/g, '<br />');
+  html = html.replace(/\[b\]/g, '<strong>').replace(/\[\/b\]/g, '</strong>');
+  html = html.replace(/\[i\]/g, '<em>').replace(/\[\/i\]/g, '</em>');
+  html = html.replace(/\[u\]/g, '<u>').replace(/\[\/u\]/g, '</u>');
+  html = html.replace(/\[color=([^\]]+)\]/g, '<span style="color: $1;">').replace(/\[\/color\]/g, '</span>');
+  html = html.replace(/\[size=([^\]]+)\]/g, '<span style="font-size: $1px;">').replace(/\[\/size\]/g, '</span>');
+  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 /**
  * RichTextRenderer component parses custom markup tags inside a content string
  * and renders them as rich interactive React elements.
@@ -215,11 +225,24 @@ function FileDownloadButton({ url, label }: { url: string; label: string }) {
  * 4. `[date:ISO_DATE]` - French formatted date string
  * 5. `[link:URL|Label]` - External web link button opening in a new tab
  * 6. `[file:URL|Label]` - File download button with fetch/blob download trigger
+ * 
+ * Also supports Slide Mode (JSON array of blocks) and BBCode [b], [i], [u], [color], [size].
  */
 export default function RichTextRenderer({ content }: { content: string }) {
+  // Check if content is a JSON slide array
+  let blocks: any[] | null = null;
+  if (typeof content === 'string' && (content.startsWith('[{"') || content.startsWith('[]'))) {
+    try {
+      blocks = JSON.parse(content);
+    } catch (e) {}
+  }
+
   const [now, setNow] = useState(() => Date.now());
 
-  const tokens = useMemo(() => parseContent(content), [content]);
+  const tokens = useMemo(() => {
+    if (blocks) return []; // skip parsing if slide mode
+    return parseContent(content);
+  }, [content, blocks]);
 
   const hasTimeDependentToken = useMemo(() => {
     return tokens.some(t => t.type === 'timer' || t.type === 'chrono');
@@ -235,12 +258,38 @@ export default function RichTextRenderer({ content }: { content: string }) {
     return () => clearInterval(interval);
   }, [hasTimeDependentToken]);
 
+  if (blocks && Array.isArray(blocks)) {
+    return (
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', backgroundColor: 'transparent', overflow: 'hidden' }}>
+        {blocks.map((block, idx) => {
+          const left = (block.x / 800) * 100 + '%';
+          const top = (block.y / 450) * 100 + '%';
+          const width = (block.w / 800) * 100 + '%';
+          const height = (block.h / 450) * 100 + '%';
+          
+          if (block.type === 'image') {
+            return (
+              <img key={idx} src={block.url} style={{ position: 'absolute', left, top, width, height, objectFit: 'contain' }} alt="" />
+            );
+          } else if (block.type === 'text') {
+            return (
+              <div key={idx} style={{ position: 'absolute', left, top, width, height, color: block.color || '#fff', fontSize: block.fontSize || 16, overflow: 'hidden' }}>
+                 <RichTextRenderer content={block.content || ''} />
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    );
+  }
+
   return (
     <span className="rich-text-renderer">
       {tokens.map((token, index) => {
         switch (token.type) {
           case 'text':
-            return <span key={index}>{renderTextWithNewlines(token.content)}</span>;
+            return <span key={index}>{renderBBCodeAndNewlines(token.content)}</span>;
 
           case 'accent':
             return (

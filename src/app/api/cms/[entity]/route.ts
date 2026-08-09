@@ -20,7 +20,7 @@ export async function GET(
 ) {
   const { entity } = await params;
   const url = new URL(request.url);
-  const includeDrafts = url.searchParams.get('drafts') === 'true';
+  const includeDrafts = url.searchParams.get('drafts') === 'true' || process.env.NODE_ENV === 'development';
 
   try {
     let data;
