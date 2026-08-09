@@ -205,12 +205,23 @@ function escapeHtmlText(unsafe: string) {
 
 function renderBBCodeAndNewlines(text: string) {
   let html = escapeHtmlText(text);
+  
+  html = html.replace(/\[h1\]/g, '<h1 class="text-2xl font-bold text-white mt-6 mb-4 block" style="font-size: 24px; margin-top: 24px; margin-bottom: 16px;">').replace(/\[\/h1\]/g, '</h1>');
+  html = html.replace(/\[h2\]/g, '<h2 class="text-xl font-bold text-gray-200 mt-5 mb-3 block" style="font-size: 20px; margin-top: 20px; margin-bottom: 12px;">').replace(/\[\/h2\]/g, '</h2>');
+  html = html.replace(/\[h3\]/g, '<h3 class="text-lg font-semibold text-gray-300 mt-4 mb-2 block" style="font-size: 18px; margin-top: 16px; margin-bottom: 8px;">').replace(/\[\/h3\]/g, '</h3>');
+  
   html = html.replace(/\n/g, '<br />');
+  // Nettoyer les sauts de ligne directement après ou avant les titres pour éviter de trop grands espaces
+  html = html.replace(/<\/h1><br \/>/g, '</h1>');
+  html = html.replace(/<\/h2><br \/>/g, '</h2>');
+  html = html.replace(/<\/h3><br \/>/g, '</h3>');
+  
   html = html.replace(/\[b\]/g, '<strong>').replace(/\[\/b\]/g, '</strong>');
   html = html.replace(/\[i\]/g, '<em>').replace(/\[\/i\]/g, '</em>');
   html = html.replace(/\[u\]/g, '<u>').replace(/\[\/u\]/g, '</u>');
   html = html.replace(/\[color=([^\]]+)\]/g, '<span style="color: $1;">').replace(/\[\/color\]/g, '</span>');
   html = html.replace(/\[size=([^\]]+)\]/g, '<span style="font-size: $1px;">').replace(/\[\/size\]/g, '</span>');
+  
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
