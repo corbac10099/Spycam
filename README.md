@@ -4,6 +4,10 @@ If you don't want to sign up, you can enter `spycam_riot_temp@gmail.com` as the 
 
 
 
+
+
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
