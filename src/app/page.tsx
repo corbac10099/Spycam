@@ -494,6 +494,7 @@ import RichTextRenderer from "@/components/RichTextRenderer";
 function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setNewsItems: (items: any[]) => void }) {
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
+  const [sortOption, setSortOption] = useState<'date_desc'|'date_asc'|'title_asc'|'title_desc'>('date_desc');
 
   useEffect(() => {
     setNewsLoading(true);
@@ -514,13 +515,32 @@ function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setN
   };
 
   const sortedNews = [...newsItems].sort((a, b) => {
-    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    if (sortOption === 'date_desc') {
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    } else if (sortOption === 'date_asc') {
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    } else if (sortOption === 'title_asc') {
+      return (a.title || '').localeCompare(b.title || '');
+    } else if (sortOption === 'title_desc') {
+      return (b.title || '').localeCompare(a.title || '');
+    }
+    return 0;
   });
 
   return (
     <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Actualités</h2>
+        <select 
+          value={sortOption}
+          onChange={(e) => setSortOption(e.target.value as any)}
+          className="bg-[var(--color-surface)] text-[var(--color-text-primary)] px-4 py-2 rounded-lg border border-[var(--color-border)] outline-none focus:border-[var(--color-val-red)] transition-colors text-sm font-bold uppercase tracking-wider"
+        >
+          <option value="date_desc">Récentes d'abord</option>
+          <option value="date_asc">Anciennes d'abord</option>
+          <option value="title_asc">Titre (A-Z)</option>
+          <option value="title_desc">Titre (Z-A)</option>
+        </select>
       </div>
 
       {newsLoading && (

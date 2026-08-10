@@ -85,7 +85,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ entity: string, id: string }> }
 ) {
-  const { entity, id } = await params;
+  const resolvedParams = await params;
+  const { entity, id } = resolvedParams;
+  
+  console.log(`DELETE request received for entity: ${entity}, id: ${id}`);
   
   try {
     switch (entity) {
@@ -93,10 +96,11 @@ export async function DELETE(
       case 'agents': await prisma.agent.delete({ where: { id } }); break;
       case 'maps': await prisma.map.delete({ where: { id } }); break;
       case 'banners': await prisma.banner.delete({ where: { id } }); break;
-      default: return setCORSHeaders(NextResponse.json({ error: 'Entity not found' }, { status: 404 }));
+      default: return setCORSHeaders(NextResponse.json({ error: `Entity not found: ${entity}` }, { status: 404 }));
     }
     return setCORSHeaders(NextResponse.json({ success: true }));
   } catch (error: any) {
+    console.error(`DELETE error: ${error.message}`);
     return setCORSHeaders(NextResponse.json({ error: error.message }, { status: 500 }));
   }
 }
