@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import AbilityCard from "@/components/AbilityCard";
 
 // ==================== Tooltip ====================
 function Tooltip({ message }: { message: string }) {
@@ -640,22 +641,7 @@ function AgentsWikiComponent() {
           {abilitySlots.map(slot => {
             const ab = abilities[slot.key];
             if (!ab || !ab.name) return null;
-            return (
-              <div key={slot.key} className="glass-panel rounded-2xl p-6" style={{ borderLeft: `3px solid ${slot.color}` }}>
-                <div className="flex items-center gap-3 mb-3">
-                  {ab.iconUrl && <img src={ab.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-[var(--color-background)] p-1 border border-[var(--color-border)]" />}
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: slot.color }}>{slot.label}</span>
-                    <h3 className="text-lg font-bold text-[var(--color-text-primary)]">{ab.name}</h3>
-                  </div>
-                </div>
-                {ab.description && (
-                  <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                    <RichTextRenderer content={ab.description} />
-                  </div>
-                )}
-              </div>
-            );
+            return <AbilityCard key={slot.key} ability={ab} slotName={slot.label} />;
           })}
         </div>
       </div>
