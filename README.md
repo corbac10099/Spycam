@@ -1,10 +1,10 @@
-tu t gouré dans le chat, complete correctement : # 📷 Spycam — Valorant Companion & Analytics Tracker
+# Spycam — Valorant Companion & Analytics Tracker
 
 Spycam is an interactive companion and analytics application for Valorant, designed to help players track their performance, explore agent skill breakdowns with video guides, and analyze match data.
 
 ---
 
-## 🔍 Instructions for Riot Games Reviewers
+## Instructions for Riot Games Reviewers
 
 To facilitate the review process without requiring you to create or bind a personal account, a dedicated reviewer account has been set up.
 
@@ -18,7 +18,7 @@ To facilitate the review process without requiring you to create or bind a perso
 
 ---
 
-## 🛠️ Local Development Setup
+## Local Development Setup
 
 This project is built with **Next.js** (App Router). To run the application locally:
 
