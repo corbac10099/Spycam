@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import AbilityCard from "@/components/AbilityCard";
@@ -118,7 +118,7 @@ function BannerCatalogModal({ isOpen, onClose, onSelect }: { isOpen: boolean; on
               {filtered.map(c => (
                 <button key={c.id} onClick={() => { onSelect(c.url); onClose(); }}
                   className="relative group rounded-xl overflow-hidden border-2 border-transparent hover:border-[var(--color-val-red)] transition-all cursor-pointer aspect-[3.5/1] bg-[var(--color-background)]">
-                  <img src={c.previewUrl} alt={c.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                  <img referrerPolicy="no-referrer" src={c.previewUrl} alt={c.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity p-2">
                     <span className="text-white text-xs font-bold text-center leading-tight">{c.name}</span>
                   </div>
@@ -136,13 +136,23 @@ function BannerCatalogModal({ isOpen, onClose, onSelect }: { isOpen: boolean; on
 }
 
 // ==================== Settings View ====================
-function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, isPublic, setIsPublic, p, canEditProfile }: any) {
-  const [settingsTab, setSettingsTab] = useState("features");
+function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, isPublic, setIsPublic, videoLoop, setVideoLoop, videoLoopDelay, setVideoLoopDelay, hiddenStats, setHiddenStats, enforcePublicStats, setEnforcePublicStats, p, canEditProfile, settingsTab, setSettingsTab, pushUrl, locale, setLocale }: any) {
+  const statOptions = [
+    { id: 'kills', label: t('stat_kills', locale) }, { id: 'deaths', label: t('stat_deaths', locale) }, { id: 'assists', label: t('stat_assists', locale) },
+    { id: 'kd', label: t('stat_kd', locale) }, { id: 'adr', label: t('stat_adr', locale) }, { id: 'hs', label: t('stat_hs', locale) },
+    { id: 'wr', label: t('stat_winrate', locale) }, { id: 'acs', label: t('stat_acs', locale) }, { id: 'fb', label: t('stat_fb', locale) },
+    { id: 'ace', label: t('stat_ace', locale) }, { id: 'kast', label: t('stat_kast', locale) }, { id: 'dd', label: t('stat_dd', locale) },
+    { id: 'wins', label: t('stat_wins', locale) }, { id: 'matches', label: t("matches_played", locale) }
+  ];
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // Draft State
   const [draftSmartRating, setDraftSmartRating] = useState(smartRating);
+  const [draftVideoLoop, setDraftVideoLoop] = useState(videoLoop ?? true);
+  const [draftVideoLoopDelay, setDraftVideoLoopDelay] = useState(videoLoopDelay ?? 500);
+  const [draftHiddenStats, setDraftHiddenStats] = useState<string[]>(hiddenStats || []);
+  const [draftEnforcePublicStats, setDraftEnforcePublicStats] = useState(enforcePublicStats || false);
   const [draftTheme, setDraftTheme] = useState(theme?.startsWith('custom:') ? 'custom' : theme);
   const [draftCustomBg, setDraftCustomBg] = useState(() => {
     if (theme?.startsWith('custom:')) {
@@ -161,6 +171,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   const [draftBannerUrl, setDraftBannerUrl] = useState(bannerUrl);
   const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
   const [draftIsPublic, setDraftIsPublic] = useState(isPublic ?? true);
+  const [draftLocale, setDraftLocale] = useState<Locale>(locale || 'fr');
 
   // Preview theme live
   useEffect(() => {
@@ -199,7 +210,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
           theme: draftTheme === 'custom' ? `custom:bg=${draftCustomBg},accent=${draftCustomAccent}` : draftTheme,
           bannerUrl: draftBannerUrl,
           bannerOffsetY: draftBannerOffsetY,
-          isPublic: draftIsPublic
+          isPublic: draftIsPublic,
+          videoLoop: draftVideoLoop,
+          videoLoopDelay: draftVideoLoopDelay,
+          hiddenStats: JSON.stringify(draftHiddenStats),
+          enforcePublicStats: draftEnforcePublicStats,
+          language: draftLocale
         })
       });
       if (res.ok) {
@@ -208,6 +224,11 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
         setBannerUrl(draftBannerUrl);
         setBannerOffsetY(draftBannerOffsetY);
         if (setIsPublic) setIsPublic(draftIsPublic);
+        if (setVideoLoop) setVideoLoop(draftVideoLoop);
+        if (setVideoLoopDelay) setVideoLoopDelay(draftVideoLoopDelay);
+        setHiddenStats(draftHiddenStats);
+        setEnforcePublicStats(draftEnforcePublicStats);
+        setLocale(draftLocale);
         onClose();
       }
     } catch (e) {
@@ -224,7 +245,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   
   // Default banners
   const banners = [
-    { name: "Défaut", url: p?.cardWideUrl || "" },
+    { name: t('banner_default', locale), url: p?.cardWideUrl || "" },
     { name: "Ascent", url: "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png" },
     { name: "Bind", url: "https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/splash.png" },
     { name: "Haven", url: "https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/splash.png" },
@@ -233,7 +254,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   return (
     <div className="w-full max-w-6xl mx-auto px-8 animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Paramètres</h2>
+        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{t("nav_settings", locale)}</h2>
         <button onClick={onClose} className="px-6 py-2.5 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)]">
           Retour au profil
         </button>
@@ -242,8 +263,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex flex-col gap-2">
-          {[{id:'features', label:'Fonctionnalités'}, {id:'privacy', label:'Confidentialité'}, {id:'appearance', label:'Apparence'}, {id:'about', label:'À propos'}].map(tab => (
-            <button key={tab.id} onClick={() => setSettingsTab(tab.id)}
+          {[{id:'features', label: t('settings_features', locale)}, 
+            {id:'privacy', label: t('settings_privacy', locale)}, 
+            {id:'appearance', label: t('settings_appearance', locale)},
+            {id:'language', label: t('settings_language', locale)},
+            {id:'about', label: t('settings_about', locale)}].map(tab => (
+            <button key={tab.id} onClick={() => { setSettingsTab(tab.id); pushUrl({ view: 'settings', settingsTab: tab.id }); }}
               className={`text-left px-5 py-4 rounded-xl font-bold uppercase tracking-wider text-sm transition-all ${settingsTab === tab.id ? 'bg-[var(--color-surface-hover)] border-l-4 border-[var(--color-val-red)] text-[var(--color-text-primary)] shadow-md' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'}`}>
               {tab.label}
             </button>
@@ -254,15 +279,46 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
         <div className="flex-1">
           {settingsTab === 'features' && (
             <div className="glass-panel rounded-2xl p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Notation Intelligente</h3>
-                  <p className="text-sm text-[var(--color-text-secondary)] mt-1">Affiche des indicateurs visuels sur les stats en dessous de la moyenne.</p>
+              <div className="flex flex-col gap-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('smart_rating', locale)}</h3>
+                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('visual_indicators_desc', locale)}</p>
+                  </div>
+                  <button onClick={() => setDraftSmartRating(!draftSmartRating)}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftSmartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftSmartRating ? 'translate-x-7' : 'translate-x-1'}`}></span>
+                  </button>
                 </div>
-                <button onClick={() => setDraftSmartRating(!draftSmartRating)}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftSmartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
-                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftSmartRating ? 'translate-x-7' : 'translate-x-1'}`}></span>
-                </button>
+
+                <div className="flex flex-col gap-4 pt-6 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('video_loop', locale)}</h3>
+                      <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('video_loop_desc', locale)}</p>
+                    </div>
+                    <button onClick={() => setDraftVideoLoop(!draftVideoLoop)}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftVideoLoop ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
+                      <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftVideoLoop ? 'translate-x-7' : 'translate-x-1'}`}></span>
+                    </button>
+                  </div>
+                  
+                  {draftVideoLoop && (
+                    <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300 pl-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-bold text-[var(--color-text-secondary)]">{t('video_delay', locale)}</span>
+                        <span className="text-sm font-bold text-[var(--color-val-red)]">{draftVideoLoopDelay} ms</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" max="3000" step="100" 
+                        value={draftVideoLoopDelay}
+                        onChange={(e) => setDraftVideoLoopDelay(Number(e.target.value))}
+                        className="w-full accent-[var(--color-val-red)]"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -270,8 +326,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
           {settingsTab === 'privacy' && (
             <div className="glass-panel rounded-2xl p-8 space-y-6">
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Confidentialité du profil</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1">Gérez la visibilité de votre profil et de vos statistiques par les autres utilisateurs.</p>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('profile_privacy', locale)}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('profile_privacy_desc', locale)}</p>
               </div>
 
               <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] flex items-center justify-between gap-4">
@@ -285,12 +341,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                   </div>
                   <div>
                     <h4 className="font-bold text-base text-[var(--color-text-primary)]">
-                      {draftIsPublic ? 'Profil Public' : 'Profil Privé'}
+                      {draftIsPublic ? t('public_profile', locale) : t('private_profile', locale)}
                     </h4>
                     <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-md">
                       {draftIsPublic 
-                        ? 'Votre profil et vos statistiques sont visibles par n\'importe quel utilisateur qui recherche votre nom.' 
-                        : 'Seul vous pouvez consulter vos statistiques lorsque vous êtes connecté. Les autres utilisateurs verront un message indiquant que votre profil est privé.'}
+                        ? t('public_profile_desc', locale) 
+                        : t('private_profile_desc', locale)}
                     </p>
                   </div>
                 </div>
@@ -299,6 +355,43 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                   <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftIsPublic ? 'translate-x-7' : 'translate-x-1'}`}></span>
                 </button>
               </div>
+
+              <div className="pt-6 border-t border-[var(--color-border)]">
+                <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-2">{t('stats_visibility', locale)}</h4>
+                <p className="text-xs text-[var(--color-text-secondary)] mb-4">
+                  Décochez les statistiques que vous ne souhaitez pas voir sur votre propre profil.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                  {statOptions.map(stat => (
+                    <label key={stat.id} className="flex items-center gap-3 p-3 bg-[var(--color-surface-hover)] rounded-xl border border-[var(--color-border)] cursor-pointer hover:border-[var(--color-val-red)] transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={!draftHiddenStats.includes(stat.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setDraftHiddenStats(draftHiddenStats.filter(id => id !== stat.id));
+                          } else {
+                            setDraftHiddenStats([...draftHiddenStats, stat.id]);
+                          }
+                        }}
+                        className="w-4 h-4 accent-[var(--color-val-red)] cursor-pointer"
+                      />
+                      <span className="text-sm font-bold text-[var(--color-text-primary)]">{stat.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
+                  <div>
+                    <h5 className="font-bold text-sm text-[var(--color-text-primary)]">{t('apply_to_visitors', locale)}</h5>
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{t('apply_to_visitors_desc', locale)}</p>
+                  </div>
+                  <button onClick={() => setDraftEnforcePublicStats(!draftEnforcePublicStats)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${draftEnforcePublicStats ? 'bg-[var(--color-val-red)]' : 'bg-gray-600'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftEnforcePublicStats ? 'translate-x-6' : 'translate-x-1'}`}></span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
           
@@ -306,16 +399,16 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
             <div className="glass-panel rounded-2xl p-8 space-y-10">
               {/* Sélecteur de Thème */}
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Thème de l'interface</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-5">Choisissez un thème visuel pour l'application.</p>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">{t('ui_theme', locale)}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-5">{t('ui_theme_desc', locale)}</p>
                 <div className="grid grid-cols-5 gap-3">
                   {[
-                    { id: 'dark', name: 'Sombre', bg: '#0a0e13', surface: '#0f1923', accent: '#8b97a3' },
-                    { id: 'light', name: 'Clair', bg: '#f0f1f5', surface: '#ffffff', accent: '#525f6e' },
-                    { id: 'midnight', name: 'Midnight', bg: '#0d0b1a', surface: '#140f28', accent: '#8c64ff' },
-                    { id: 'crimson', name: 'Crimson', bg: '#120808', surface: '#1e0a0a', accent: '#ff4655' },
-                    { id: 'ocean', name: 'Océan', bg: '#071014', surface: '#0a1923', accent: '#32c8b4' },
-                    { id: 'custom', name: 'Personnalisé', bg: draftCustomBg, surface: draftCustomBg, accent: draftCustomAccent },
+                    { id: 'dark', name: t('theme_dark', locale), bg: '#0a0e13', surface: '#0f1923', accent: '#8b97a3' },
+                    { id: 'light', name: t('theme_light', locale), bg: '#f0f1f5', surface: '#ffffff', accent: '#525f6e' },
+                    { id: 'midnight', name: t('theme_midnight', locale), bg: '#0d0b1a', surface: '#140f28', accent: '#8c64ff' },
+                    { id: 'crimson', name: t('theme_crimson', locale), bg: '#120808', surface: '#1e0a0a', accent: '#ff4655' },
+                    { id: 'ocean', name: t('theme_ocean', locale), bg: '#071014', surface: '#0a1923', accent: '#32c8b4' },
+                    { id: 'custom', name: t('theme_custom', locale), bg: draftCustomBg, surface: draftCustomBg, accent: draftCustomAccent },
                   ].map(t => (
                     <button key={t.id} onClick={() => setDraftTheme(t.id)}
                       className={`relative rounded-xl p-3 flex flex-col items-center gap-2 border-2 transition-all duration-300 cursor-pointer ${draftTheme === t.id ? 'border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105' : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'}`}>
@@ -335,10 +428,10 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               {/* Option Couleur Custom */}
               {draftTheme === 'custom' && (
                 <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] animate-in fade-in duration-300">
-                  <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-4">Personnalisation des couleurs</h4>
+                  <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-4">{t('color_customization', locale)}</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">Couleur d'accentuation</span>
+                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">{t('accent_color', locale)}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs uppercase font-mono">{draftCustomAccent}</span>
                         <input type="color" value={draftCustomAccent} onChange={e => setDraftCustomAccent(e.target.value)} 
@@ -346,7 +439,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">Couleur de fond</span>
+                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">{t('bg_color', locale)}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs uppercase font-mono">{draftCustomBg}</span>
                         <input type="color" value={draftCustomBg} onChange={e => setDraftCustomBg(e.target.value)} 
@@ -360,13 +453,13 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               {/* Bannière - Only show if user has a Valorant profile to preview with */}
               {p && (
                 <div>
-                  <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">Personnalisation de la Bannière</h3>
+                  <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">{t('banner_customization', locale)}</h3>
                   
                       <div className="flex gap-4 mb-6 flex-wrap">
                         {banners.map((b, i) => b.url && (
                           <button key={i} onClick={() => setDraftBannerUrl(b.url)}
                             className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all ${draftBannerUrl === b.url || (!draftBannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
-                            <img src={b.url} alt={b.name} className="w-full h-full object-cover" />
+                            <img referrerPolicy="no-referrer" src={b.url} alt={b.name} className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                               <span className="text-white text-xs font-bold">{b.name}</span>
                             </div>
@@ -384,22 +477,22 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                       {/* Slider interactif avec APERÇU EN DIRECT */}
                       <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4 max-w-xl">
                         <div className="flex items-center justify-between">
-                          <label className="font-bold text-sm text-[var(--color-text-primary)]">Cadrage vertical (Hauteur)</label>
+                          <label className="font-bold text-sm text-[var(--color-text-primary)]">{t('vertical_crop', locale)}</label>
                           <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{draftBannerOffsetY}%</span>
                         </div>
 
                         {/* Visualiseur de cadre en temps réel */}
                         <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
-                          <img src={draftBannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
+                          <img referrerPolicy="no-referrer" src={draftBannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
                           <div className="absolute inset-0 bg-black/40"></div>
                           <div className="relative z-10 p-3 flex items-center justify-between h-full">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/20">
-                                <img src={p?.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                <img referrerPolicy="no-referrer" src={p?.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
                               </div>
                               <span className="text-xs font-black text-white drop-shadow-md">{p?.gameName || "Joueur"}</span>
                             </div>
-                            <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">Aperçu en direct</span>
+                            <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">{t('live_preview', locale)}</span>
                           </div>
                         </div>
 
@@ -414,10 +507,29 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
 
             </div>
           )}
+          
+          {settingsTab === 'language' && (
+            <div className="glass-panel rounded-2xl p-8 space-y-6">
+              <div>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('settings_language_title', locale)}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('settings_language_desc', locale)}</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[var(--color-border)]">
+                {LOCALES.map(l => (
+                  <button key={l.code} onClick={() => setDraftLocale(l.code)}
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${draftLocale === l.code ? 'border-[var(--color-val-red)] bg-[var(--color-val-red)]/10 text-[var(--color-text-primary)]' : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-secondary)]'}`}>
+                    <span className="text-2xl">{l.flag}</span>
+                    <span className="font-bold">{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {settingsTab === 'about' && (
              <div className="glass-panel rounded-2xl p-8">
                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Valorant Performance Tracker</h3>
-               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">Application de suivi de performances pour Valorant. Utilise l'API officielle de Riot Games.</p>
+               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{t('footer_desc', locale)}</p>
              </div>
            )}
 
@@ -430,8 +542,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
             <button onClick={handleSave} disabled={loading}
               className="px-6 py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center gap-2">
               {loading ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Enregistrement...</>
-              ) : 'Sauvegarder'}
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> {t('settings_saving', locale)}</>
+              ) : t('save_settings', locale)}
             </button>
           </div>
         </div>
@@ -490,9 +602,10 @@ function DebugPanel({ isOpen, onClose, onGenerate }: { isOpen: boolean; onClose:
 
 import { Suspense } from "react";
 import RichTextRenderer from "@/components/RichTextRenderer";
+import { t, LOCALES, Locale } from "@/lib/i18n";
 
 // ==================== News View Component (BDD Neon) ====================
-function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setNewsItems: (items: any[]) => void }) {
+function NewsViewComponent({ newsItems, setNewsItems, locale }: { newsItems: any[]; setNewsItems: (items: any[]) => void; locale: Locale; }) {
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
   const [sortOption, setSortOption] = useState<'date_desc'|'date_asc'|'title_asc'|'title_desc'>('date_desc');
@@ -531,7 +644,7 @@ function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setN
   return (
     <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Actualités</h2>
+        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{t("nav_news", locale)}</h2>
         <select 
           value={sortOption}
           onChange={(e) => setSortOption(e.target.value as any)}
@@ -587,7 +700,7 @@ function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setN
 }
 
 // ==================== Agents Wiki Component ====================
-function AgentsWikiComponent() {
+function AgentsWikiComponent({ videoLoop, videoLoopDelay, locale, pushUrl }: { videoLoop?: boolean, videoLoopDelay?: number, locale: Locale, pushUrl: any }) {
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
@@ -601,6 +714,39 @@ function AgentsWikiComponent() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (agents.length > 0) {
+      const pathname = window.location.pathname;
+      const match = pathname.match(/\/agents\/([^/]+)/);
+      if (match && match[1]) {
+        const slug = match[1];
+        const agent = agents.find(a => a.name.toLowerCase() === slug.toLowerCase());
+        if (agent) {
+          setSelectedAgent(agent);
+        }
+      } else {
+        setSelectedAgent(null);
+      }
+    }
+  }, [agents]);
+
+  // Écouter popstate pour mettre à jour l'agent si on fait précédent/suivant
+  useEffect(() => {
+    const handlePop = () => {
+      const pathname = window.location.pathname;
+      const match = pathname.match(/\/agents\/([^/]+)/);
+      if (match && match[1]) {
+        const slug = match[1];
+        const agent = agents.find(a => a.name.toLowerCase() === slug.toLowerCase());
+        if (agent) setSelectedAgent(agent);
+      } else {
+        setSelectedAgent(null);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [agents]);
+
   const abilitySlots = [
     { key: 'C', label: 'C — Gratuite', color: '#22c55e' },
     { key: 'Q', label: 'Q', color: '#3b82f6' },
@@ -611,7 +757,7 @@ function AgentsWikiComponent() {
   if (loading) {
     return (
       <div className="text-center text-[var(--color-text-secondary)] animate-pulse py-20 uppercase tracking-widest font-bold">
-        Chargement des agents...
+        {t("loading_agents", locale)}
       </div>
     );
   }
@@ -620,15 +766,15 @@ function AgentsWikiComponent() {
     const abilities = selectedAgent.abilities || {};
     return (
       <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
-        <button onClick={() => setSelectedAgent(null)} className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-val-red)] transition-colors mb-6 font-bold">
+        <button onClick={() => { setSelectedAgent(null); pushUrl({ view: 'agents', agentSlug: null }); }} className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-val-red)] transition-colors mb-6 font-bold">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Retour aux agents
+          {t('back_to_agents', locale)}
         </button>
 
         <div className="glass-panel rounded-2xl p-8 mb-6">
           <div className="flex items-center gap-6 mb-6">
             {selectedAgent.iconUrl && (
-              <img src={selectedAgent.iconUrl} alt={selectedAgent.name} className="w-24 h-24 rounded-xl object-contain bg-[var(--color-background)] p-2 border border-[var(--color-border)]" />
+              <img referrerPolicy="no-referrer" src={selectedAgent.iconUrl} alt={selectedAgent.name} className="w-24 h-24 rounded-xl object-contain bg-[var(--color-background)] p-2 border border-[var(--color-border)]" />
             )}
             <div>
               <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{selectedAgent.name}</h2>
@@ -641,7 +787,7 @@ function AgentsWikiComponent() {
           {abilitySlots.map(slot => {
             const ab = abilities[slot.key];
             if (!ab || !ab.name) return null;
-            return <AbilityCard key={slot.key} ability={ab} slotName={slot.label} />;
+            return <AbilityCard key={slot.key} ability={ab} slotName={slot.label} globalLoop={videoLoop} globalLoopDelayMs={videoLoopDelay} />;
           })}
         </div>
       </div>
@@ -650,25 +796,27 @@ function AgentsWikiComponent() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
-      <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-8">Agents</h2>
+      <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-8">{t("tab_agents", locale)}</h2>
       
       {agents.length === 0 ? (
         <div className="glass-panel rounded-2xl p-10 text-center">
-          <p className="text-lg text-[var(--color-text-secondary)] font-bold">Aucun agent configuré</p>
+          <p className="text-lg text-[var(--color-text-secondary)] font-bold">{t("no_agents_configured", locale)}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {agents.map(agent => (
-            <button key={agent.id} onClick={() => setSelectedAgent(agent)}
+            <button key={agent.id} onClick={() => { setSelectedAgent(agent); pushUrl({ view: 'agents', agentSlug: agent.name.toLowerCase() }); }}
               className="glass-panel rounded-2xl p-4 flex flex-col items-center gap-3 hover:bg-[var(--color-surface-hover)] transition-all duration-300 group cursor-pointer border-none">
               {agent.iconUrl ? (
-                <img src={agent.iconUrl} alt={agent.name} className="w-20 h-20 rounded-xl object-contain bg-[var(--color-background)] p-1 border border-[var(--color-border)] group-hover:border-[var(--color-val-red)] transition-colors" />
+                <img referrerPolicy="no-referrer" src={agent.iconUrl} alt={agent.name} className="w-16 h-16 rounded-xl object-contain bg-[var(--color-background)] p-1 border border-[var(--color-border)] group-hover:border-[var(--color-val-red)] transition-colors" />
               ) : (
-                <div className="w-20 h-20 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-secondary)]">?</div>
+                <div className="w-16 h-16 rounded-xl bg-[var(--color-surface-hover)] border border-[var(--color-border)] group-hover:border-[var(--color-val-red)] transition-colors flex items-center justify-center">
+                  <span className="text-[var(--color-text-secondary)] font-bold text-xs">?</span>
+                </div>
               )}
               <div className="text-center">
-                <div className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[var(--color-val-red)] transition-colors">{agent.name}</div>
-                <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-secondary)]">{agent.role}</div>
+                <div className="font-bold uppercase tracking-widest text-sm text-[var(--color-text-primary)] group-hover:text-[var(--color-val-red)] transition-colors">{agent.name}</div>
+                <div className="text-xs font-medium uppercase tracking-widest text-[var(--color-text-secondary)]">{agent.role}</div>
               </div>
             </button>
           ))}
@@ -706,9 +854,88 @@ function HomeContent() {
   const [isFocused, setIsFocused] = useState(false);
   const [activeTab, setActiveTab] = useState("performance");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("features");
   const [debugOpen, setDebugOpen] = useState(false);
   const [newsView, setNewsView] = useState(false);
   const [agentsView, setAgentsView] = useState(false);
+  const [locale, setLocale] = useState<Locale>('fr');
+
+  // ==================== URL ROUTING HELPERS ====================
+  // Mapping entre les noms d'onglets internes et les slugs URL
+  const TAB_TO_SLUG: Record<string, string> = useMemo(() => ({
+    'performance': 'home',
+    'agents': 'agents-stats',
+    'matches': 'historique',
+  }), []);
+  const SLUG_TO_TAB: Record<string, string> = useMemo(() => ({
+    'home': 'performance',
+    'agents-stats': 'agents',
+    'historique': 'matches',
+  }), []);
+  const VALID_SLUGS = useMemo(() => ['home', 'performance', 'historique', 'agents', 'agents-stats', 'actualites', 'parametres'], []);
+
+  // Convertit un Riot ID ("Gr4phØ#0001") en slug URL ("Gr4phØ-0001")
+  const riotIdToSlug = useCallback((id: string) => {
+    // Remplace le dernier # par un tiret (les Riot IDs sont format "Name#Tag")
+    const hashIndex = id.lastIndexOf('#');
+    if (hashIndex === -1) return encodeURIComponent(id);
+    return encodeURIComponent(id.substring(0, hashIndex) + '-' + id.substring(hashIndex + 1));
+  }, []);
+
+  // Convertit un slug URL ("Gr4phØ-0001") en Riot ID ("Gr4phØ#0001")
+  const slugToRiotId = useCallback((slug: string) => {
+    const decoded = decodeURIComponent(slug);
+    // Remplace le dernier tiret par un # 
+    const lastDash = decoded.lastIndexOf('-');
+    if (lastDash === -1) return decoded;
+    return decoded.substring(0, lastDash) + '#' + decoded.substring(lastDash + 1);
+  }, []);
+
+  // Met à jour l'URL du navigateur sans recharger la page
+  const pushUrl = useCallback((opts?: { tab?: string; playerId?: string | null; isOwnProfile?: boolean; view?: 'news' | 'agents' | 'settings' | null; agentSlug?: string | null; settingsTab?: string | null }) => {
+    const tab = opts?.tab;
+    const playerId = opts?.playerId;
+    const isOwn = opts?.isOwnProfile ?? false;
+    const view = opts?.view;
+    const agentSlug = opts?.agentSlug;
+    const sTab = opts?.settingsTab;
+
+    let path = '/';
+
+    if (view === 'news') {
+      path = isOwn || !playerId ? '/actualites' : `/${riotIdToSlug(playerId)}/actualites`;
+    } else if (view === 'agents') {
+      if (agentSlug) {
+        path = isOwn || !playerId ? `/agents/${agentSlug}` : `/${riotIdToSlug(playerId)}/agents/${agentSlug}`;
+      } else {
+        path = isOwn || !playerId ? '/agents' : `/${riotIdToSlug(playerId)}/agents`;
+      }
+    } else if (view === 'settings') {
+      path = sTab ? `/parametres/${sTab}` : '/parametres';
+    } else if (tab) {
+      const slug = TAB_TO_SLUG[tab] || tab;
+      if (isOwn || !playerId) {
+        // Map 'home' -> '/home' explicitly instead of '/home/home' or just '/'
+        path = (slug === 'home' && !isOwn && !playerId) ? '/home' : `/home/${slug}`;
+        if (slug === 'home' && isOwn) path = '/home'; // simplifie pour le profil propre
+      } else {
+        path = `/${riotIdToSlug(playerId)}/home/${slug}`;
+        if (slug === 'home') path = `/${riotIdToSlug(playerId)}/home`;
+      }
+    } else {
+      // Default: home
+      if (isOwn || !playerId) {
+        path = '/home';
+      } else {
+        path = `/${riotIdToSlug(playerId)}/home`;
+      }
+    }
+
+    // Ne push que si l'URL a changé
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+  }, [riotIdToSlug, TAB_TO_SLUG]);
   const [newsItems, setNewsItems] = useState<any[]>([]);
   const [gameMode, setGameMode] = useState('all');
   const [selectedSeason, setSelectedSeason] = useState('all');
@@ -730,6 +957,10 @@ function HomeContent() {
   const [bannerUrl, setBannerUrl] = useState('');
   const [bannerOffsetY, setBannerOffsetY] = useState(50);
   const [isPublic, setIsPublic] = useState(true);
+  const [videoLoop, setVideoLoop] = useState(true);
+  const [videoLoopDelay, setVideoLoopDelay] = useState(500);
+  const [hiddenStats, setHiddenStats] = useState<string[]>([]);
+  const [enforcePublicStats, setEnforcePublicStats] = useState(false);
 
   // Favorites State (stored in localStorage)
   const [favorites, setFavorites] = useState<Array<{riotId: string, gameName: string, tagLine: string, cardUrl: string}>>([]);
@@ -779,6 +1010,7 @@ function HomeContent() {
     if (myRiotId) {
       setRiotId(myRiotId);
       setLoading(true); setError(""); setPlayerData(null);
+      pushUrl({ tab: activeTab, playerId: myRiotId, isOwnProfile: true });
       fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: myRiotId }) })
         .then(r => r.json())
         .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
@@ -788,8 +1020,10 @@ function HomeContent() {
   };
 
   const searchPlayer = (searchId: string) => {
+    const isOwn = myRiotId && searchId.toLowerCase() === myRiotId.toLowerCase();
     setRiotId(searchId);
     setLoading(true); setError(""); setPlayerData(null);
+    pushUrl({ tab: activeTab, playerId: searchId, isOwnProfile: !!isOwn });
     fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: searchId }) })
       .then(r => r.json())
       .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
@@ -825,6 +1059,15 @@ function HomeContent() {
         if (user.bannerUrl !== undefined) setBannerUrl(user.bannerUrl || '');
         if (user.bannerOffsetY !== undefined) setBannerOffsetY(user.bannerOffsetY ?? 50);
         if (user.isPublic !== undefined) setIsPublic(user.isPublic);
+        if (user.videoLoop !== undefined) setVideoLoop(user.videoLoop);
+        if (user.videoLoopDelay !== undefined) setVideoLoopDelay(user.videoLoopDelay);
+        if (user.hiddenStats !== undefined) {
+          try { setHiddenStats(JSON.parse(user.hiddenStats)); } catch {}
+        }
+        if (user.enforcePublicStats !== undefined) setEnforcePublicStats(user.enforcePublicStats);
+        if (user.language) {
+          setLocale(user.language as Locale);
+        }
 
         if (!playerData && !loading) {
           let initialRiotId = user.riotId;
@@ -843,10 +1086,71 @@ function HomeContent() {
              initialRiotId = null; 
           }
 
-          if (initialRiotId) {
-            setRiotId(initialRiotId);
+          // === PARSE URL pour restaurer la navigation ===
+          const pathname = window.location.pathname;
+          const segments = pathname.split('/').filter(Boolean); // ex: ["Gr4phØ-0001", "historique"] ou ["home"]
+          let urlRiotId: string | null = null;
+          let urlTab: string | null = null;
+          let urlView: 'news' | 'agents' | 'settings' | null = null;
+          let uAgentSlug: string | null = null;
+          let uSettingsTab: string | null = null;
+
+          if (segments.length > 0) {
+            if (segments[0] === 'actualites') {
+              urlView = 'news';
+            } else if (segments[0] === 'agents') {
+              urlView = 'agents';
+              if (segments[1]) uAgentSlug = segments[1];
+            } else if (segments[0] === 'parametres') {
+              urlView = 'settings';
+              if (segments[1]) uSettingsTab = segments[1];
+            } else if (segments[0] === 'home') {
+              if (segments[1] && SLUG_TO_TAB[segments[1]]) {
+                urlTab = SLUG_TO_TAB[segments[1]];
+              } else {
+                urlTab = 'performance';
+              }
+            } else {
+              // C'est un profil joueur
+              urlRiotId = slugToRiotId(segments[0]);
+              if (segments[1] === 'actualites') {
+                urlView = 'news';
+              } else if (segments[1] === 'agents') {
+                urlView = 'agents';
+                if (segments[2]) uAgentSlug = segments[2];
+              } else if (segments[1] === 'parametres') {
+                urlView = 'settings';
+                if (segments[2]) uSettingsTab = segments[2];
+              } else if (segments[1] === 'home') {
+                if (segments[2] && SLUG_TO_TAB[segments[2]]) {
+                  urlTab = SLUG_TO_TAB[segments[2]];
+                } else {
+                  urlTab = 'performance';
+                }
+              }
+            }
+          }
+
+          if (urlView === 'news') setNewsView(true);
+          else if (urlView === 'agents') setAgentsView(true);
+          else if (urlView === 'settings') {
+            setSettingsOpen(true);
+            if (uSettingsTab) setSettingsTab(uSettingsTab);
+          }
+          if (urlTab) setActiveTab(urlTab);
+
+          // Déterminer quel joueur charger
+          const targetRiotId = urlRiotId || initialRiotId;
+
+          if (targetRiotId) {
+            setRiotId(targetRiotId);
             setLoading(true); setError(""); setPlayerData(null);
-            fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: initialRiotId }) })
+            const isOwn = initialRiotId && targetRiotId.toLowerCase() === initialRiotId.toLowerCase();
+            // Mettre à jour l'URL si on était sur "/"
+            if (pathname === '/' || pathname === '') {
+              pushUrl({ tab: urlTab || 'performance', playerId: targetRiotId, isOwnProfile: !!isOwn });
+            }
+            fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: targetRiotId }) })
               .then(r => r.json())
               .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
               .catch(() => setError("Serveur inaccessible."))
@@ -857,6 +1161,84 @@ function HomeContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, isSimulatedNewUser]);
+
+  // === Gérer les boutons Précédent/Suivant du navigateur ===
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname;
+      const segments = pathname.split('/').filter(Boolean);
+
+      // Reset des vues
+      setNewsView(false);
+      setAgentsView(false);
+      setSettingsOpen(false);
+
+      if (segments.length === 0) {
+        // URL racine → profil principal
+        if (myRiotId) { searchPlayer(myRiotId); }
+        setActiveTab('performance');
+        return;
+      }
+
+      let urlRiotId: string | null = null;
+      let urlTab: string | null = null;
+
+      if (segments[0] === 'actualites') {
+        setNewsView(true);
+      } else if (segments[0] === 'agents') {
+        setAgentsView(true);
+        if (segments[1]) {
+          // Géré plus tard dans l'effet des agents pour setSelectedAgent
+          // Mais il faut un moyen de le passer au composant AgentsWiki
+        }
+      } else if (segments[0] === 'parametres') {
+        setSettingsOpen(true);
+        if (segments[1]) setSettingsTab(segments[1]);
+      } else if (segments[0] === 'home') {
+        if (segments[1] && SLUG_TO_TAB[segments[1]]) {
+          urlTab = SLUG_TO_TAB[segments[1]];
+        } else {
+          urlTab = 'performance';
+        }
+      } else {
+        // C'est un profil joueur
+        urlRiotId = slugToRiotId(segments[0]);
+        if (segments[1] === 'actualites') {
+          setNewsView(true);
+        } else if (segments[1] === 'agents') {
+          setAgentsView(true);
+        } else if (segments[1] === 'parametres') {
+          setSettingsOpen(true);
+        } else if (segments[1] === 'home') {
+          if (segments[2] && SLUG_TO_TAB[segments[2]]) {
+            urlTab = SLUG_TO_TAB[segments[2]];
+          } else {
+            urlTab = 'performance';
+          }
+        }
+      }
+
+      if (urlTab) setActiveTab(urlTab);
+
+      // Charger le joueur si nécessaire
+      if (urlRiotId && urlRiotId !== riotId) {
+        setRiotId(urlRiotId);
+        setLoading(true); setError(""); setPlayerData(null);
+        fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: urlRiotId }) })
+          .then(r => r.json())
+          .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
+          .catch(() => setError(t('error_server', locale)))
+          .finally(() => setLoading(false));
+      } else if (!urlRiotId && myRiotId && riotId !== myRiotId) {
+        // Retour au profil principal
+        searchPlayer(myRiotId);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myRiotId, riotId, VALID_SLUGS, SLUG_TO_TAB, slugToRiotId, locale]);
 
   const filteredMatches = useMemo(() => {
     if (!playerData?.player?.matchHistory) return [];
@@ -969,6 +1351,15 @@ function HomeContent() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError(""); setPlayerData(null);
+    const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
+    
+    // Logic: 
+    // If owner (isOwn): always hide what they chose to hide.
+    // If visitor (!isOwn): only hide if enforcePublicStats is checked.
+    const appliedHiddenStats = isOwn || enforcePublicStats ? hiddenStats : [];
+    
+    setNewsView(false); setAgentsView(false); setSettingsOpen(false);
+    pushUrl({ tab: 'performance', playerId: riotId, isOwnProfile: !!isOwn });
     try {
       const r = await fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId }) });
       const d = await r.json(); if (!r.ok) setError(d.error); else setPlayerData(d);
@@ -1030,24 +1421,24 @@ function HomeContent() {
           </div>
           <div className="flex-[2] flex justify-center items-center gap-2">
             {/* Home button */}
-            {myRiotId && (
-              <button onClick={() => { goHome(); setNewsView(false); setAgentsView(false); setSettingsOpen(false); }} title="Retour à mon profil"
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${(!newsView && !agentsView) && playerData?.player?.gameName && myRiotId.toLowerCase().startsWith(playerData.player.gameName.toLowerCase()) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
+            {playerData?.player?.gameName && myRiotId && (
+              <button onClick={() => { setNewsView(false); setAgentsView(false); setSettingsOpen(false); goHome(); }} title={t('nav_back_profile', locale)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${(!newsView && !agentsView && !settingsOpen) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
               </button>
             )}
             {/* News button */}
-            <button onClick={() => { setNewsView(true); setAgentsView(false); setSettingsOpen(false); }} title="Actualités"
+            <button onClick={() => { setNewsView(true); setAgentsView(false); setSettingsOpen(false); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ view: 'news', playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }} title={t('nav_news', locale)}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${newsView && !agentsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
             </button>
             {/* Agents Wiki button */}
-            <button onClick={() => { setAgentsView(true); setNewsView(false); setSettingsOpen(false); }} title="Wiki Agents"
+            <button onClick={() => { setAgentsView(true); setNewsView(false); setSettingsOpen(false); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ view: 'agents', playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }} title={t('nav_agents', locale)}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${agentsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             </button>
             <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center ml-2">
-              <input type="text" placeholder="Rechercher Pseudo#Tag" value={riotId} onChange={(e) => setRiotId(e.target.value)}
+              <input type="text" placeholder={t('search_placeholder', locale)} value={riotId} onChange={(e) => setRiotId(e.target.value)}
                 onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
                 className={`bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-6 py-3 rounded-full outline-none transition-all duration-500 ease-in-out ${isFocused ? 'w-full shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'w-64'}`} required />
               <button type="submit" className="hidden"></button>
@@ -1061,9 +1452,10 @@ function HomeContent() {
             )}
             <button onClick={() => signOut({ callbackUrl: '/login' })} className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-4 py-2 rounded-full items-center text-sm gap-2 border border-[var(--color-border)]">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Déconnexion
+              {t('logout_button', locale)}
             </button>
-            <button onClick={() => setSettingsOpen(!settingsOpen)} className={`w-10 h-10 rounded-full transition-colors flex items-center justify-center border ${settingsOpen ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]'}`}>
+            <button onClick={() => { const newVal = !settingsOpen; setSettingsOpen(newVal); if (newVal) { pushUrl({ view: 'settings' }); } else { const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ tab: activeTab, playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); } }} title={t('nav_settings', locale)}
+              className={`w-10 h-10 rounded-full transition-colors flex items-center justify-center border ${settingsOpen ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
@@ -1072,12 +1464,12 @@ function HomeContent() {
         {/* Favorites bar - Attached to header like Chrome Bookmarks */}
         {favorites.length > 0 && !settingsOpen && (
           <div className="w-full px-6 py-2 flex items-center gap-2 border-t border-[var(--color-border)]/50 bg-[var(--color-background)]/50 overflow-x-auto">
-            <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">Favoris</span>
+            <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">{t('favorites', locale)}</span>
             <div className="flex items-center gap-1.5 overflow-x-auto">
               {favorites.map(fav => (
                 <button key={fav.riotId} onClick={() => searchPlayer(fav.riotId)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200 text-xs font-bold border flex-shrink-0 ${playerData?.player?.gameName === fav.gameName ? 'bg-[var(--color-val-red)]/15 border-[var(--color-val-red)]/40 text-[var(--color-val-red)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
-                  {fav.cardUrl && <img src={fav.cardUrl} alt="" className="w-5 h-5 rounded-full object-cover" />}
+                  {fav.cardUrl && <img referrerPolicy="no-referrer" src={fav.cardUrl} alt="" className="w-5 h-5 rounded-full object-cover" />}
                   <span>{fav.gameName}</span>
                   <span className="text-[var(--color-text-secondary)] opacity-50">#{fav.tagLine}</span>
                 </button>
@@ -1100,13 +1492,26 @@ function HomeContent() {
           setBannerOffsetY={setBannerOffsetY} 
           isPublic={isPublic}
           setIsPublic={setIsPublic}
+          videoLoop={videoLoop}
+          setVideoLoop={setVideoLoop}
+          videoLoopDelay={videoLoopDelay}
+          setVideoLoopDelay={setVideoLoopDelay}
+          hiddenStats={hiddenStats}
+          setHiddenStats={setHiddenStats}
+          enforcePublicStats={enforcePublicStats}
+          setEnforcePublicStats={setEnforcePublicStats}
           p={playerData?.player} 
           canEditProfile={canEditProfile}
+          settingsTab={settingsTab}
+          setSettingsTab={setSettingsTab}
+          pushUrl={pushUrl}
+          locale={locale}
+          setLocale={setLocale}
         />
       ) : newsView && !agentsView ? (
-        <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} />
+        <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} locale={locale} />
       ) : agentsView && !newsView ? (
-        <AgentsWikiComponent />
+        <AgentsWikiComponent videoLoop={videoLoop} videoLoopDelay={videoLoopDelay} locale={locale} pushUrl={pushUrl} />
       ) : (
         <div className="flex-1 flex flex-col items-center px-8 z-10 w-full max-w-6xl mx-auto">
         {error && (
@@ -1115,7 +1520,7 @@ function HomeContent() {
               <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center mb-5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff4655" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-2">Profil Privé</h3>
+              <h3 className="text-xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-2">{t('private_profile', locale)}</h3>
               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{error}</p>
             </div>
           ) : (
@@ -1159,7 +1564,7 @@ function HomeContent() {
               {/* ===== Bannière paysage compacte ===== */}
               <div className="w-full relative rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-[0_8px_30px_var(--color-glass-shadow)] bg-[#0a0e13] aspect-[3.8/1] min-h-[140px] max-h-[300px]">
                 {/* Image de fond avec lissage haute qualité et positionnement vertical */}
-                <img src={profileBannerUrl} alt="Banner" style={{ objectPosition: `center ${profileBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" />
+                <img referrerPolicy="no-referrer" src={profileBannerUrl} alt="Banner" style={{ objectPosition: `center ${profileBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" />
                 
                 {/* Overlay sombre léger pour la lisibilité globale */}
                 <div className="absolute inset-0 bg-black/40"></div>
@@ -1172,11 +1577,11 @@ function HomeContent() {
                     {/* Avatar + Main badge */}
                     <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                       <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)]">
-                        <img src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        <img referrerPolicy="no-referrer" src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
                       </div>
                       {p.mainAgent && (
                         <div className="flex items-center gap-1.5 bg-[rgba(0,0,0,0.5)] rounded-full px-2 py-0.5 border border-[rgba(255,255,255,0.1)]">
-                          <img src={p.mainAgent.icon} alt={p.mainAgent.name} className="w-4 h-4 rounded-full shadow-md" />
+                          <img referrerPolicy="no-referrer" src={p.mainAgent.icon} alt={p.mainAgent.name} className="w-4 h-4 rounded-full shadow-md" />
                           <span className="text-[9px] font-bold text-white uppercase tracking-wider">{p.mainAgent.name}</span>
                         </div>
                       )}
@@ -1207,11 +1612,11 @@ function HomeContent() {
                       <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">Rang</span>
                       <span className="text-lg font-black text-white uppercase tracking-wider">{p.rank}</span>
                     </div>
-                    <img src={p.rankUrl} alt={p.rank} className="w-20 h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
+                    <img referrerPolicy="no-referrer" src={p.rankUrl} alt={p.rank} className="w-20 h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
                     
                     {/* Favorite button */}
                     {!canEditProfile && (
-                      <button onClick={() => toggleFavorite(p)} title={isFavorited(p.gameName, p.tagLine) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      <button onClick={() => toggleFavorite(p)} title={isFavorited(p.gameName, p.tagLine) ? t('remove_favorite', locale) : t('add_favorite', locale)}
                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm border ${isFavorited(p.gameName, p.tagLine) ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-black/30 border-white/10 text-white/50 hover:text-yellow-400 hover:border-yellow-500/30'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={isFavorited(p.gameName, p.tagLine) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -1227,8 +1632,8 @@ function HomeContent() {
               <div className="w-full mt-8">
                 <div className="flex items-center justify-between border-b border-[var(--color-border)] mb-6">
                   <div className="flex items-center gap-8">
-                    {[{id:'performance',label:'Performances'},{id:'agents',label:'Agents'},{id:'matches',label:'Historique'}].map(tab => (
-                      <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    {[{id:'performance',label:t('tab_performance', locale)},{id:'agents',label:t('tab_agents', locale)},{id:'matches',label:t('tab_history', locale)}].map(tab => (
+                      <button key={tab.id} onClick={() => { setActiveTab(tab.id); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ tab: tab.id, playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }}
                         className={`pb-4 text-sm uppercase tracking-widest font-bold transition-all relative ${activeTab === tab.id ? 'text-[var(--color-val-red)]' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
                         {tab.label}
                         {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-val-red)] shadow-[0_0_10px_var(--color-val-red)]"></div>}
@@ -1244,13 +1649,13 @@ function HomeContent() {
                         onChange={(e) => { setSelectedSeason(e.target.value); setVisibleMatchesCount(10); }}
                         className="bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-xs font-bold rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:border-[var(--color-val-red)] transition-colors"
                       >
-                        <option value="all">Toutes les Saisons</option>
+                        <option value="all">{t('match_all_seasons', locale)}</option>
                         {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {[{id:'all',label:'Tout'},{id:'competitive',label:'Classé'},{id:'unrated',label:'Non Classé'},{id:'other',label:'Autres'}].map(mode => (
+                      {[{id:'all',label: t('match_filter_all', locale)},{id:'competitive',label: t('match_filter_competitive', locale)},{id:'unrated',label: t('match_filter_unrated', locale)},{id:'other',label: t('match_filter_other', locale)}].map(mode => (
                         <button key={mode.id} onClick={() => { setGameMode(mode.id); setVisibleMatchesCount(10); }}
                           className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${gameMode === mode.id ? 'bg-[var(--color-val-red)] text-white shadow-[0_0_10px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'}`}>
                           {mode.label}
@@ -1261,34 +1666,49 @@ function HomeContent() {
                 </div>
 
                 {/* Performance Tab */}
-                {activeTab === 'performance' && s && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in duration-500">
-                    <StatCard label="Kills" value={s.kills} smartRating={smartRating} />
-                    <StatCard label="Morts" value={s.deaths} smartRating={smartRating} />
-                    <StatCard label="Assists" value={s.assists} smartRating={smartRating} />
-                    <StatCard label="K/D Ratio" value={s.kdRatio.toFixed(2)} highlight warning={w.kd} smartRating={smartRating} />
-                    
-                    <StatCard label="Dégâts/Tour (ADR)" value={s.adr} highlight smartRating={smartRating} />
-                    <StatCard label="Headshot %" value={s.headshotPct} suffix="%" warning={w.hs} smartRating={smartRating} />
-                    <StatCard label="Win Rate" value={s.winRate} suffix="%" warning={w.wr} smartRating={smartRating} />
-                    <StatCard label="ACS Moyen" value={s.acs} highlight warning={w.acs} smartRating={smartRating} />
-                    
-                    <StatCard label="Premiers sangs" value={s.firstBloods} smartRating={smartRating} />
-                    <StatCard label="ACE" value={s.aceCount} smartRating={smartRating} />
-                    <StatCard label="KAST" value={s.kast} suffix="%" sub={s.kastPercentile} warning={w.kast} smartRating={smartRating} />
-                    <StatCard label="DDΔ / Round" value={s.ddDelta > 0 ? `+${s.ddDelta}` : s.ddDelta} warning={w.dd} smartRating={smartRating} />
-                    
-                    <StatCard label="Victoires" value={Math.round((s.winRate / 100) * s.matchesPlayed)} smartRating={smartRating} />
-                    <StatCard label="Parties Jouées" value={s.matchesPlayed} colSpan={3} smartRating={smartRating} />
-                  </div>
-                )}
+                {activeTab === 'performance' && s && (() => {
+                  let appliedHiddenStats: string[] = [];
+                  if (canEditProfile) {
+                    appliedHiddenStats = hiddenStats;
+                  } else if (playerData?.player?.enforcePublicStats) {
+                    try {
+                      appliedHiddenStats = typeof playerData.player.hiddenStats === 'string' 
+                        ? JSON.parse(playerData.player.hiddenStats) 
+                        : (playerData.player.hiddenStats || []);
+                    } catch {
+                      appliedHiddenStats = [];
+                    }
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in duration-500">
+                      {!appliedHiddenStats.includes('kills') && <StatCard label={t('stat_kills', locale)} value={s.kills} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('deaths') && <StatCard label={t('stat_deaths', locale)} value={s.deaths} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('assists') && <StatCard label={t('stat_assists', locale)} value={s.assists} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('kd') && <StatCard label={t('stat_kd', locale)} value={s.kdRatio.toFixed(2)} highlight warning={w.kd} smartRating={smartRating} />}
+                      
+                      {!appliedHiddenStats.includes('adr') && <StatCard label={t('stat_adr', locale)} value={s.adr} highlight smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('hs') && <StatCard label={t('stat_hs', locale)} value={s.headshotPct} suffix="%" warning={w.hs} smartRating={smartRating} />}
+                                            {!appliedHiddenStats.includes('wr') && <StatCard label={t('stat_winrate', locale)} value={s.winRate} suffix="%" warning={w.wr} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('acs') && <StatCard label={t('stat_acs', locale)} value={s.acs} highlight warning={w.acs} smartRating={smartRating} />}
+                      
+                      {!appliedHiddenStats.includes('fb') && <StatCard label={t('stat_fb', locale)} value={s.firstBloods} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('ace') && <StatCard label={t('stat_ace', locale)} value={s.aceCount} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('kast') && <StatCard label={t('stat_kast', locale)} value={s.kast} suffix="%" sub={s.kastPercentile} warning={w.kast} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('dd') && <StatCard label="DDΔ / Round" value={s.ddDelta > 0 ? `+${s.ddDelta}` : s.ddDelta} warning={w.dd} smartRating={smartRating} />}
+                      
+                      {!appliedHiddenStats.includes('wins') && <StatCard label={t('stat_wins', locale)} value={Math.round((s.winRate / 100) * s.matchesPlayed)} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('matches') && <StatCard label={t('stat_matches', locale)} value={s.matchesPlayed} colSpan={3} smartRating={smartRating} />}
+                    </div>
+                  );
+                })()}
 
                 {/* Agents Tab */}
                 {activeTab === 'agents' && p.agentStats && (
                   <div className="space-y-3 animate-in fade-in duration-500">
                     {p.agentStats.map((agent: any) => (
                       <div key={agent.name} className="glass-panel rounded-2xl p-5 flex items-center gap-5 hover:bg-[var(--color-surface-hover)] transition-all duration-300">
-                        <img src={agent.icon} alt={agent.name} className="w-14 h-14 rounded-xl border border-[rgba(255,255,255,0.1)]" />
+                        <img referrerPolicy="no-referrer" src={agent.icon} alt={agent.name} className="w-14 h-14 rounded-xl border border-[rgba(255,255,255,0.1)]" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-black text-[var(--color-text-on-surface)] text-lg">{agent.name}</span>
@@ -1300,7 +1720,7 @@ function HomeContent() {
                               <span className="text-sm font-bold text-[var(--color-text-on-surface)]">{agent.games}</span>
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold">Win Rate</span>
+                              <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold">{t('stat_winrate', locale)}</span>
                               <span className={`text-sm font-bold ${agent.winRate >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>{agent.winRate}%</span>
                             </div>
                             <div className="flex flex-col">
@@ -1334,9 +1754,9 @@ function HomeContent() {
                             className={`glass-panel rounded-2xl p-4 flex items-center gap-4 transition-all duration-300 border-l-4 cursor-pointer ${match.won ? 'border-l-emerald-500 hover:border-l-emerald-400' : 'border-l-red-500 hover:border-l-red-400'} ${isExpanded ? 'bg-[var(--color-surface-hover)] shadow-lg' : 'hover:bg-[var(--color-surface-hover)]'}`}
                           >
                             {/* Mode Icon */}
-                            {match.modeIcon && <img src={match.modeIcon} alt={match.mode} className="w-8 h-8 opacity-70 drop-shadow-md mode-icon" title={match.mode} />}
+                            {match.modeIcon && <img referrerPolicy="no-referrer" src={match.modeIcon} alt={match.mode} className="w-8 h-8 opacity-70 drop-shadow-md mode-icon" title={match.mode} loading="eager" decoding="async" fetchPriority="high" />}
                             
-                            <img src={match.agentIcon} alt={match.agent} className="w-12 h-12 rounded-xl border border-[rgba(255,255,255,0.1)] shadow-md" />
+                            <img referrerPolicy="no-referrer" src={match.agentIcon} alt={match.agent} className="w-12 h-12 rounded-xl border border-[rgba(255,255,255,0.1)] shadow-md" loading="eager" decoding="async" fetchPriority="high" />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-[var(--color-text-on-surface)] text-sm">{match.agent}</span>
@@ -1443,7 +1863,7 @@ function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id:
                 <tr key={p.puuid} className={`border-b border-[rgba(255,255,255,0.02)] transition-colors ${p.isMe ? 'bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)]' : 'hover:bg-[var(--color-surface-hover)]'}`}>
                   <td className="py-2 px-2 text-center text-[10px] text-[var(--color-text-secondary)] font-bold">{idx+1}</td>
                   <td className="py-2 px-2 flex items-center gap-3">
-                    <img src={p.agentIcon} className="w-8 h-8 rounded-lg shadow-sm" alt={p.agent} />
+                    <img referrerPolicy="no-referrer" src={p.agentIcon} className="w-8 h-8 rounded-lg shadow-sm" alt={p.agent} />
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5">
                         <button 
@@ -1508,7 +1928,7 @@ function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id:
                    </div>
 
                    <span className="text-[9px] uppercase tracking-widest text-right flex flex-col items-end gap-0.5">
-                     <span className="text-[var(--color-text-secondary)]">Victoire</span>
+                     <span className="text-[var(--color-text-secondary)]">{"Victoire"}</span>
                      <span className={`font-black ${r.winner === 'myTeam' ? 'text-[#0ebf99]' : 'text-[#ff4655]'}`}>{r.winCondition}</span>
                    </span>
                 </div>
@@ -1523,7 +1943,7 @@ function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id:
           {match.duels?.map((d: any, idx: number) => (
              <div key={idx} className="bg-[var(--color-background)] border border-[var(--color-border)] p-4 rounded-xl flex items-center justify-between hover:border-[var(--color-text-secondary)] transition-colors">
                 <div className="flex items-center gap-3">
-                   <img src={d.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={d.name} />
+                   <img referrerPolicy="no-referrer" src={d.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={d.name} />
                    <div className="flex flex-col">
                      <span className="font-bold text-sm text-[var(--color-text-on-surface)]">{d.name}</span>
                      <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-wider">Ennemi</span>
@@ -1544,7 +1964,7 @@ function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id:
 function PlayerRow({ player }: { player: any }) {
   return (
     <div className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${player.isMe ? 'bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] shadow-inner' : 'bg-[var(--color-background)] border border-transparent hover:border-[var(--color-border)]'}`}>
-      <img src={player.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={player.agent} />
+      <img referrerPolicy="no-referrer" src={player.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={player.agent} />
       <div className="flex-1 min-w-0">
         <div className={`font-bold text-sm truncate ${player.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}>{player.name}</div>
         <div className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest">{player.agent}</div>

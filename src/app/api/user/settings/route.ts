@@ -14,8 +14,7 @@ export async function PUT(req: Request) {
     const userId = (session.user as any).id;
     const body = await req.json();
 
-    // Extraire uniquement les champs autorisés
-    const { theme, bannerUrl, bannerOffsetY, smartRating, isPublic } = body;
+    const { theme, bannerUrl, bannerOffsetY, smartRating, isPublic, videoLoop, videoLoopDelay, hiddenStats, enforcePublicStats, language } = body;
     const updateData: any = {};
 
     if (theme !== undefined) updateData.theme = theme;
@@ -23,6 +22,11 @@ export async function PUT(req: Request) {
     if (bannerOffsetY !== undefined) updateData.bannerOffsetY = bannerOffsetY;
     if (smartRating !== undefined) updateData.smartRating = smartRating;
     if (isPublic !== undefined) updateData.isPublic = isPublic;
+    if (videoLoop !== undefined) updateData.videoLoop = videoLoop;
+    if (videoLoopDelay !== undefined) updateData.videoLoopDelay = videoLoopDelay;
+    if (hiddenStats !== undefined) updateData.hiddenStats = hiddenStats;
+    if (enforcePublicStats !== undefined) updateData.enforcePublicStats = enforcePublicStats;
+    if (language !== undefined) updateData.language = language;
 
     // S'il n'y a rien à mettre à jour
     if (Object.keys(updateData).length === 0) {

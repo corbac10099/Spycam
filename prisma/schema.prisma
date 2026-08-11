@@ -19,6 +19,10 @@ model User {
   bannerOffsetY   Int       @default(50)
   smartRating     Boolean   @default(true)
   isPublic        Boolean   @default(false)
+  videoLoop       Boolean   @default(true)
+  videoLoopDelay  Int       @default(500)
+  hiddenStats     String    @default("[]")
+  enforcePublicStats Boolean @default(false)
   riotGameName    String?
   riotConnected   Boolean   @default(false)
   riotPuuid       String?

@@ -165,6 +165,10 @@ export const authOptions: NextAuthOptions = {
           token.bannerOffsetY = dbUser.bannerOffsetY;
           token.smartRating = dbUser.smartRating;
           token.isPublic = (dbUser as any).isPublic ?? true;
+          token.videoLoop = (dbUser as any).videoLoop ?? true;
+          token.videoLoopDelay = (dbUser as any).videoLoopDelay ?? 500;
+          token.hiddenStats = (dbUser as any).hiddenStats ?? "[]";
+          token.enforcePublicStats = (dbUser as any).enforcePublicStats ?? false;
 
           // Auto-set riotGameName for known users
           if (!dbUser.riotGameName) {
@@ -194,6 +198,10 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).bannerOffsetY = token.bannerOffsetY;
         (session.user as any).smartRating = token.smartRating;
         (session.user as any).isPublic = token.isPublic ?? true;
+        (session.user as any).videoLoop = token.videoLoop ?? true;
+        (session.user as any).videoLoopDelay = token.videoLoopDelay ?? 500;
+        (session.user as any).hiddenStats = token.hiddenStats ?? "[]";
+        (session.user as any).enforcePublicStats = token.enforcePublicStats ?? false;
       }
       return session;
     },

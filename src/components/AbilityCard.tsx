@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import RichTextRenderer from './RichTextRenderer';
 
 interface VideoClip {
@@ -8,6 +8,8 @@ interface VideoClip {
   videoUrl: string;
   thumbnailUrl: string;
   description?: string;
+  loop?: boolean;
+  loopDelayMs?: number;
 }
 
 interface Ability {
@@ -17,48 +19,104 @@ interface Ability {
   videos?: VideoClip[];
 }
 
-export default function AbilityCard({ ability, slotName }: { ability: Ability; slotName: string }) {
+export default function AbilityCard({ ability, slotName, globalLoop = true, globalLoopDelayMs = 500 }: { ability: Ability; slotName: string, globalLoop?: boolean, globalLoopDelayMs?: number }) {
   const [activeTab, setActiveTab] = useState<'description' | 'video'>('description');
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const loopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoPlayRef = useRef(false);
   const hasVideos = ability.videos && ability.videos.length > 0;
 
   const currentVideo = hasVideos ? ability.videos![currentVideoIndex] : null;
 
+  // Nettoyer le timeout de boucle
+  const clearLoopTimeout = useCallback(() => {
+    if (loopTimeoutRef.current) {
+      clearTimeout(loopTimeoutRef.current);
+      loopTimeoutRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     // Reset video state when changing chapters
     if (videoRef.current) {
-      videoRef.current.load(); // Reload the new source
-      setIsPlaying(false);
+      clearLoopTimeout();
       setIsDescriptionExpanded(false);
+      
+      // Charger la nouvelle source
+      videoRef.current.load();
+      
+      // Si on vient d'une flèche → auto-play
+      if (autoPlayRef.current) {
+        const playPromise = videoRef.current.play();
+        if (playPromise) {
+          playPromise
+            .then(() => setIsPlaying(true))
+            .catch(() => setIsPlaying(false));
+        }
+        autoPlayRef.current = false;
+      } else {
+        setIsPlaying(false);
+      }
     }
-  }, [currentVideoIndex]);
+  }, [currentVideoIndex, clearLoopTimeout]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => clearLoopTimeout();
+  }, [clearLoopTimeout]);
 
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        clearLoopTimeout();
+        setIsPlaying(false);
       } else {
-        videoRef.current.play();
+        const playPromise = videoRef.current.play();
+        if (playPromise) {
+          playPromise
+            .then(() => setIsPlaying(true))
+            .catch(() => setIsPlaying(false));
+        }
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
   const handleVideoEnded = () => {
-    setIsPlaying(false);
+    if (globalLoop) {
+      // Relancer après le délai configuré
+      loopTimeoutRef.current = setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          const playPromise = videoRef.current.play();
+          if (playPromise) {
+            playPromise
+              .then(() => setIsPlaying(true))
+              .catch(() => setIsPlaying(false));
+          }
+        }
+      }, globalLoopDelayMs);
+    } else {
+      setIsPlaying(false);
+    }
   };
 
   const prevVideo = () => {
     if (hasVideos) {
+      clearLoopTimeout();
+      autoPlayRef.current = true;
       setCurrentVideoIndex((prev) => (prev > 0 ? prev - 1 : ability.videos!.length - 1));
     }
   };
 
   const nextVideo = () => {
     if (hasVideos) {
+      clearLoopTimeout();
+      autoPlayRef.current = true;
       setCurrentVideoIndex((prev) => (prev < ability.videos!.length - 1 ? prev + 1 : 0));
     }
   };
@@ -126,15 +184,39 @@ export default function AbilityCard({ ability, slotName }: { ability: Ability; s
                 className="w-full h-full object-cover"
                 poster={currentVideo?.thumbnailUrl}
                 onEnded={handleVideoEnded}
+                onPause={() => setIsPlaying(false)}
+                onPlay={() => setIsPlaying(true)}
                 playsInline
+                autoPlay={globalLoop}
+                muted={isMuted}
                 onClick={togglePlay}
               >
                 {currentVideo?.videoUrl && <source src={currentVideo.videoUrl} type="video/mp4" />}
                 Votre navigateur ne supporte pas la balise vidéo.
               </video>
 
+              {/* MUTE CONTROLS */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+                className="absolute right-4 top-4 z-20 w-10 h-10 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 border border-white/20 shadow-md backdrop-blur-md"
+                title={isMuted ? "Activer le son" : "Désactiver le son"}
+              >
+                {isMuted ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                  </svg>
+                )}
+              </button>
+
               {/* OVERLAY / BIG PLAY BUTTON */}
-              {!isPlaying && (
+              {!isPlaying && !globalLoop && (
                 <div 
                   className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer hover:bg-black/20 transition-colors"
                   onClick={togglePlay}
@@ -196,6 +278,19 @@ export default function AbilityCard({ ability, slotName }: { ability: Ability; s
                         className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentVideoIndex ? 'w-6 bg-[#fa4454]' : 'w-2 bg-white/40'}`}
                       />
                     ))}
+                  </div>
+                )}
+
+                {/* LOOP INDICATOR */}
+                {globalLoop && (
+                  <div className="flex items-center gap-1.5 mt-2 text-[10px] text-white/40 uppercase tracking-widest">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                      <polyline points="17 1 21 5 17 9"></polyline>
+                      <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                      <polyline points="7 23 3 19 7 15"></polyline>
+                      <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                    Boucle ({globalLoopDelayMs}ms)
                   </div>
                 )}
               </div>
