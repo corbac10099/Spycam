@@ -1416,8 +1416,7 @@ function HomeContent() {
         {/* Top Navbar */}
         <div className="flex items-center justify-between px-6 py-4 w-full">
           <div className="flex-1">
-            <div className="w-12 h-12 bg-[var(--color-val-red)] rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer"
-              onDoubleClick={() => setDebugOpen(true)}>V</div>
+            <div className="w-12 h-12 bg-[var(--color-val-red)] rounded-lg flex items-center justify-center text-white font-black text-2xl shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer">V</div>
           </div>
           <div className="flex-[2] flex justify-center items-center gap-2">
             {/* Home button */}
