@@ -269,11 +269,12 @@ export default function RichTextRenderer({ content }: { content: string }) {
           const label = domNode.attribs['data-label'] || 'Télécharger';
           // If they used the new structure, the text is inside .val-file-text
           let actualLabel = label;
-          const fileTextNode = (domNode.children as DOMNode[]).find(c => c.type === 'tag' && c.attribs?.class?.includes('val-file-text'));
-          if (fileTextNode && (fileTextNode.children?.[0] as any)?.data) {
-             actualLabel = (fileTextNode.children[0] as any).data;
-          } else if ((domNode.children?.[0] as any)?.data && !className.includes('val-link-btn')) {
-             actualLabel = (domNode.children[0] as any).data;
+          const childrenAny = domNode.children as any[];
+          const fileTextNode = childrenAny.find((c: any) => c.type === 'tag' && c.attribs?.class?.includes('val-file-text'));
+          if (fileTextNode && fileTextNode.children?.[0]?.data) {
+             actualLabel = fileTextNode.children[0].data;
+          } else if (childrenAny?.[0]?.data && !className.includes('val-link-btn')) {
+             actualLabel = childrenAny[0].data;
           }
           return <FileDownloadButton url={url} label={actualLabel} />;
         }
@@ -293,7 +294,7 @@ export default function RichTextRenderer({ content }: { content: string }) {
             }
           });
 
-          const Tag = tagName as keyof JSX.IntrinsicElements;
+          const Tag = tagName as any;
           return (
             <Tag style={inlineStyle} className={className || undefined}>
               {domToReact(domNode.children as DOMNode[], options)}
