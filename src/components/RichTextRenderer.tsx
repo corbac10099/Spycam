@@ -3,6 +3,81 @@
 import { useState, useEffect, useMemo } from 'react';
 import parse, { Element, HTMLReactParserOptions, domToReact, DOMNode } from 'html-react-parser';
 
+export function parseColor(color: string): {r: number, g: number, b: number} | null {
+  const hexMatch = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    let hex = hexMatch[1];
+    if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+    return {
+      r: parseInt(hex.substring(0,2), 16),
+      g: parseInt(hex.substring(2,4), 16),
+      b: parseInt(hex.substring(4,6), 16)
+    };
+  }
+  const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (rgbMatch) {
+    return {
+      r: parseInt(rgbMatch[1]),
+      g: parseInt(rgbMatch[2]),
+      b: parseInt(rgbMatch[3])
+    };
+  }
+  if (color.trim().toLowerCase() === 'white') return {r:255,g:255,b:255};
+  if (color.trim().toLowerCase() === 'black') return {r:0,g:0,b:0};
+  return null;
+}
+
+function adaptColorForLightMode(color: string): string {
+  const parsed = parseColor(color);
+  if (!parsed) return color;
+  const {r, g, b} = parsed;
+  let rP = r / 255;
+  let gP = g / 255;
+  let bP = b / 255;
+  let max = Math.max(rP, gP, bP), min = Math.min(rP, gP, bP);
+  let h = 0, s = 0, l = (max + min) / 2;
+
+  if (max !== min) {
+    let d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rP: h = (gP - bP) / d + (gP < bP ? 6 : 0); break;
+      case gP: h = (bP - rP) / d + 2; break;
+      case bP: h = (rP - gP) / d + 4; break;
+    }
+    h /= 6;
+  }
+
+  if (l > 0.7) {
+    l = Math.max(0.1, 1 - l); 
+  } else if (l < 0.3) {
+    l = Math.min(0.9, 1 - l); 
+  } else {
+    l = Math.max(0.2, l - 0.3); 
+  }
+
+  let r2, g2, b2;
+  if (s === 0) {
+    r2 = g2 = b2 = l;
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    let p = 2 * l - q;
+    r2 = hue2rgb(p, q, h + 1/3);
+    g2 = hue2rgb(p, q, h);
+    b2 = hue2rgb(p, q, h - 1/3);
+  }
+
+  return `rgb(${Math.round(r2*255)}, ${Math.round(g2*255)}, ${Math.round(b2*255)})`;
+}
+
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
   const days = Math.floor(totalSeconds / 86400);
@@ -106,6 +181,24 @@ function preprocessLegacyHTML(html: string): string {
 }
 
 export default function RichTextRenderer({ content }: { content: string }) {
+  const [isLightMode, setIsLightMode] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    setIsLightMode(document.body.classList.contains('theme-light'));
+    
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        if (m.attributeName === 'class') {
+          setIsLightMode(document.body.classList.contains('theme-light'));
+        }
+      });
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   // Check if content is a JSON slide array
   let blocks: any[] | null = null;
   if (typeof content === 'string' && (content.startsWith('[{"') || content.startsWith('[]'))) {
@@ -113,8 +206,6 @@ export default function RichTextRenderer({ content }: { content: string }) {
       blocks = JSON.parse(content);
     } catch (e) {}
   }
-
-  const [now, setNow] = useState(() => Date.now());
 
   const processedHtml = useMemo(() => {
     if (blocks) return ''; // Skip parsing for slide layout
@@ -175,7 +266,9 @@ export default function RichTextRenderer({ content }: { content: string }) {
             };
             inlineStyle.fontSize = fontSizeMap[sizeAttr] || '16px';
           }
-          if (colorAttr) inlineStyle.color = colorAttr;
+          if (colorAttr) {
+            inlineStyle.color = isLightMode ? adaptColorForLightMode(colorAttr) : colorAttr;
+          }
           if (faceAttr) inlineStyle.fontFamily = faceAttr;
 
           // Merge any existing inline style from the tag
@@ -185,7 +278,11 @@ export default function RichTextRenderer({ content }: { content: string }) {
               const [prop, val] = rule.split(':').map(s => s.trim());
               if (prop && val) {
                 const camelProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-                (inlineStyle as any)[camelProp] = val;
+                let finalVal = val;
+                if (isLightMode && (camelProp === 'color' || camelProp === 'backgroundColor')) {
+                  finalVal = adaptColorForLightMode(val);
+                }
+                (inlineStyle as any)[camelProp] = finalVal;
               }
             });
           }
@@ -290,7 +387,11 @@ export default function RichTextRenderer({ content }: { content: string }) {
             const val = rule.substring(colonIdx + 1).trim();
             if (prop && val) {
               const camelProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-              (inlineStyle as any)[camelProp] = val;
+              let finalVal = val;
+              if (isLightMode && (camelProp === 'color' || camelProp === 'backgroundColor')) {
+                finalVal = adaptColorForLightMode(val);
+              }
+              (inlineStyle as any)[camelProp] = finalVal;
             }
           });
 
@@ -305,13 +406,17 @@ export default function RichTextRenderer({ content }: { content: string }) {
     }
   };
 
+  const wrapperClass = `rich-text-renderer prose max-w-none leading-relaxed
+    prose-h1:font-black prose-h1:uppercase prose-h1:tracking-widest prose-h1:mt-6 prose-h1:mb-4
+    prose-h2:font-extrabold prose-h2:uppercase prose-h2:border-b-2 prose-h2:border-[var(--color-val-red)] prose-h2:pb-1 prose-h2:mt-5 prose-h2:mb-3
+    prose-h3:text-[var(--color-val-red)] prose-h3:mt-4 prose-h3:mb-2
+    ${isLightMode 
+      ? 'prose-headings:text-black text-gray-800 prose-a:text-blue-600' 
+      : 'prose-invert prose-headings:text-white text-gray-300 prose-a:text-blue-400'
+    }`;
+
   return (
-    <div className="rich-text-renderer prose prose-invert max-w-none 
-      prose-headings:text-white prose-h1:font-black prose-h1:uppercase prose-h1:tracking-widest prose-h1:mt-6 prose-h1:mb-4
-      prose-h2:font-extrabold prose-h2:uppercase prose-h2:border-b-2 prose-h2:border-[var(--color-val-red)] prose-h2:pb-1 prose-h2:mt-5 prose-h2:mb-3
-      prose-h3:text-[var(--color-val-red)] prose-h3:mt-4 prose-h3:mb-2
-      prose-a:text-blue-400
-      text-gray-300 leading-relaxed">
+    <div className={wrapperClass}>
       {parse(processedHtml, options)}
     </div>
   );
