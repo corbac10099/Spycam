@@ -9,17 +9,27 @@
     {
       "id": "english",
       "label": "English",
-      "flag": ""
+      "flag": "/locales/flags/english.png"
     },
     {
-      "id": "日本語",
+      "id": "japanese",
       "label": "日本語",
-      "flag": ""
+      "flag": "/locales/flags/japanese.png"
     },
     {
-      "id": "español",
+      "id": "italiano",
+      "label": "Italian",
+      "flag": "/locales/flags/italiano.png"
+    },
+    {
+      "id": "spanish",
       "label": "Español",
-      "flag": ""
+      "flag": "/locales/flags/spanish.png"
+    },
+    {
+      "id": "portuguese",
+      "label": "Português",
+      "flag": "/locales/flags/portuguese.png"
     }
   ]
 }

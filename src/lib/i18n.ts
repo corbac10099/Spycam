@@ -19,6 +19,80 @@ let translations: Record<string, string> = {};
 let isInitialized: boolean = false;
 let translationRegex: RegExp | null = null;
 
+// Default French translations keyed by internal keys used across the app.
+const DEFAULT_FR_TRANSLATIONS: Record<string, string> = {
+  news_title: "ACTUALITÉS",
+  news_filter_all: "Tout",
+  news_filter_updates: "Mises à jour",
+  news_filter_esports: "Esports",
+  news_filter_community: "Communauté",
+  match_filter_all: "Tout",
+  match_filter_competitive: "Classé",
+  match_filter_unrated: "Non Classé",
+  match_filter_other: "Autres",
+  smart_rating: "Notation Intelligente",
+  visual_indicators_desc: "Affiche des indicateurs visuels sur les stats en dessous de la moyenne.",
+  video_loop: "Lecture vidéo en boucle",
+  video_loop_desc: "Rejoue automatiquement les vidéos des compétences d'agents.",
+  video_delay: "Délai avant répétition",
+  back_to_profile: "Retour au profil",
+  save_settings: "Sauvegarder",
+  cancel: "Annuler",
+  profile_privacy: "Confidentialité du profil",
+  profile_privacy_desc: "Gérez la visibilité de votre profil et de vos statistiques par les autres utilisateurs.",
+  public_profile: "Profil Public",
+  public_profile_desc: "Votre profil et vos statistiques sont visibles par n'importe quel utilisateur qui recherche votre nom.",
+  private_profile: "Profil Privé",
+  private_profile_desc: "Seul vous pouvez consulter vos statistiques lorsque vous êtes connecté. Les autres utilisateurs verront un message indiquant que votre profil est privé.",
+  stats_visibility: "Visibilité des Statistiques",
+  stats_visibility_desc: "Décochez les statistiques que vous ne souhaitez pas voir sur votre propre profil.",
+  stat_kills: "Kills",
+  stat_deaths: "Morts",
+  stat_assists: "Assists",
+  stat_kd: "K/D Ratio",
+  stat_adr: "Dégâts/Tour (ADR)",
+  stat_hs: "Headshot %",
+  stat_winrate: "Win Rate",
+  stat_acs: "ACS Moyen",
+  stat_fb: "Premiers sangs",
+  stat_ace: "ACE",
+  stat_kast: "KAST",
+  stat_dd: "DDΔ / Round",
+  stat_wins: "Victoires",
+  apply_to_visitors: "Appliquer aux visiteurs",
+  apply_to_visitors_desc: "Si coché, les visiteurs verront exactement les mêmes stats que vous.",
+  ui_theme: "Thème de l'interface",
+  ui_theme_desc: "Choisissez un thème visuel pour l'application.",
+  theme_dark: "Sombre",
+  theme_light: "Clair",
+  theme_midnight: "Midnight",
+  theme_crimson: "Crimson",
+  theme_ocean: "Océan",
+  theme_custom: "Personnalisé",
+  color_customization: "Personnalisation des couleurs",
+  accent_color: "Couleur d'accentuation",
+  bg_color: "Couleur de fond",
+  banner_customization: "Personnalisation de la Bannière",
+  banner_default: "Défaut",
+  see_more: "Voir plus",
+  vertical_crop: "Cadrage vertical (Hauteur)",
+  preview: "Aperçu",
+  avatar: "Avatar",
+  live_preview: "Aperçu en direct",
+  live_preview_desc: "Glissez le curseur pour voir l'image s'ajuster en temps réel dans le cadre ci-dessus.",
+  footer_desc: "Application de suivi de performances pour Valorant. Utilise l'API officielle de Riot Games.",
+  footer_legal: "Spycam n'est pas affilié à Riot Games et ne reflète pas les opinions de Riot Games ni de toute personne impliquée dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.",
+  role_duelist: "Duelliste",
+  role_initiator: "Initiateur",
+  role_controller: "Contrôleur",
+  role_sentinel: "Sentinelle",
+  logout_button: "Déconnexion",
+  tab_performance: "Performances",
+  tab_agents: "Agents",
+  tab_history: "Historique",
+  match_all_seasons: "Toutes les saisons"
+};
+
 const listeners = new Set<() => void>();
 const TRANSLATABLE_ATTRIBUTES = ['placeholder', 'title', 'alt', 'aria-label'];
 const OBSERVED_ATTRIBUTES = [
@@ -31,11 +105,37 @@ function notifyListeners() {
 }
 
 export function tr(frenchString: string): string {
-  if (currentLanguage === 'french') return frenchString;
-  return translations[frenchString] ?? frenchString;
+  // If the passed value is an internal key (e.g. 'stat_kills'), prefer the default French mapping
+  if (currentLanguage === 'french') {
+    if (DEFAULT_FR_TRANSLATIONS[frenchString]) return DEFAULT_FR_TRANSLATIONS[frenchString];
+    return frenchString;
+  }
+
+  // For non-french languages, try direct lookup by the provided string (which might be either
+  // an internal key or a French literal). First try the translations map using the key,
+  // then try using the French literal as a lookup key (common in existing JSON files),
+  // finally fallback to the input string.
+  return translations[frenchString] ?? translations[DEFAULT_FR_TRANSLATIONS[frenchString] || ''] ?? frenchString;
 }
 
 export function t(frenchString: string, _locale?: string): string {
+  // `t()` historically expected a French literal string. The app often passes internal keys
+  // like 'tab_agents' or 'stat_kills'. Support both:
+  // - If translations contain the key, return it.
+  // - If current language is french, map the key to the default French label.
+  // - Otherwise, try using the French literal as lookup into translations.
+
+  // If translations already contains this exact key, return it.
+  if (translations[frenchString]) return translations[frenchString];
+
+  // If the provided value looks like an internal key and we have a French default, use it
+  const frenchDefault = DEFAULT_FR_TRANSLATIONS[frenchString];
+  if (currentLanguage === 'french') {
+    return frenchDefault ?? frenchString;
+  }
+
+  // Non-french: prefer translations by key, then by french literal
+  if (frenchDefault && translations[frenchDefault]) return translations[frenchDefault];
   return tr(frenchString);
 }
 
@@ -73,13 +173,35 @@ export async function loadLanguagesList(): Promise<LanguageInfo[]> {
 }
 
 export async function setLanguage(langId: string): Promise<void> {
-  currentLanguage = langId;
-  
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('app_language', langId);
+  // Normalize common short codes (fr/en/es/ja/etc.) to the language ids declared in languages.json
+  let requested = langId;
+  const availableIds = languagesList.map(l => l.id);
+  if (!availableIds.includes(requested)) {
+    const byPrefix = languagesList.find(l => l.id.toLowerCase().startsWith((langId || '').toLowerCase()));
+    if (byPrefix) requested = byPrefix.id;
+    else {
+      const CODE_MAP: Record<string, string> = {
+        fr: 'french',
+        en: 'english',
+        es: 'español',
+        ja: '日本語',
+        jp: '日本語',
+        de: 'de',
+        pt: 'pt',
+        it: 'it',
+        ko: 'ko'
+      };
+      if (CODE_MAP[langId]) requested = CODE_MAP[langId];
+    }
   }
 
-  if (langId === 'french') {
+  currentLanguage = requested;
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('app_language', requested);
+  }
+
+  if (requested === 'french') {
     translations = {};
     notifyListeners();
     translateDOM(); // Revert back to original texts (stored in attributes)
@@ -87,13 +209,13 @@ export async function setLanguage(langId: string): Promise<void> {
   }
 
   try {
-    const res = await fetch(`/locales/${langId}.json`);
-    if (!res.ok) throw new Error(`Failed to load ${langId}.json`);
+    const res = await fetch(`/locales/${requested}.json`);
+    if (!res.ok) throw new Error(`Failed to load ${requested}.json`);
     
     const data = await res.json();
     translations = data.translations || {};
   } catch (error) {
-    console.error(`Error loading translations for ${langId}:`, error);
+    console.error(`Error loading translations for ${requested}:`, error);
     translations = {};
   }
 
@@ -132,7 +254,8 @@ function translateElementAttributes(element: HTMLElement) {
     element.tagName === 'SCRIPT' ||
     element.tagName === 'STYLE' ||
     element.closest('[translate="no"]') ||
-    element.closest('.notranslate')
+    element.closest('.notranslate') ||
+    element.closest('.rich-text-renderer')
   ) {
     return;
   }
@@ -157,20 +280,17 @@ function translateElementAttributes(element: HTMLElement) {
 }
 
 function translateNode(node: Text) {
-  // Ignore scripts, styles, and elements specifically marked as notranslate
+  // Ignore scripts, styles, and elements specifically marked as notranslate or rich-text-renderer
   if (node.parentElement && (
       node.parentElement.tagName === 'SCRIPT' || 
       node.parentElement.tagName === 'STYLE' ||
       node.parentElement.closest('[translate="no"]') ||
-      node.parentElement.closest('.notranslate')
+      node.parentElement.closest('.notranslate') ||
+      node.parentElement.closest('.rich-text-renderer')
   )) {
     return;
   }
 
-  // We store the original text in a custom property on the DOM node object to avoid mutating React's visible state in a breaking way
-  // Since we mutate `nodeValue`, React won't crash.
-  
-  // Clean whitespace for matching
   const rawText = node.nodeValue || '';
   if (!rawText.trim()) return;
 
@@ -188,19 +308,23 @@ function translateNode(node: Text) {
     }
     return;
   }
+
+  // 1. Exact match on trimmed string (highest priority & cleanest)
+  if (translations[stripped]) {
+    const translated = original.replace(stripped, translations[stripped]);
+    if (node.nodeValue !== translated) {
+      node.nodeValue = translated;
+    }
+    return;
+  }
   
   let translatedStr = original;
 
-  // Partial match via Regex for mixed text nodes
+  // 2. Partial match via Regex for mixed text nodes
   if (translationRegex) {
     translatedStr = translatedStr.replace(translationRegex, (match: string) => {
       return translations[match] || match;
     });
-  }
-
-  // Exact match fallback (for short strings < 4 chars)
-  if (translatedStr === original && translations[stripped]) {
-    translatedStr = original.replace(stripped, translations[stripped]);
   }
 
   if (node.nodeValue !== translatedStr) {

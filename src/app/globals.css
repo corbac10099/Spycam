@@ -106,3 +106,8 @@
 .theme-light .mode-icon {
   filter: brightness(0);
 }
+
+.val-accent, accent {
+  color: var(--color-val-red, #ff4655) !important;
+  font-weight: 700 !important;
+}

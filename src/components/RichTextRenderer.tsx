@@ -178,7 +178,7 @@ function preprocessLegacyHTML(html: string): string {
   processed = processed.replace(/\[file:([^|\]]+)\|([^\]]+)\]/g, '<a class="val-file-btn" href="$1" data-label="$2"></a>');
   processed = processed.replace(/\[video:([^\]]+)\]/g, '<div class="val-video" data-url="$1"></div>');
   // Convert <accent> tags to spans, preserving any inline style
-  processed = processed.replace(/<accent([^>]*)>(.*?)<\/accent>/gi, (match, attrs, content) => {
+  processed = processed.replace(/<accent([^>]*)>([\s\S]*?)<\/accent>/gi, (match, attrs, content) => {
     return `<span class="val-accent"${attrs}>${content}</span>`;
   });
 
@@ -453,6 +453,15 @@ export default function RichTextRenderer({ content }: { content: string }) {
           return <FileDownloadButton url={url} label={actualLabel} />;
         }
 
+        // Accent tag / val-accent highlight
+        if (tagName === 'accent' || className.includes('val-accent')) {
+          return (
+            <span className="val-accent text-[var(--color-val-red)] font-bold">
+              {domToReact(domNode.children as DOMNode[], options)}
+            </span>
+          );
+        }
+
         // Preserve inline styles on all elements
         if (domNode.attribs.style && ['h1','h2','h3','h4','h5','h6','p','div','span','strong','em','blockquote'].includes(tagName)) {
           const inlineStyle: React.CSSProperties = {};
@@ -482,7 +491,7 @@ export default function RichTextRenderer({ content }: { content: string }) {
     }
   };
 
-  const wrapperClass = `rich-text-renderer prose max-w-none leading-relaxed
+  const wrapperClass = `rich-text-renderer notranslate prose max-w-none leading-relaxed
     prose-h1:font-black prose-h1:uppercase prose-h1:tracking-widest prose-h1:mt-6 prose-h1:mb-4
     prose-h2:font-extrabold prose-h2:uppercase prose-h2:border-b-2 prose-h2:border-[var(--color-val-red)] prose-h2:pb-1 prose-h2:mt-5 prose-h2:mb-3
     prose-h3:text-[var(--color-val-red)] prose-h3:mt-4 prose-h3:mb-2

@@ -9,13 +9,16 @@ import { useLanguage, loadLanguagesList, setLanguage, LanguageInfo, tr, trFormat
 
 // ==================== Tooltip ====================
 function Tooltip({ message }: { message: string }) {
+  if (!message) return null;
   return (
-    <div className="group relative inline-flex ml-1.5 cursor-help">
-      <div className="w-5 h-5 rounded-full bg-[var(--color-val-red)]/10 border border-[var(--color-val-red)]/40 flex items-center justify-center text-[11px] font-black text-[var(--color-val-red)]">!</div>
-      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-50">
-        <div className="bg-[#1a1f2e] border border-[rgba(255,180,50,0.3)] rounded-xl px-4 py-3 text-xs text-[var(--color-text-secondary)] leading-relaxed shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+    <div className="group relative inline-flex ml-1.5 cursor-help select-none">
+      <div className="w-4 h-4 rounded-full bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/50 flex items-center justify-center text-[10px] font-black text-[var(--color-val-red)] hover:bg-[var(--color-val-red)] hover:text-white transition-colors shadow-sm">
+        !
+      </div>
+      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 transform group-hover:scale-100 scale-95 origin-bottom">
+        <div className="bg-[#161b26] border border-[var(--color-val-red)]/40 rounded-xl px-3.5 py-2.5 text-xs text-[var(--color-text-primary)] leading-relaxed shadow-[0_10px_30px_rgba(0,0,0,0.7)] backdrop-blur-md">
           {message}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1a1f2e] border-r border-b border-[rgba(255,180,50,0.3)] rotate-45 -mt-1"></div>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-[#161b26] border-r border-b border-[var(--color-val-red)]/40 rotate-45 -mt-1"></div>
         </div>
       </div>
     </div>
@@ -182,6 +185,9 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
   const [draftIsPublic, setDraftIsPublic] = useState(isPublic ?? true);
   const [draftLocale, setDraftLocale] = useState<string>(locale || 'french');
+  useEffect(() => {
+    if (locale) setDraftLocale(locale);
+  }, [locale]);
 
   // Preview theme live
   useEffect(() => {
@@ -796,7 +802,7 @@ function AgentsWikiComponent({ videoLoop, videoLoopDelay, locale, pushUrl }: { v
       <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
         <button onClick={() => { setSelectedAgent(null); pushUrl({ view: 'agents', agentSlug: null }); }} className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-val-red)] transition-colors mb-6 font-bold">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          {t('back_to_agents', locale)}
+          {"Retour aux agents"}
         </button>
 
         <div className="glass-panel rounded-2xl p-8 mb-6">
@@ -857,24 +863,16 @@ function AgentsWikiComponent({ videoLoop, videoLoopDelay, locale, pushUrl }: { v
 
 // ==================== Stat Card ====================
 function StatCard({ label, value, sub, highlight, warning, suffix, colSpan, smartRating }: any) {
-  const getRatingColor = () => {
-    if (!smartRating || !warning) return '';
-    if (warning.level === 'good') return 'text-[#0ebf99] border-[#0ebf99]/30 bg-[#0ebf99]/5';
-    if (warning.level === 'bad') return 'text-[#ff4655] border-[#ff4655]/30 bg-[#ff4655]/5';
-    return '';
-  };
-
-  const ratingClass = getRatingColor();
+  const hasWarning = !!(warning && smartRating);
+  const ratingClass = hasWarning ? 'border-[var(--color-val-red)]/40 bg-[var(--color-val-red)]/5' : '';
 
   return (
     <div className={`glass-panel p-5 rounded-2xl flex flex-col justify-between border border-[var(--color-border)] hover:border-[var(--color-text-secondary)]/30 transition-all duration-300 ${colSpan ? `col-span-${colSpan}` : ''} ${ratingClass}`}>
       <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-[var(--color-text-secondary)] mb-2">
-        <span>{label}</span>
-        {warning && smartRating && (
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${warning.level === 'good' ? 'bg-[#0ebf99]/20 text-[#0ebf99]' : 'bg-[#ff4655]/20 text-[#ff4655]'}`}>
-            {warning.message}
-          </span>
-        )}
+        <div className="flex items-center">
+          <span>{label}</span>
+          {hasWarning && <Tooltip message={warning} />}
+        </div>
       </div>
       <div className="flex items-baseline gap-1">
         <span className={`text-3xl font-black tracking-tight ${highlight ? 'text-[var(--color-val-red)] drop-shadow-[0_0_15px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-primary)]'}`}>
@@ -923,7 +921,7 @@ function HomeContent() {
   const [debugOpen, setDebugOpen] = useState(false);
   const [newsView, setNewsView] = useState(false);
   const [agentsView, setAgentsView] = useState(false);
-  const [locale, setLocale] = useState<Locale>('fr');
+  const { lang: locale, setLanguage: setAppLanguage } = useLanguage();
 
   // ==================== URL ROUTING HELPERS ====================
   // Mapping entre les noms d'onglets internes et les slugs URL
@@ -1131,7 +1129,7 @@ function HomeContent() {
         }
         if (user.enforcePublicStats !== undefined) setEnforcePublicStats(user.enforcePublicStats);
         if (user.language) {
-          setLocale(user.language as Locale);
+          setAppLanguage(user.language);
         }
 
         if (!playerData && !loading) {
@@ -1292,7 +1290,7 @@ function HomeContent() {
         fetch("/api/valorant/player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ riotId: urlRiotId }) })
           .then(r => r.json())
           .then(d => { if (d.error) setError(d.error); else setPlayerData(d); })
-          .catch(() => setError(t('error_server', locale)))
+          .catch(() => setError("Serveur inaccessible."))
           .finally(() => setLoading(false));
       } else if (!urlRiotId && myRiotId && riotId !== myRiotId) {
         // Retour au profil principal
@@ -1442,12 +1440,12 @@ function HomeContent() {
   const getWarnings = (s: any) => {
     if (!s) return {};
     const w: Record<string, string> = {};
-    if (s.kdRatio < 1) w.kd = `K/D de ${s.kdRatio} — en dessous de 1.0. Vous mourez plus que vous ne tuez. Travaillez le positionnement.`;
-    if (s.headshotPct < 20) w.hs = `Headshot à ${s.headshotPct}% — sous la moyenne de 20%. Travaillez le crosshair placement.`;
-    if (s.winRate < 50) w.wr = `Win rate de ${s.winRate}% — sous 50%. Adaptez vos stratégies et communiquez.`;
-    if (s.acs < 200) w.acs = `ACS de ${s.acs} — sous 200. Participez davantage aux rounds.`;
-    if (s.kast < 65) w.kast = `KAST de ${s.kast}% — sous 65%. Impliquez-vous plus (Kill/Assist/Survived/Trade).`;
-    if (s.ddDelta < 0) w.dd = `DDΔ négatif (${s.ddDelta}) — vous subissez plus de dégâts que vous n'en infligez.`;
+    if (s.kdRatio < 1) w.kd = trFormat("K/D de {kd} — en dessous de 1.0. Vous mourez plus que vous ne tuez. Travaillez le positionnement.", { kd: s.kdRatio });
+    if (s.headshotPct < 20) w.hs = trFormat("Headshot à {hs}% — sous la moyenne de 20%. Travaillez le crosshair placement.", { hs: s.headshotPct });
+    if (s.winRate < 50) w.wr = trFormat("Win rate de {wr}% — sous 50%. Adaptez vos stratégies et communiquez.", { wr: s.winRate });
+    if (s.acs < 200) w.acs = trFormat("ACS de {acs} — sous 200. Participez davantage aux rounds.", { acs: s.acs });
+    if (s.kast < 65) w.kast = trFormat("KAST de {kast}% — sous 65%. Impliquez-vous plus (Kill/Assist/Survived/Trade).", { kast: s.kast });
+    if (s.ddDelta < 0) w.dd = trFormat("DDΔ négatif ({dd}) — vous subissez plus de dégâts que vous n'en infligez.", { dd: s.ddDelta });
     return w;
   };
 
@@ -1486,23 +1484,23 @@ function HomeContent() {
           <div className="flex-[2] flex justify-center items-center gap-2">
             {/* Home button */}
             {myRiotId && (
-              <button onClick={() => { setNewsView(false); setAgentsView(false); setSettingsOpen(false); goHome(); }} title={t('nav_back_profile', locale)}
+              <button onClick={() => { setNewsView(false); setAgentsView(false); setSettingsOpen(false); goHome(); }} title={"Retour à mon profil"}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${(!newsView && !agentsView && !settingsOpen) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
               </button>
             )}
             {/* News button */}
-            <button onClick={() => { setNewsView(true); setAgentsView(false); setSettingsOpen(false); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ view: 'news', playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }} title={t('nav_news', locale)}
+            <button onClick={() => { setNewsView(true); setAgentsView(false); setSettingsOpen(false); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ view: 'news', playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }} title={"Actualités"}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${newsView && !agentsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
             </button>
             {/* Agents Wiki button */}
-            <button onClick={() => { setAgentsView(true); setNewsView(false); setSettingsOpen(false); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ view: 'agents', playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }} title={t('nav_agents', locale)}
+            <button onClick={() => { setAgentsView(true); setNewsView(false); setSettingsOpen(false); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ view: 'agents', playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }} title={"Wiki Agents"}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${agentsView ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             </button>
             <form onSubmit={handleSearch} className="relative w-full max-w-md flex justify-center ml-2">
-              <input type="text" placeholder={t('search_placeholder', locale)} value={riotId} onChange={(e) => setRiotId(e.target.value)}
+              <input type="text" placeholder={"Rechercher un joueur (ex: Pseudo#Tag)"} value={riotId} onChange={(e) => setRiotId(e.target.value)}
                 onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
                 className={`bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-6 py-3 rounded-full outline-none transition-all duration-500 ease-in-out ${isFocused ? 'w-full shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'w-64'}`} required />
               <button type="submit" className="hidden"></button>
@@ -1516,9 +1514,9 @@ function HomeContent() {
             )}
             <button onClick={() => signOut({ callbackUrl: '/login' })} className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-4 py-2 rounded-full items-center text-sm gap-2 border border-[var(--color-border)]">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              {t('logout_button', locale)}
+              {"Déconnexion"}
             </button>
-            <button onClick={() => { const newVal = !settingsOpen; setSettingsOpen(newVal); if (newVal) { pushUrl({ view: 'settings' }); } else { const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ tab: activeTab, playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); } }} title={t('nav_settings', locale)}
+            <button onClick={() => { const newVal = !settingsOpen; setSettingsOpen(newVal); if (newVal) { pushUrl({ view: 'settings' }); } else { const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ tab: activeTab, playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); } }} title={"Paramètres"}
               className={`w-10 h-10 rounded-full transition-colors flex items-center justify-center border ${settingsOpen ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
@@ -1528,7 +1526,7 @@ function HomeContent() {
         {/* Favorites bar - Attached to header like Chrome Bookmarks */}
         {favorites.length > 0 && !settingsOpen && (
           <div className="w-full px-6 py-2 flex items-center gap-2 border-t border-[var(--color-border)]/50 bg-[var(--color-background)]/50 overflow-x-auto">
-            <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">{t('favorites', locale)}</span>
+            <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold mr-1 flex-shrink-0">{"Favoris"}</span>
             <div className="flex items-center gap-1.5 overflow-x-auto">
               {favorites.map(fav => (
                 <button key={fav.riotId} onClick={() => searchPlayer(fav.riotId)}
@@ -1570,7 +1568,7 @@ function HomeContent() {
           setSettingsTab={setSettingsTab}
           pushUrl={pushUrl}
           locale={locale}
-          setLocale={setLocale}
+          
         />
       ) : newsView && !agentsView ? (
         <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} />
@@ -1584,7 +1582,7 @@ function HomeContent() {
               <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center mb-5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff4655" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-2">{t('private_profile', locale)}</h3>
+              <h3 className="text-xl font-black uppercase tracking-widest text-[var(--color-text-primary)] mb-2">{"Profil Privé"}</h3>
               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{error}</p>
             </div>
           ) : (
@@ -1680,7 +1678,7 @@ function HomeContent() {
                     
                     {/* Favorite button */}
                     {!canEditProfile && (
-                      <button onClick={() => toggleFavorite(p)} title={isFavorited(p.gameName, p.tagLine) ? t('remove_favorite', locale) : t('add_favorite', locale)}
+                      <button onClick={() => toggleFavorite(p)} title={isFavorited(p.gameName, p.tagLine) ? "Retirer des favoris" : "Ajouter aux favoris"}
                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm border ${isFavorited(p.gameName, p.tagLine) ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-black/30 border-white/10 text-white/50 hover:text-yellow-400 hover:border-yellow-500/30'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={isFavorited(p.gameName, p.tagLine) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -1696,7 +1694,7 @@ function HomeContent() {
               <div className="w-full mt-8">
                 <div className="flex items-center justify-between border-b border-[var(--color-border)] mb-6">
                   <div className="flex items-center gap-8">
-                    {[{id:'performance',label:t('tab_performance', locale)},{id:'agents',label:t('tab_agents', locale)},{id:'matches',label:t('tab_history', locale)}].map(tab => (
+                    {[{id:'performance',label:"Performances"},{id:'agents',label:"Agents"},{id:'matches',label:"Historique"}].map(tab => (
                       <button key={tab.id} onClick={() => { setActiveTab(tab.id); const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase(); pushUrl({ tab: tab.id, playerId: riotId || myRiotId, isOwnProfile: !!isOwn }); }}
                         className={`pb-4 text-sm uppercase tracking-widest font-bold transition-all relative ${activeTab === tab.id ? 'text-[var(--color-val-red)]' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
                         {tab.label}
@@ -1713,13 +1711,13 @@ function HomeContent() {
                         onChange={(e) => { setSelectedSeason(e.target.value); setVisibleMatchesCount(10); }}
                         className="bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-xs font-bold rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:border-[var(--color-val-red)] transition-colors"
                       >
-                        <option value="all">{t('match_all_seasons', locale)}</option>
+                        <option value="all">{"Toutes les saisons"}</option>
                         {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {[{id:'all',label: t('match_filter_all', locale)},{id:'competitive',label: t('match_filter_competitive', locale)},{id:'unrated',label: t('match_filter_unrated', locale)},{id:'other',label: t('match_filter_other', locale)}].map(mode => (
+                      {[{id:'all',label: "Tout"},{id:'competitive',label: "Classé"},{id:'unrated',label: "Non classé"},{id:'other',label: "Autres"}].map(mode => (
                         <button key={mode.id} onClick={() => { setGameMode(mode.id); setVisibleMatchesCount(10); }}
                           className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${gameMode === mode.id ? 'bg-[var(--color-val-red)] text-white shadow-[0_0_10px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'}`}>
                           {mode.label}
@@ -1746,23 +1744,23 @@ function HomeContent() {
 
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in duration-500">
-                      {!appliedHiddenStats.includes('kills') && <StatCard label={t('stat_kills', locale)} value={s.kills} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('deaths') && <StatCard label={t('stat_deaths', locale)} value={s.deaths} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('assists') && <StatCard label={t('stat_assists', locale)} value={s.assists} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('kd') && <StatCard label={t('stat_kd', locale)} value={s.kdRatio.toFixed(2)} highlight warning={w.kd} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('kills') && <StatCard label={"Éliminations"} value={s.kills} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('deaths') && <StatCard label={"Morts"} value={s.deaths} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('assists') && <StatCard label={"Passes décisives"} value={s.assists} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('kd') && <StatCard label={"K/D Ratio"} value={s.kdRatio.toFixed(2)} highlight warning={w.kd} smartRating={smartRating} />}
                       
-                      {!appliedHiddenStats.includes('adr') && <StatCard label={t('stat_adr', locale)} value={s.adr} highlight smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('hs') && <StatCard label={t('stat_hs', locale)} value={s.headshotPct} suffix="%" warning={w.hs} smartRating={smartRating} />}
-                                            {!appliedHiddenStats.includes('wr') && <StatCard label={t('stat_winrate', locale)} value={s.winRate} suffix="%" warning={w.wr} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('acs') && <StatCard label={t('stat_acs', locale)} value={s.acs} highlight warning={w.acs} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('adr') && <StatCard label={"Dégâts/Tour (ADR)"} value={s.adr} highlight smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('hs') && <StatCard label={"Headshot %"} value={s.headshotPct} suffix="%" warning={w.hs} smartRating={smartRating} />}
+                                            {!appliedHiddenStats.includes('wr') && <StatCard label={"Win Rate"} value={s.winRate} suffix="%" warning={w.wr} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('acs') && <StatCard label={"ACS Moyen"} value={s.acs} highlight warning={w.acs} smartRating={smartRating} />}
                       
-                      {!appliedHiddenStats.includes('fb') && <StatCard label={t('stat_fb', locale)} value={s.firstBloods} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('ace') && <StatCard label={t('stat_ace', locale)} value={s.aceCount} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('kast') && <StatCard label={t('stat_kast', locale)} value={s.kast} suffix="%" sub={s.kastPercentile} warning={w.kast} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('fb') && <StatCard label={"Premiers sangs"} value={s.firstBloods} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('ace') && <StatCard label={"ACE"} value={s.aceCount} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('kast') && <StatCard label={"KAST"} value={s.kast} suffix="%" sub={s.kastPercentile} warning={w.kast} smartRating={smartRating} />}
                       {!appliedHiddenStats.includes('dd') && <StatCard label="DDΔ / Round" value={s.ddDelta > 0 ? `+${s.ddDelta}` : s.ddDelta} warning={w.dd} smartRating={smartRating} />}
                       
-                      {!appliedHiddenStats.includes('wins') && <StatCard label={t('stat_wins', locale)} value={Math.round((s.winRate / 100) * s.matchesPlayed)} smartRating={smartRating} />}
-                      {!appliedHiddenStats.includes('matches') && <StatCard label={t('stat_matches', locale)} value={s.matchesPlayed} colSpan={3} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('wins') && <StatCard label={"Victoires"} value={Math.round((s.winRate / 100) * s.matchesPlayed)} smartRating={smartRating} />}
+                      {!appliedHiddenStats.includes('matches') && <StatCard label={"Parties"} value={s.matchesPlayed} colSpan={3} smartRating={smartRating} />}
                     </div>
                   );
                 })()}
@@ -1784,7 +1782,7 @@ function HomeContent() {
                               <span className="text-sm font-bold text-[var(--color-text-on-surface)]">{agent.games}</span>
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold">{t('stat_winrate', locale)}</span>
+                              <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest font-bold">{"Win Rate"}</span>
                               <span className={`text-sm font-bold ${agent.winRate >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>{agent.winRate}%</span>
                             </div>
                             <div className="flex flex-col">
@@ -1855,7 +1853,7 @@ function HomeContent() {
                           onClick={() => setVisibleMatchesCount((prev) => prev + 10)}
                           className="bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] text-[var(--color-text-primary)] hover:text-white font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-full transition-all duration-300 border border-[var(--color-border)] shadow-md hover:shadow-[0_0_20px_rgba(255,70,85,0.4)] cursor-pointer"
                         >
-                          Charger plus (+10)
+                          {tr("Charger plus (+10)")}
                         </button>
                       </div>
                     )}
@@ -1940,7 +1938,7 @@ function ExpandedMatch({ match, searchPlayer }: { match: any, searchPlayer: (id:
                           }}
                           className={`font-bold ${p.isPublicProfile ? 'hover:underline cursor-pointer' : 'cursor-default opacity-70'} ${p.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}
                         >
-                          {p.name}
+                          {p.isMe ? tr("Vous") : p.name}
                         </button>
                         {!p.isPublicProfile && (
                           <span className="text-[8px] bg-[var(--color-background)] border border-[var(--color-border)] px-1.5 py-0.5 rounded text-[var(--color-text-secondary)] opacity-75 whitespace-nowrap">
@@ -2030,7 +2028,7 @@ function PlayerRow({ player }: { player: any }) {
     <div className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${player.isMe ? 'bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] shadow-inner' : 'bg-[var(--color-background)] border border-transparent hover:border-[var(--color-border)]'}`}>
       <img referrerPolicy="no-referrer" src={player.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={player.agent} />
       <div className="flex-1 min-w-0">
-        <div className={`font-bold text-sm truncate ${player.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}>{player.name}</div>
+        <div className={`font-bold text-sm truncate ${player.isMe ? 'text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'}`}>{player.isMe ? tr("Vous") : player.name}</div>
         <div className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest">{player.agent}</div>
       </div>
       <div className="flex items-center gap-3 text-xs font-bold px-2">
