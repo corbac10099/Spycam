@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import parse, { Element, HTMLReactParserOptions, domToReact, DOMNode } from 'html-react-parser';
+import { tr, useLanguage } from '@/lib/i18n';
+import VideoPlayer from './VideoPlayer';
 
 export function parseColor(color: string): {r: number, g: number, b: number} | null {
   const hexMatch = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
@@ -97,72 +99,74 @@ export function formatDuration(ms: number): string {
 function formatFrenchDate(isoDate: string): string {
   const date = new Date(isoDate);
   if (isNaN(date.getTime())) return isoDate;
-
-  const day = date.getDate();
-  const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-
-  if (isoDate.includes('T') || isoDate.includes(':')) {
-    return `${day} ${month} ${year} à ${hours}h${minutes}`;
-  }
-  return `${day} ${month} ${year}`;
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(date);
 }
 
 function FileDownloadButton({ url, label }: { url: string; label: string }) {
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isDownloading) return;
-    setIsDownloading(true);
+    if (downloading) return;
+    setDownloading(true);
 
     try {
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`Fetch failed with status ${response.status}`);
+      if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
+      const filename = url.split('/').pop() || 'download';
+
       const link = document.createElement('a');
       link.href = blobUrl;
-
-      const urlFileName = url.split('/').pop()?.split('?')[0];
-      link.download = urlFileName || label || 'download';
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = label || 'download';
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    } catch {
+      window.open(url, '_blank');
     } finally {
-      setIsDownloading(false);
+      setDownloading(false);
     }
   };
 
   return (
     <button
-      type="button"
       onClick={handleDownload}
-      disabled={isDownloading}
-      className="inline-flex items-center gap-1.5 px-3.5 py-1 text-sm font-medium rounded-full border border-white/15 bg-white/5 hover:bg-white/10 transition-colors text-gray-200 cursor-pointer disabled:opacity-50 my-0.5 align-middle"
+      disabled={downloading}
+      className={`val-file-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 shadow-md ${
+        downloading 
+          ? 'opacity-50 cursor-not-allowed bg-gray-600 text-white' 
+          : 'bg-[var(--color-val-red)] hover:bg-[var(--color-val-red)]/80 text-white shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer'
+      }`}
     >
-      <svg className={`w-3.5 h-3.5 shrink-0 opacity-70 ${isDownloading ? 'animate-bounce' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width="14" 
+        height="14" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        className={downloading ? 'animate-bounce' : ''}
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
       <span>{label}</span>
     </button>
   );
 }
 
-// Fallback legacy parser for very old entries not yet migrated by AppControl
+// Fallback legacy parser for tokens and widgets
 function preprocessLegacyHTML(html: string): string {
   if (!html) return '';
   let processed = html;
@@ -172,6 +176,7 @@ function preprocessLegacyHTML(html: string): string {
   processed = processed.replace(/\[date:([^\]]+)\]/g, '<span class="val-date" data-date="$1"></span>');
   processed = processed.replace(/\[link:([^|\]]+)\|([^\]]+)\]/g, '<a class="val-link-btn" href="$1" data-label="$2"></a>');
   processed = processed.replace(/\[file:([^|\]]+)\|([^\]]+)\]/g, '<a class="val-file-btn" href="$1" data-label="$2"></a>');
+  processed = processed.replace(/\[video:([^\]]+)\]/g, '<div class="val-video" data-url="$1"></div>');
   // Convert <accent> tags to spans, preserving any inline style
   processed = processed.replace(/<accent([^>]*)>(.*?)<\/accent>/gi, (match, attrs, content) => {
     return `<span class="val-accent"${attrs}>${content}</span>`;
@@ -180,18 +185,98 @@ function preprocessLegacyHTML(html: string): string {
   return processed;
 }
 
+function decodeHtmlEntities(value: string): string {
+  if (typeof document === 'undefined') {
+    return value
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
+}
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeRichHtml(value: string): string {
+  return decodeHtmlEntities(value)
+    .replace(/<span\b[^>]*class=["'][^"']*\bval-accent\b[^"']*["'][^>]*>/gi, '<accent>')
+    .replace(/<span\b[^>]*class=["'][^"']*\bval-link-text\b[^"']*["'][^>]*>/gi, '')
+    .replace(/<span\b[^>]*class=["'][^"']*\bval-file-text\b[^"']*["'][^>]*>/gi, '')
+    .replace(/<\/span>/gi, (match, offset, source) => {
+      const before = source.slice(0, offset);
+      const openAccentCount = (before.match(/<accent>/g) || []).length;
+      const closeAccentCount = (before.match(/<\/accent>/g) || []).length;
+      return openAccentCount > closeAccentCount ? '</accent>' : '';
+    })
+    .replace(/<accent\b[^>]*>/gi, '<accent>')
+    .replace(/<\/accent>/gi, '</accent>')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(?:p|div|li|h[1-6]|blockquote|td|th)>/gi, ' ')
+    .replace(/<(?!\/?accent\b)[^>]+>/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripRichTags(value: string): string {
+  return normalizeRichHtml(value).replace(/<\/?accent>/gi, '').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeTranslatedRichHtml(value: string): string {
+  const escaped = escapeHtmlText(decodeHtmlEntities(value));
+  return escaped
+    .replace(/&lt;accent&gt;/gi, '<accent>')
+    .replace(/&lt;\/accent&gt;/gi, '</accent>')
+    .replace(/\n/g, '<br />');
+}
+
+function translateRichContent(value: string): string {
+  const richKey = normalizeRichHtml(value);
+  if (!richKey) return value;
+
+  const richTranslation = tr(richKey);
+  if (richTranslation !== richKey) {
+    return sanitizeTranslatedRichHtml(richTranslation);
+  }
+
+  const plainText = stripRichTags(value);
+  const translated = tr(plainText);
+  if (translated === plainText) return value;
+
+  return sanitizeTranslatedRichHtml(translated);
+}
+
 export default function RichTextRenderer({ content }: { content: string }) {
+  const { lang } = useLanguage();
   const [isLightMode, setIsLightMode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [isFolded, setIsFolded] = useState(true);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    setIsLightMode(document.body.classList.contains('theme-light'));
-    
+    const isLight = document.body.classList.contains('theme-light') || 
+                    document.body.classList.contains('theme-cream') || 
+                    document.body.classList.contains('theme-nordic');
+    setIsLightMode(isLight);
+
     const observer = new MutationObserver((mutations) => {
-      mutations.forEach(m => {
-        if (m.attributeName === 'class') {
-          setIsLightMode(document.body.classList.contains('theme-light'));
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isL = document.body.classList.contains('theme-light') || 
+                      document.body.classList.contains('theme-cream') || 
+                      document.body.classList.contains('theme-nordic');
+          setIsLightMode(isL);
         }
       });
     });
@@ -204,13 +289,27 @@ export default function RichTextRenderer({ content }: { content: string }) {
   if (typeof content === 'string' && (content.startsWith('[{"') || content.startsWith('[]'))) {
     try {
       blocks = JSON.parse(content);
-    } catch (e) {}
+    } catch {}
   }
 
-  const processedHtml = useMemo(() => {
-    if (blocks) return ''; // Skip parsing for slide layout
-    return preprocessLegacyHTML(content || '');
+  // Handle Fold separation: [fold], <!--fold-->, or <div class="val-fold">
+  const foldParts = useMemo(() => {
+    if (blocks || !content || typeof content !== 'string') return null;
+    const foldRegex = /\[fold\]|<!--\s*fold\s*-->|<div\s+class=["'][^"']*val-fold[^"']*["'][^>]*>.*?<\/div>|<hr\s+class=["'][^"']*val-fold[^"']*["']\s*\/?>/i;
+    if (foldRegex.test(content)) {
+      const parts = content.split(foldRegex);
+      if (parts.length >= 2) {
+        return { top: parts[0], bottom: parts.slice(1).join('') };
+      }
+    }
+    return null;
   }, [content, blocks]);
+
+  const processedHtml = useMemo(() => {
+    if (blocks) return '';
+    const raw = foldParts ? (isFolded ? foldParts.top : `${foldParts.top} <div class="val-fold-divider"></div> ${foldParts.bottom}`) : content;
+    return preprocessLegacyHTML(translateRichContent(raw || ''));
+  }, [content, blocks, lang, foldParts, isFolded]);
 
   const hasTimeDependentToken = useMemo(() => {
     return processedHtml.includes('val-timer') || processedHtml.includes('val-chrono');
@@ -233,6 +332,12 @@ export default function RichTextRenderer({ content }: { content: string }) {
           
           if (block.type === 'image') {
             return <img key={idx} src={block.url} style={{ position: 'absolute', left, top, width, height, objectFit: 'contain' }} alt="" />;
+          } else if (block.type === 'video') {
+            return (
+              <div key={idx} style={{ position: 'absolute', left, top, width, height, overflow: 'hidden' }}>
+                <VideoPlayer src={block.url} poster={block.poster} autoPlay={block.autoPlay} className="w-full h-full" />
+              </div>
+            );
           } else if (block.type === 'text') {
             return (
               <div key={idx} style={{ position: 'absolute', left, top, width, height, color: block.color || '#fff', fontSize: block.fontSize || 16, overflow: 'hidden' }}>
@@ -252,6 +357,16 @@ export default function RichTextRenderer({ content }: { content: string }) {
         const className = domNode.attribs.class || '';
         const tagName = domNode.name?.toLowerCase();
 
+        // Handle Video player token
+        if (className.includes('val-video')) {
+          const videoUrl = domNode.attribs['data-url'];
+          return (
+            <div className="my-6 w-full">
+              <VideoPlayer src={videoUrl} className="w-full" />
+            </div>
+          );
+        }
+
         // Handle legacy <font size="X"> tags generated by execCommand('fontSize')
         if (tagName === 'font') {
           const sizeAttr = domNode.attribs.size;
@@ -269,22 +384,8 @@ export default function RichTextRenderer({ content }: { content: string }) {
           if (colorAttr) {
             inlineStyle.color = isLightMode ? adaptColorForLightMode(colorAttr) : colorAttr;
           }
-          if (faceAttr) inlineStyle.fontFamily = faceAttr;
-
-          // Merge any existing inline style from the tag
-          const existingStyle = domNode.attribs.style;
-          if (existingStyle) {
-            existingStyle.split(';').forEach(rule => {
-              const [prop, val] = rule.split(':').map(s => s.trim());
-              if (prop && val) {
-                const camelProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-                let finalVal = val;
-                if (isLightMode && (camelProp === 'color' || camelProp === 'backgroundColor')) {
-                  finalVal = adaptColorForLightMode(val);
-                }
-                (inlineStyle as any)[camelProp] = finalVal;
-              }
-            });
+          if (faceAttr) {
+            inlineStyle.fontFamily = faceAttr;
           }
 
           return (
@@ -294,77 +395,53 @@ export default function RichTextRenderer({ content }: { content: string }) {
           );
         }
 
-        if (className.includes('val-accent')) {
-          // Parse any existing inline style from the accent tag
-          const existingStyle = domNode.attribs.style || '';
-          const mergedStyle: React.CSSProperties = {};
-          
-          if (existingStyle) {
-            existingStyle.split(';').forEach((rule: string) => {
-              const colonIdx = rule.indexOf(':');
-              if (colonIdx === -1) return;
-              const prop = rule.substring(0, colonIdx).trim();
-              const val = rule.substring(colonIdx + 1).trim();
-              if (prop && val) {
-                const camelProp = prop.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase());
-                (mergedStyle as any)[camelProp] = val;
-              }
-            });
-          }
-          return (
-            <span className="font-bold text-[var(--color-val-red)]" style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}>
-              {domToReact(domNode.children as DOMNode[], options)}
-            </span>
-          );
-        }
-
+        // Custom countdown timer widget
         if (className.includes('val-timer')) {
-          const date = domNode.attribs['data-date'];
-          const targetTime = new Date(date).getTime();
-          if (isNaN(targetTime)) return <span>{domToReact(domNode.children as DOMNode[], options)}</span>;
-          
-          const remaining = targetTime - now;
-          if (remaining <= 0) {
-            return <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/15 border border-green-500/30 rounded-lg font-mono text-sm text-green-400 my-0.5 align-middle">Terminé</span>;
-          }
-          return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/30 rounded-lg font-mono text-sm text-[var(--color-val-red)] my-0.5 align-middle">
-              ⏱️ {formatDuration(remaining)}
-            </span>
-          );
+          const isoDate = domNode.attribs['data-date'];
+          const target = new Date(isoDate).getTime();
+          if (isNaN(target)) return <span className="text-red-400 font-bold">[Date invalide]</span>;
+          const diff = target - now;
+          if (diff <= 0) return <span className="val-timer-finished font-bold text-emerald-400">Terminé</span>;
+          return <span className="val-timer-active font-mono font-bold text-[var(--color-val-red)]">{formatDuration(diff)}</span>;
         }
 
+        // Custom elapsed timer (chronometer) widget
         if (className.includes('val-chrono')) {
-          const date = domNode.attribs['data-date'];
-          const startTime = new Date(date).getTime();
-          if (isNaN(startTime)) return <span>{domToReact(domNode.children as DOMNode[], options)}</span>;
-          
-          const elapsed = Math.max(0, now - startTime);
-          return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-500/15 border border-blue-500/30 rounded-lg font-mono text-sm text-blue-400 my-0.5 align-middle">
-              ⏳ {formatDuration(elapsed)}
-            </span>
-          );
+          const isoDate = domNode.attribs['data-date'];
+          const start = new Date(isoDate).getTime();
+          if (isNaN(start)) return <span className="text-red-400 font-bold">[Date invalide]</span>;
+          const diff = now - start;
+          if (diff < 0) return <span className="val-chrono-pending font-bold text-[var(--color-text-secondary)]">Pas encore commencé</span>;
+          return <span className="val-chrono-active font-mono font-bold text-amber-400">{formatDuration(diff)}</span>;
         }
 
+        // Custom formatted date display
         if (className.includes('val-date')) {
-          const dateStr = domNode.attribs['data-date'];
-          return <span className="font-semibold text-yellow-400 align-middle">📅 {formatFrenchDate(dateStr)}</span>;
+          const isoDate = domNode.attribs['data-date'];
+          return <span className="val-date-display font-bold text-[var(--color-text-primary)]">{formatFrenchDate(isoDate)}</span>;
         }
 
+        // External Link Button Widget
         if (className.includes('val-link-btn')) {
           const url = domNode.attribs.href;
+          const label = domNode.attribs['data-label'] || 'Ouvrir le lien';
           return (
-            <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-transparent hover:bg-white/5 border border-[#fa4454]/40 rounded-full text-[14px] font-medium text-gray-200 no-underline transition-colors my-0.5 align-middle">
-              {domToReact(domNode.children as DOMNode[], options)}
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="val-link-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#1a1f2e] hover:bg-[var(--color-val-red)] text-[var(--color-text-primary)] hover:text-white border border-[var(--color-border)] hover:border-[var(--color-val-red)] transition-all duration-300 shadow-md group cursor-pointer"
+            >
+              <span>{label}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
           );
         }
 
+        // Download File Button Widget
         if (className.includes('val-file-btn')) {
           const url = domNode.attribs.href;
           const label = domNode.attribs['data-label'] || 'Télécharger';
-          // If they used the new structure, the text is inside .val-file-text
           let actualLabel = label;
           const childrenAny = domNode.children as any[];
           const fileTextNode = childrenAny.find((c: any) => c.type === 'tag' && c.attribs?.class?.includes('val-file-text'));
@@ -376,8 +453,7 @@ export default function RichTextRenderer({ content }: { content: string }) {
           return <FileDownloadButton url={url} label={actualLabel} />;
         }
 
-        // Preserve inline styles on all elements (h1-h6, p, div, span, etc.)
-        // This ensures font-size, color, etc. set in AppControl are respected
+        // Preserve inline styles on all elements
         if (domNode.attribs.style && ['h1','h2','h3','h4','h5','h6','p','div','span','strong','em','blockquote'].includes(tagName)) {
           const inlineStyle: React.CSSProperties = {};
           domNode.attribs.style.split(';').forEach(rule => {
@@ -414,6 +490,49 @@ export default function RichTextRenderer({ content }: { content: string }) {
       ? 'prose-headings:text-black text-gray-800 prose-a:text-blue-600' 
       : 'prose-invert prose-headings:text-white text-gray-300 prose-a:text-blue-400'
     }`;
+
+  // If fold is present
+  if (foldParts) {
+    return (
+      <div className={wrapperClass}>
+        {/* Top Part */}
+        {parse(preprocessLegacyHTML(translateRichContent(foldParts.top || '')), options)}
+
+        {/* Fold Button */}
+        {isFolded ? (
+          <div className="flex justify-center my-8 not-prose">
+            <button
+              onClick={() => setIsFolded(false)}
+              className="px-6 py-3 rounded-full bg-[var(--color-val-red)]/10 hover:bg-[var(--color-val-red)] border border-[var(--color-val-red)]/30 hover:border-[var(--color-val-red)] text-[var(--color-val-red)] hover:text-white font-bold text-sm tracking-wider uppercase flex items-center gap-2.5 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_rgba(255,70,85,0.4)] cursor-pointer"
+            >
+              <span>{tr("Afficher toutes les informations")}</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+            {/* Bottom Part */}
+            {parse(preprocessLegacyHTML(translateRichContent(foldParts.bottom || '')), options)}
+
+            {/* Collapse Button at the bottom */}
+            <div className="flex justify-center mt-8 mb-4 not-prose">
+              <button
+                onClick={() => setIsFolded(true)}
+                className="px-6 py-3 rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-val-red)] border border-[var(--color-border)] hover:border-[var(--color-val-red)] text-[var(--color-text-secondary)] hover:text-white font-bold text-sm tracking-wider uppercase flex items-center gap-2.5 transition-all duration-300 cursor-pointer"
+              >
+                <span>{tr("Afficher moins")}</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={wrapperClass}>

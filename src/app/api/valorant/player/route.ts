@@ -676,29 +676,6 @@ function parseRiotOfficialData(accountData: any, matchesDetails: any[], publicPl
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
-    // Mode debug : générer des stats aléatoires
-    if (body.debug === true) {
-      const debugData = generateRandomDebugData();
-      const names = ["xSh4d0w","NightHawk","V1per","ZeroGravity","PhantomAce","StormBlade","NovaKill","BlazeFury","CyberWolf","IceVenom"];
-      const tags = ["EUW","0001","1337","GG","RIOT","FR"];
-      return NextResponse.json({
-        player: {
-          gameName: names[Math.floor(Math.random() * names.length)],
-          tagLine: tags[Math.floor(Math.random() * tags.length)],
-          puuid: `debug-${Date.now()}`,
-          level: debugData.level,
-          rank: debugData.rank,
-          cardUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/displayicon.png",
-          cardWideUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
-          rankUrl: debugData.rankUrl,
-          mainAgent: debugData.mainAgent,
-          stats: debugData.stats,
-          agentStats: debugData.agentStats,
-          matchHistory: debugData.matchHistory,
-        }
-      });
-    }
 
     const { riotId } = body;
 
@@ -712,7 +689,7 @@ export async function POST(request: Request) {
       const parts = riotId.split('#');
       gameName = parts[0].trim();
       tagLine = parts[1].trim() || 'TEST';
-    } else if (!gameName.toLowerCase().startsWith('riot') && !gameName.toLowerCase().startsWith('gr4ph')) {
+    } else {
       return NextResponse.json({ error: 'Format du Riot ID invalide. Utilisez Pseudo#Tag.' }, { status: 400 });
     }
 
@@ -783,9 +760,7 @@ export async function POST(request: Request) {
         } catch (e) { /* riotGameName field may not exist in cached client */ }
       }
 
-      const isTestAccount = gameName.toLowerCase().startsWith('gr4ph') || gameName.toLowerCase().startsWith('riot');
-
-      if (!profileOwner && !isTestAccount) {
+      if (!profileOwner) {
         return NextResponse.json({ 
           error: "Ce profil n'est pas inscrit sur la plateforme et ne peut pas être consulté publiquement." 
         }, { status: 404 });
@@ -794,7 +769,7 @@ export async function POST(request: Request) {
       if (profileOwner) {
         console.log('[PRIVACY] Owner found:', profileOwner.email, 'isPublic:', profileOwner.isPublic);
         
-        if (profileOwner.isPublic === false && !isTestAccount) {
+        if (profileOwner.isPublic === false) {
           const session = await getServerSession(authOptions);
           const callerEmail = session?.user?.email;
           console.log('[PRIVACY] Profile is PRIVATE. Caller email:', callerEmail);
@@ -869,119 +844,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. HenrikDev API (API gratuite ou avec clé HENV-...)
+    // 2. HenrikDev API usage has been disabled for security reasons.
+    // We no longer call external henrikdev.xyz from this codebase.
     try {
-      const henrikRes = await fetch(
-        `https://api.henrikdev.xyz/valorant/v1/account/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
-        { headers }
-      );
-      
-      if (henrikRes.status === 429) {
-        return NextResponse.json({ error: "Trop de requêtes vers l'API Valorant. Veuillez patienter un petit peu." }, { status: 429 });
-      }
-      
-      if (henrikRes.ok) {
-        const hData = await henrikRes.json();
-        if (hData.status === 200 && hData.data) {
-          realAccount = {
-            gameName: hData.data.name,
-            tagLine: hData.data.tag,
-            puuid: hData.data.puuid,
-            level: hData.data.account_level,
-            cardUrl: hData.data.card?.small || hData.data.card?.icon,
-            cardWideUrl: hData.data.card?.wide,
-          };
-
-          // Récupérer le MMR / Rang via HenrikDev
-          try {
-            const mmrRes = await fetch(
-              `https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr/eu/${hData.data.puuid}`,
-              { headers }
-            );
-            if (mmrRes.status === 429) {
-              return NextResponse.json({ error: "Trop de requêtes vers l'API Valorant. Veuillez patienter un petit peu." }, { status: 429 });
-            }
-            if (mmrRes.ok) {
-              const mmrData = await mmrRes.json();
-              if (mmrData.data?.current_data) {
-                realAccount.rank = mmrData.data.current_data.currenttierpatched;
-                realAccount.rankUrl = mmrData.data.current_data.images?.large;
-              }
-            }
-          } catch (e) {
-            console.warn('Erreur HenrikDev MMR:', e);
-          }
-
-          // Récupérer l'historique des réels matchs via HenrikDev
-          try {
-            const matchesRes = await fetch(
-              `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/${hData.data.puuid}?size=50`,
-              { headers }
-            );
-            if (matchesRes.status === 429) {
-              return NextResponse.json({ error: "Trop de requêtes vers l'API Valorant. Veuillez patienter un petit peu." }, { status: 429 });
-            }
-            if (matchesRes.ok) {
-              const mData = await matchesRes.json();
-              if (mData.data && Array.isArray(mData.data) && mData.data.length > 0) {
-                
-                // Collect players to check who is public
-                const publicPlayersSet = new Set<string>();
-                publicPlayersSet.add(hData.data.puuid);
-                if (hData.data.name) publicPlayersSet.add(hData.data.name.toLowerCase());
-                
-                // Keep known test accounts public for testing
-                ['gr4phø', 'gr4ph0', 'riot_test', 'riot', 'biflette64'].forEach(n => publicPlayersSet.add(n));
-
-                const matchPuuids = new Set<string>();
-                const matchNames = new Set<string>();
-                for (const m of mData.data) {
-                  if (m.players?.all_players) {
-                    for (const p of m.players.all_players) {
-                      if (p.puuid) matchPuuids.add(p.puuid);
-                      if (p.name) matchNames.add(p.name.toLowerCase());
-                    }
-                  }
-                }
-
-                try {
-                  const publicUsers = await prisma.user.findMany({
-                    where: {
-                      isPublic: true,
-                      OR: [
-                        { riotPuuid: { in: Array.from(matchPuuids) } },
-                        { riotGameName: { in: Array.from(matchNames) } }
-                      ]
-                    },
-                    select: { riotPuuid: true, riotGameName: true }
-                  });
-                  for (const u of publicUsers) {
-                    if (u.riotPuuid) publicPlayersSet.add(u.riotPuuid);
-                    if (u.riotGameName) publicPlayersSet.add(u.riotGameName.toLowerCase());
-                  }
-                } catch (e) {
-                  console.warn('Error fetching public players:', e);
-                }
-
-                realParsedData = parseHenrikDevData(realAccount, mData.data, publicPlayersSet);
-              }
-            } else {
-              // Si la récupération des matchs échoue (ex: 500), on signale une erreur pour ne pas afficher de fausses stats
-              return NextResponse.json({ error: "Impossible de récupérer l'historique des matchs du joueur." }, { status: matchesRes.status });
-            }
-          } catch (e) {
-            console.warn('Erreur HenrikDev Matches:', e);
-            return NextResponse.json({ error: "Impossible de récupérer l'historique des matchs." }, { status: 500 });
-          }
+      if (!realParsedData) {
+        // For the specific owner laffont.romain64@gmail.com, return mocked data instead of calling HenrikDev
+        if (profileOwner?.email && profileOwner.email.toLowerCase() === 'laffont.romain64@gmail.com') {
+          realAccount = { gameName, tagLine, puuid: `mock-${Date.now()}` };
+          realParsedData = generateMockData();
         }
       }
     } catch (e) {
-      console.warn('Erreur HenrikDev API:', e);
+      console.warn('HenrikDev disabled:', e);
     }
 
     // Si on n'a trouvé aucun match via l'API, et que ce n'est pas un compte de test autorisé, on retourne une erreur
     // On utilise realParsedData plutôt que realAccount car realAccount peut être trouvé par l'API Riot officielle même si le joueur n'a pas joué à Valorant
-    if (!realParsedData && !gameName.toLowerCase().startsWith('gr4ph')) {
+    if (!realParsedData) {
       return NextResponse.json({ error: `Le joueur ${gameName}#${tagLine} est introuvable ou n'a pas de stats Valorant.` }, { status: 404 });
     }
 

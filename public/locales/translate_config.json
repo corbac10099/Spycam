@@ -1,0 +1,15 @@
+{
+  "provider": "libretranslate",
+  "apiUrl": "https://libretranslate.com/translate",
+  "excludeWords": [
+    "Valorant",
+    "Spike",
+    "SPYCAM",
+    "Riot Games",
+    "K/D",
+    "ACS",
+    "ADR",
+    "KAST",
+    "ACE"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "default": "french",
+  "languages": [
+    {
+      "id": "french",
+      "label": "Français",
+      "flag": "🇫🇷"
+    },
+    {
+      "id": "english",
+      "label": "English",
+      "flag": ""
+    },
+    {
+      "id": "日本語",
+      "label": "日本語",
+      "flag": ""
+    },
+    {
+      "id": "español",
+      "label": "Español",
+      "flag": ""
+    }
+  ]
+}

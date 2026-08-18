@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { Suspense, useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import AbilityCard from "@/components/AbilityCard";
+import RichTextRenderer from "@/components/RichTextRenderer";
+import { useLanguage, loadLanguagesList, setLanguage, LanguageInfo, tr, trFormat, t, LOCALES, Locale } from "@/lib/i18n";
 
 // ==================== Tooltip ====================
 function Tooltip({ message }: { message: string }) {
@@ -136,16 +138,24 @@ function BannerCatalogModal({ isOpen, onClose, onSelect }: { isOpen: boolean; on
 }
 
 // ==================== Settings View ====================
-function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, isPublic, setIsPublic, videoLoop, setVideoLoop, videoLoopDelay, setVideoLoopDelay, hiddenStats, setHiddenStats, enforcePublicStats, setEnforcePublicStats, p, canEditProfile, settingsTab, setSettingsTab, pushUrl, locale, setLocale }: any) {
+function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, bannerUrl, setBannerUrl, bannerOffsetY, setBannerOffsetY, isPublic, setIsPublic, videoLoop, setVideoLoop, videoLoopDelay, setVideoLoopDelay, hiddenStats, setHiddenStats, enforcePublicStats, setEnforcePublicStats, p, canEditProfile, settingsTab, setSettingsTab, pushUrl, locale }: any) {
   const statOptions = [
-    { id: 'kills', label: t('stat_kills', locale) }, { id: 'deaths', label: t('stat_deaths', locale) }, { id: 'assists', label: t('stat_assists', locale) },
-    { id: 'kd', label: t('stat_kd', locale) }, { id: 'adr', label: t('stat_adr', locale) }, { id: 'hs', label: t('stat_hs', locale) },
-    { id: 'wr', label: t('stat_winrate', locale) }, { id: 'acs', label: t('stat_acs', locale) }, { id: 'fb', label: t('stat_fb', locale) },
-    { id: 'ace', label: t('stat_ace', locale) }, { id: 'kast', label: t('stat_kast', locale) }, { id: 'dd', label: t('stat_dd', locale) },
-    { id: 'wins', label: t('stat_wins', locale) }, { id: 'matches', label: t("matches_played", locale) }
+    { id: 'kills', label: "Éliminations" }, { id: 'deaths', label: "Morts" }, { id: 'assists', label: "Passes décisives" },
+    { id: 'kd', label: "Ratio K/D" }, { id: 'adr', label: "ADR Moyen" }, { id: 'hs', label: "Tirs à la tête %" },
+    { id: 'wr', label: "Taux de victoire" }, { id: 'acs', label: "ACS Moyen" }, { id: 'fb', label: "Premiers sangs" },
+    { id: 'ace', label: "ACE" }, { id: 'kast', label: "KAST %" }, { id: 'dd', label: "Différence de dégâts" },
+    { id: 'wins', label: "Victoires" }, { id: 'matches', label: "Parties jouées" }
   ];
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [languages, setLanguages] = useState<LanguageInfo[]>([]);
+  const [showAllLanguages, setShowAllLanguages] = useState(false);
+
+  useEffect(() => {
+    loadLanguagesList().then(list => {
+      if (list && list.length > 0) setLanguages(list);
+    });
+  }, []);
   
   // Draft State
   const [draftSmartRating, setDraftSmartRating] = useState(smartRating);
@@ -171,7 +181,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   const [draftBannerUrl, setDraftBannerUrl] = useState(bannerUrl);
   const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
   const [draftIsPublic, setDraftIsPublic] = useState(isPublic ?? true);
-  const [draftLocale, setDraftLocale] = useState<Locale>(locale || 'fr');
+  const [draftLocale, setDraftLocale] = useState<string>(locale || 'french');
 
   // Preview theme live
   useEffect(() => {
@@ -228,7 +238,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
         if (setVideoLoopDelay) setVideoLoopDelay(draftVideoLoopDelay);
         setHiddenStats(draftHiddenStats);
         setEnforcePublicStats(draftEnforcePublicStats);
-        setLocale(draftLocale);
+        await setLanguage(draftLocale);
         onClose();
       }
     } catch (e) {
@@ -239,13 +249,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   };
 
   const handleCancel = () => {
-    // Reverts to original theme automatically via useEffect cleanup
     onClose();
   };
   
   // Default banners
   const banners = [
-    { name: t('banner_default', locale), url: p?.cardWideUrl || "" },
+    { name: "Par défaut", url: p?.cardWideUrl || "" },
     { name: "Ascent", url: "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png" },
     { name: "Bind", url: "https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/splash.png" },
     { name: "Haven", url: "https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/splash.png" },
@@ -254,8 +263,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   return (
     <div className="w-full max-w-6xl mx-auto px-8 animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{t("nav_settings", locale)}</h2>
-        <button onClick={onClose} className="px-6 py-2.5 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)]">
+        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{"Paramètres"}</h2>
+        <button onClick={onClose} className="px-6 py-2.5 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] cursor-pointer">
           Retour au profil
         </button>
       </div>
@@ -263,13 +272,13 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex flex-col gap-2">
-          {[{id:'features', label: t('settings_features', locale)}, 
-            {id:'privacy', label: t('settings_privacy', locale)}, 
-            {id:'appearance', label: t('settings_appearance', locale)},
-            {id:'language', label: t('settings_language', locale)},
-            {id:'about', label: t('settings_about', locale)}].map(tab => (
+          {[{id:'features', label: "Fonctionnalités"}, 
+            {id:'privacy', label: "Confidentialité"}, 
+            {id:'appearance', label: "Apparence & Bannière"},
+            {id:'language', label: "Langue & Traductions"},
+            {id:'about', label: "À propos"}].map(tab => (
             <button key={tab.id} onClick={() => { setSettingsTab(tab.id); pushUrl({ view: 'settings', settingsTab: tab.id }); }}
-              className={`text-left px-5 py-4 rounded-xl font-bold uppercase tracking-wider text-sm transition-all ${settingsTab === tab.id ? 'bg-[var(--color-surface-hover)] border-l-4 border-[var(--color-val-red)] text-[var(--color-text-primary)] shadow-md' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'}`}>
+              className={`text-left px-5 py-4 rounded-xl font-bold uppercase tracking-wider text-sm transition-all cursor-pointer ${settingsTab === tab.id ? 'bg-[var(--color-surface-hover)] border-l-4 border-[var(--color-val-red)] text-[var(--color-text-primary)] shadow-md' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'}`}>
               {tab.label}
             </button>
           ))}
@@ -282,11 +291,11 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('smart_rating', locale)}</h3>
-                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('visual_indicators_desc', locale)}</p>
+                    <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{"Indicateurs visuels (Smart Rating)"}</h3>
+                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">{"Active les repères visuels colorés sur les performances clés (K/D, ADR, Winrate, etc.)"}</p>
                   </div>
                   <button onClick={() => setDraftSmartRating(!draftSmartRating)}
-                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftSmartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${draftSmartRating ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
                     <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftSmartRating ? 'translate-x-7' : 'translate-x-1'}`}></span>
                   </button>
                 </div>
@@ -294,11 +303,11 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                 <div className="flex flex-col gap-4 pt-6 border-t border-[var(--color-border)]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('video_loop', locale)}</h3>
-                      <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('video_loop_desc', locale)}</p>
+                      <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{"Lecture en boucle des vidéos d'agents"}</h3>
+                      <p className="text-sm text-[var(--color-text-secondary)] mt-1">{"Rejoue automatiquement les aperçus vidéo des compétences d'agents"}</p>
                     </div>
                     <button onClick={() => setDraftVideoLoop(!draftVideoLoop)}
-                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 ${draftVideoLoop ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${draftVideoLoop ? 'bg-[var(--color-val-red)]' : 'bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]'}`}>
                       <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${draftVideoLoop ? 'translate-x-7' : 'translate-x-1'}`}></span>
                     </button>
                   </div>
@@ -306,7 +315,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                   {draftVideoLoop && (
                     <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300 pl-2">
                       <div className="flex justify-between">
-                        <span className="text-sm font-bold text-[var(--color-text-secondary)]">{t('video_delay', locale)}</span>
+                        <span className="text-sm font-bold text-[var(--color-text-secondary)]">{"Délai avant relecture"}</span>
                         <span className="text-sm font-bold text-[var(--color-val-red)]">{draftVideoLoopDelay} ms</span>
                       </div>
                       <input 
@@ -314,7 +323,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                         min="0" max="3000" step="100" 
                         value={draftVideoLoopDelay}
                         onChange={(e) => setDraftVideoLoopDelay(Number(e.target.value))}
-                        className="w-full accent-[var(--color-val-red)]"
+                        className="w-full accent-[var(--color-val-red)] cursor-pointer"
                       />
                     </div>
                   )}
@@ -326,8 +335,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
           {settingsTab === 'privacy' && (
             <div className="glass-panel rounded-2xl p-8 space-y-6">
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('profile_privacy', locale)}</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('profile_privacy_desc', locale)}</p>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{"Confidentialité du profil"}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{"Gérez qui peut consulter vos statistiques et historiques de parties"}</p>
               </div>
 
               <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] flex items-center justify-between gap-4">
@@ -341,12 +350,12 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                   </div>
                   <div>
                     <h4 className="font-bold text-base text-[var(--color-text-primary)]">
-                      {draftIsPublic ? t('public_profile', locale) : t('private_profile', locale)}
+                      {draftIsPublic ? "Profil Public" : "Profil Privé"}
                     </h4>
                     <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-md">
                       {draftIsPublic 
-                        ? t('public_profile_desc', locale) 
-                        : t('private_profile_desc', locale)}
+                        ? "Tout le monde peut consulter votre profil et vos statistiques." 
+                        : "Votre profil est masqué pour les autres utilisateurs."}
                     </p>
                   </div>
                 </div>
@@ -357,7 +366,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               </div>
 
               <div className="pt-6 border-t border-[var(--color-border)]">
-                <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-2">{t('stats_visibility', locale)}</h4>
+                <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-2">{"Visibilité des statistiques"}</h4>
                 <p className="text-xs text-[var(--color-text-secondary)] mb-4">
                   Décochez les statistiques que vous ne souhaitez pas voir sur votre propre profil.
                 </p>
@@ -383,8 +392,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
 
                 <div className="flex items-center justify-between p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
                   <div>
-                    <h5 className="font-bold text-sm text-[var(--color-text-primary)]">{t('apply_to_visitors', locale)}</h5>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{t('apply_to_visitors_desc', locale)}</p>
+                    <h5 className="font-bold text-sm text-[var(--color-text-primary)]">{"Appliquer le masquage aux visiteurs"}</h5>
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{"Masque également ces statistiques pour tous les visiteurs de votre profil"}</p>
                   </div>
                   <button onClick={() => setDraftEnforcePublicStats(!draftEnforcePublicStats)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${draftEnforcePublicStats ? 'bg-[var(--color-val-red)]' : 'bg-gray-600'}`}>
@@ -399,16 +408,16 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
             <div className="glass-panel rounded-2xl p-8 space-y-10">
               {/* Sélecteur de Thème */}
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">{t('ui_theme', locale)}</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-5">{t('ui_theme_desc', locale)}</p>
-                <div className="grid grid-cols-5 gap-3">
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">{"Thème de l'interface"}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-5">{"Choisissez l'ambiance visuelle globale"}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   {[
-                    { id: 'dark', name: t('theme_dark', locale), bg: '#0a0e13', surface: '#0f1923', accent: '#8b97a3' },
-                    { id: 'light', name: t('theme_light', locale), bg: '#f0f1f5', surface: '#ffffff', accent: '#525f6e' },
-                    { id: 'midnight', name: t('theme_midnight', locale), bg: '#0d0b1a', surface: '#140f28', accent: '#8c64ff' },
-                    { id: 'crimson', name: t('theme_crimson', locale), bg: '#120808', surface: '#1e0a0a', accent: '#ff4655' },
-                    { id: 'ocean', name: t('theme_ocean', locale), bg: '#071014', surface: '#0a1923', accent: '#32c8b4' },
-                    { id: 'custom', name: t('theme_custom', locale), bg: draftCustomBg, surface: draftCustomBg, accent: draftCustomAccent },
+                    { id: 'dark', name: "Sombre", bg: '#0a0e13', surface: '#0f1923', accent: '#8b97a3' },
+                    { id: 'light', name: "Clair", bg: '#f0f1f5', surface: '#ffffff', accent: '#525f6e' },
+                    { id: 'midnight', name: "Midnight", bg: '#0d0b1a', surface: '#140f28', accent: '#8c64ff' },
+                    { id: 'crimson', name: "Crimson", bg: '#120808', surface: '#1e0a0a', accent: '#ff4655' },
+                    { id: 'ocean', name: "Océan", bg: '#071014', surface: '#0a1923', accent: '#32c8b4' },
+                    { id: 'custom', name: "Personnalisé", bg: draftCustomBg, surface: draftCustomBg, accent: draftCustomAccent },
                   ].map(t => (
                     <button key={t.id} onClick={() => setDraftTheme(t.id)}
                       className={`relative rounded-xl p-3 flex flex-col items-center gap-2 border-2 transition-all duration-300 cursor-pointer ${draftTheme === t.id ? 'border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105' : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)]'}`}>
@@ -428,10 +437,10 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
               {/* Option Couleur Custom */}
               {draftTheme === 'custom' && (
                 <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] animate-in fade-in duration-300">
-                  <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-4">{t('color_customization', locale)}</h4>
+                  <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-4">{"Personnalisation des couleurs"}</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">{t('accent_color', locale)}</span>
+                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">{"Couleur d'accentuation"}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs uppercase font-mono">{draftCustomAccent}</span>
                         <input type="color" value={draftCustomAccent} onChange={e => setDraftCustomAccent(e.target.value)} 
@@ -439,7 +448,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">{t('bg_color', locale)}</span>
+                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">{"Couleur d'arrière-plan"}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs uppercase font-mono">{draftCustomBg}</span>
                         <input type="color" value={draftCustomBg} onChange={e => setDraftCustomBg(e.target.value)} 
@@ -450,100 +459,171 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                 </div>
               )}
 
-              {/* Bannière - Only show if user has a Valorant profile to preview with */}
-              {p && (
-                <div>
-                  <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">{t('banner_customization', locale)}</h3>
-                  
-                      <div className="flex gap-4 mb-6 flex-wrap">
-                        {banners.map((b, i) => b.url && (
-                          <button key={i} onClick={() => setDraftBannerUrl(b.url)}
-                            className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all ${draftBannerUrl === b.url || (!draftBannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
-                            <img referrerPolicy="no-referrer" src={b.url} alt={b.name} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                              <span className="text-white text-xs font-bold">{b.name}</span>
-                            </div>
-                          </button>
-                        ))}
-                        <button onClick={() => setCatalogOpen(true)}
-                          className="relative w-32 h-16 rounded-lg overflow-hidden border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-val-red)] transition-all flex items-center justify-center group bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,70,85,0.1)] cursor-pointer">
-                          <span className="text-[var(--color-text-secondary)] group-hover:text-[var(--color-val-red)] text-xs font-bold uppercase tracking-widest transition-colors flex flex-col items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                            Voir plus
-                          </span>
-                        </button>
+              {/* Bannière personnalisée (sauvegardée pour votre compte) */}
+              <div>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-4">{"Personnalisation de la Bannière"}</h3>
+                
+                <div className="flex gap-4 mb-6 flex-wrap">
+                  {banners.map((b, i) => b.url && (
+                    <button key={i} onClick={() => setDraftBannerUrl(b.url)}
+                      className={`relative w-32 h-16 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${draftBannerUrl === b.url || (!draftBannerUrl && i === 0) ? 'border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'border-transparent hover:border-[var(--color-border)]'}`}>
+                      <img referrerPolicy="no-referrer" src={b.url} alt={b.name} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-white text-xs font-bold">{b.name}</span>
                       </div>
-                      
-                      {/* Slider interactif avec APERÇU EN DIRECT */}
-                      <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4 max-w-xl">
-                        <div className="flex items-center justify-between">
-                          <label className="font-bold text-sm text-[var(--color-text-primary)]">{t('vertical_crop', locale)}</label>
-                          <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{draftBannerOffsetY}%</span>
-                        </div>
-
-                        {/* Visualiseur de cadre en temps réel */}
-                        <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
-                          <img referrerPolicy="no-referrer" src={draftBannerUrl || p?.cardWideUrl || ""} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
-                          <div className="absolute inset-0 bg-black/40"></div>
-                          <div className="relative z-10 p-3 flex items-center justify-between h-full">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/20">
-                                <img referrerPolicy="no-referrer" src={p?.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
-                              </div>
-                              <span className="text-xs font-black text-white drop-shadow-md">{p?.gameName || "Joueur"}</span>
-                            </div>
-                            <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">{t('live_preview', locale)}</span>
-                          </div>
-                        </div>
-
-                        <input type="range" min="0" max="100" value={draftBannerOffsetY} onChange={e => setDraftBannerOffsetY(Number(e.target.value))}
-                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)]" />
-                        <p className="text-[11px] text-[var(--color-text-secondary)]">Glissez le curseur pour voir l&apos;image s&apos;ajuster en temps réel dans le cadre ci-dessus.</p>
-                      </div>
-                      
-                      <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setDraftBannerUrl(url)} />
+                    </button>
+                  ))}
+                  <button onClick={() => setCatalogOpen(true)}
+                    className="relative w-32 h-16 rounded-lg overflow-hidden border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-val-red)] transition-all flex items-center justify-center group bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,70,85,0.1)] cursor-pointer">
+                    <span className="text-[var(--color-text-secondary)] group-hover:text-[var(--color-val-red)] text-xs font-bold uppercase tracking-widest transition-colors flex flex-col items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                      Voir plus
+                    </span>
+                  </button>
                 </div>
-              )}
+                
+                {/* Slider interactif avec APERÇU EN DIRECT */}
+                <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4 max-w-xl">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-sm text-[var(--color-text-primary)]">{"Recadrage vertical"}</label>
+                    <span className="text-xs font-black text-white bg-[var(--color-val-red)] px-2 py-0.5 rounded">{draftBannerOffsetY}%</span>
+                  </div>
 
+                  {/* Visualiseur de cadre en temps réel */}
+                  <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
+                    <img referrerPolicy="no-referrer" src={draftBannerUrl || p?.cardWideUrl || "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png"} alt="Aperçu" style={{ objectPosition: `center ${draftBannerOffsetY}%` }} className="absolute inset-0 w-full h-full object-cover transition-all duration-75" />
+                    <div className="absolute inset-0 bg-black/40"></div>
+                    <div className="relative z-10 p-3 flex items-center justify-between h-full">
+                      <div className="flex items-center gap-2">
+                        {p?.cardUrl ? (
+                          <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/20">
+                            <img referrerPolicy="no-referrer" src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          </div>
+                        ) : null}
+                        <span className="text-xs font-black text-white drop-shadow-md">{p?.gameName || "Mon Profil"}</span>
+                      </div>
+                      <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">{"Aperçu"}</span>
+                    </div>
+                  </div>
+
+                  <input type="range" min="0" max="100" value={draftBannerOffsetY} onChange={e => setDraftBannerOffsetY(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)]" />
+                  <p className="text-[11px] text-[var(--color-text-secondary)]">Glissez le curseur pour voir l&apos;image s&apos;ajuster en temps réel dans le cadre ci-dessus.</p>
+                </div>
+                
+                <BannerCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={(url) => setDraftBannerUrl(url)} />
+              </div>
             </div>
           )}
           
           {settingsTab === 'language' && (
             <div className="glass-panel rounded-2xl p-8 space-y-6">
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{t('settings_language_title', locale)}</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{t('settings_language_desc', locale)}</p>
+                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">{"Langue de l'interface"}</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{"Sélectionnez votre langue d'affichage préférée."}</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[var(--color-border)]">
-                {LOCALES.map(l => (
-                  <button key={l.code} onClick={() => setDraftLocale(l.code)}
-                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${draftLocale === l.code ? 'border-[var(--color-val-red)] bg-[var(--color-val-red)]/10 text-[var(--color-text-primary)]' : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-secondary)]'}`}>
-                    <span className="text-2xl">{l.flag}</span>
-                    <span className="font-bold">{l.label}</span>
+
+              {/* Languages List with Background Cover Image + Dark Gradient to Right */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-[var(--color-border)]">
+                {(showAllLanguages ? languages : languages.slice(0, 5)).map((l) => {
+                  const isSelected = (draftLocale || 'french') === l.id;
+                  const isImageFlag = l.flag && (l.flag.startsWith('/') || l.flag.startsWith('http') || l.flag.includes('.'));
+                  
+                  return (
+                    <button
+                      key={l.id}
+                      onClick={() => setDraftLocale(l.id)}
+                      className={`relative overflow-hidden rounded-2xl p-5 border-2 transition-all duration-300 flex items-center justify-between text-left group min-h-[90px] cursor-pointer ${
+                        isSelected
+                          ? 'border-[var(--color-val-red)] shadow-[0_0_25px_rgba(255,70,85,0.4)] scale-[1.02]'
+                          : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)] hover:scale-[1.01]'
+                      } bg-[#0a0e13]`}>
+                      {/* Image background with dark gradient to the right with transparency */}
+                      {isImageFlag ? (
+                        <>
+                          <img
+                            src={l.flag}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/30 pointer-events-none"></div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-[var(--color-surface)] pointer-events-none"></div>
+                      )}
+
+                      {/* Content with high contrast text */}
+                      <div className="relative z-10 flex items-center gap-3.5">
+                        {!isImageFlag && (
+                          <span className="text-3xl filter drop-shadow-md select-none">{l.flag || '🌐'}</span>
+                        )}
+                        <div className="flex flex-col">
+                          <span className="font-black text-base text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                            {l.label}
+                          </span>
+                          <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                            {l.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Check badge when selected */}
+                      {isSelected && (
+                        <div className="relative z-10 w-6 h-6 rounded-full bg-[var(--color-val-red)] flex items-center justify-center shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Toggle "Afficher plus" / "Afficher moins" */}
+              {languages.length > 5 && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={() => setShowAllLanguages(!showAllLanguages)}
+                    className="px-6 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <span>{showAllLanguages ? "Afficher moins" : `Afficher plus (${languages.length - 5} de plus)`}</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`transition-transform duration-200 ${showAllLanguages ? 'rotate-180' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
           {settingsTab === 'about' && (
              <div className="glass-panel rounded-2xl p-8">
                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Valorant Performance Tracker</h3>
-               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{t('footer_desc', locale)}</p>
+               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{"Suivez vos performances Valorant, vos statistiques d'agents, historiques de parties et analyses détaillées."}</p>
              </div>
            )}
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-[var(--color-border)]">
             <button onClick={handleCancel} disabled={loading}
-              className="px-6 py-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold rounded-xl transition-all border border-[var(--color-border)] disabled:opacity-50">
+              className="px-6 py-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold rounded-xl transition-all border border-[var(--color-border)] disabled:opacity-50 cursor-pointer">
               Annuler
             </button>
             <button onClick={handleSave} disabled={loading}
-              className="px-6 py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center gap-2">
+              className="px-6 py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center gap-2 cursor-pointer">
               {loading ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> {t('settings_saving', locale)}</>
-              ) : t('save_settings', locale)}
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> {"Enregistrement..."}</>
+              ) : "Enregistrer les modifications"}
             </button>
           </div>
         </div>
@@ -552,60 +632,8 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   );
 }
 
-// ==================== Stat Card ====================
-function StatCard({ label, value, suffix, sub, highlight, warning, smartRating, colSpan }: {
-  label: string; value: string | number; suffix?: string; sub?: string; highlight?: boolean; warning?: string; smartRating: boolean; colSpan?: number;
-}) {
-  return (
-    <div className={`glass-panel p-5 rounded-2xl flex flex-col items-center justify-center hover:bg-[var(--color-surface-hover)] transition-all duration-300 ${highlight ? 'border border-[rgba(255,70,85,0.25)] bg-[rgba(255,70,85,0.03)]' : ''} ${colSpan === 2 ? 'col-span-2' : ''}`}>
-      <div className="flex items-center">
-        <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">{label}</span>
-        {smartRating && warning && <Tooltip message={warning} />}
-      </div>
-      <span className={`text-3xl font-black mt-2 ${highlight ? 'text-[var(--color-val-red)] drop-shadow-[0_0_10px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-on-surface)]'} ${smartRating && warning ? 'text-[#ffb432]' : ''}`}>
-        {value}{suffix}
-      </span>
-      {sub && <span className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest mt-1.5 font-bold">{sub}</span>}
-    </div>
-  );
-}
-
-// ==================== Debug Panel ====================
-function DebugPanel({ isOpen, onClose, onGenerate }: { isOpen: boolean; onClose: () => void; onGenerate: () => void; }) {
-  if (!isOpen) return null;
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose}></div>
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-[#0d1117] border border-[rgba(255,70,85,0.3)] rounded-3xl shadow-[0_0_60px_rgba(0,0,0,0.8)] z-50 p-8 animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-3 h-3 rounded-full bg-[var(--color-val-red)] animate-pulse"></div>
-          <h2 className="text-lg font-black uppercase tracking-widest text-[var(--color-val-red)]">Debug Panel</h2>
-        </div>
-        <p className="text-xs text-[var(--color-text-secondary)] mb-4 leading-relaxed">Génère un joueur fictif avec des statistiques aléatoires pour tester l&apos;interface.</p>
-
-        <button onClick={() => { onGenerate(); onClose(); }}
-          className="w-full bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold py-3 rounded-xl transition-all duration-300 uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(255,70,85,0.3)] cursor-pointer mb-3">
-          Générer un joueur aléatoire
-        </button>
-
-        <button onClick={() => { window.open('/?simulate=true', '_blank'); onClose(); }}
-          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all duration-300 uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(37,99,235,0.3)] cursor-pointer">
-          Ouvrir Simulateur (Nouvel Onglet)
-        </button>
-        <button onClick={onClose} className="w-full mt-3 text-[var(--color-text-secondary)] hover:text-white font-bold py-3 rounded-xl transition-all duration-300 uppercase tracking-widest text-xs cursor-pointer">
-          Fermer
-        </button>
-      </div>
-    </>
-  );
-}
-
-import { Suspense } from "react";
-import RichTextRenderer from "@/components/RichTextRenderer";
-import { t, LOCALES, Locale } from "@/lib/i18n";
-
 // ==================== News View Component (BDD Neon) ====================
-function NewsViewComponent({ newsItems, setNewsItems, locale }: { newsItems: any[]; setNewsItems: (items: any[]) => void; locale: Locale; }) {
+function NewsViewComponent({ newsItems, setNewsItems }: { newsItems: any[]; setNewsItems: (items: any[]) => void; }) {
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
   const [sortOption, setSortOption] = useState<'date_desc'|'date_asc'|'title_asc'|'title_desc'>('date_desc');
@@ -644,7 +672,7 @@ function NewsViewComponent({ newsItems, setNewsItems, locale }: { newsItems: any
   return (
     <div className="w-full max-w-4xl mx-auto px-8 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{t("nav_news", locale)}</h2>
+        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">{"Actualités"}</h2>
         <select 
           value={sortOption}
           onChange={(e) => setSortOption(e.target.value as any)}
@@ -826,6 +854,43 @@ function AgentsWikiComponent({ videoLoop, videoLoopDelay, locale, pushUrl }: { v
   );
 }
 
+
+// ==================== Stat Card ====================
+function StatCard({ label, value, sub, highlight, warning, suffix, colSpan, smartRating }: any) {
+  const getRatingColor = () => {
+    if (!smartRating || !warning) return '';
+    if (warning.level === 'good') return 'text-[#0ebf99] border-[#0ebf99]/30 bg-[#0ebf99]/5';
+    if (warning.level === 'bad') return 'text-[#ff4655] border-[#ff4655]/30 bg-[#ff4655]/5';
+    return '';
+  };
+
+  const ratingClass = getRatingColor();
+
+  return (
+    <div className={`glass-panel p-5 rounded-2xl flex flex-col justify-between border border-[var(--color-border)] hover:border-[var(--color-text-secondary)]/30 transition-all duration-300 ${colSpan ? `col-span-${colSpan}` : ''} ${ratingClass}`}>
+      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-[var(--color-text-secondary)] mb-2">
+        <span>{label}</span>
+        {warning && smartRating && (
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${warning.level === 'good' ? 'bg-[#0ebf99]/20 text-[#0ebf99]' : 'bg-[#ff4655]/20 text-[#ff4655]'}`}>
+            {warning.message}
+          </span>
+        )}
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className={`text-3xl font-black tracking-tight ${highlight ? 'text-[var(--color-val-red)] drop-shadow-[0_0_15px_rgba(255,70,85,0.3)]' : 'text-[var(--color-text-primary)]'}`}>
+          {value}
+        </span>
+        {suffix && <span className="text-sm font-bold text-[var(--color-text-secondary)]">{suffix}</span>}
+      </div>
+      {sub && <span className="text-[11px] text-[var(--color-text-secondary)] font-medium mt-1">{sub}</span>}
+    </div>
+  );
+}
+
+// ==================== Debug Panel ====================
+function DebugPanel({ session, playerData }: any) {
+  return null;
+}
 
 function HomeContent() {
   const { data: realSession, status: realStatus } = useSession();
@@ -1420,7 +1485,7 @@ function HomeContent() {
           </div>
           <div className="flex-[2] flex justify-center items-center gap-2">
             {/* Home button */}
-            {playerData?.player?.gameName && myRiotId && (
+            {myRiotId && (
               <button onClick={() => { setNewsView(false); setAgentsView(false); setSettingsOpen(false); goHome(); }} title={t('nav_back_profile', locale)}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border ${(!newsView && !agentsView && !settingsOpen) ? 'bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]' : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
@@ -1508,7 +1573,7 @@ function HomeContent() {
           setLocale={setLocale}
         />
       ) : newsView && !agentsView ? (
-        <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} locale={locale} />
+        <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} />
       ) : agentsView && !newsView ? (
         <AgentsWikiComponent videoLoop={videoLoop} videoLoopDelay={videoLoopDelay} locale={locale} pushUrl={pushUrl} />
       ) : (
