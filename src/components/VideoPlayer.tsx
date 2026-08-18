@@ -25,7 +25,13 @@ export default function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('spycam_video_muted');
+      return cached !== null ? cached === 'true' : true;
+    }
+    return true;
+  });
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
@@ -36,6 +42,47 @@ export default function VideoPlayer({
 
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const loopTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync mute state across all video players in real-time
+  useEffect(() => {
+    const handleGlobalMuteChange = (e: CustomEvent<{ isMuted: boolean }>) => {
+      if (typeof e.detail?.isMuted === 'boolean') {
+        setIsMuted(e.detail.isMuted);
+        if (videoRef.current) {
+          videoRef.current.muted = e.detail.isMuted;
+        }
+      }
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'spycam_video_muted' && e.newValue !== null) {
+        const newMuted = e.newValue === 'true';
+        setIsMuted(newMuted);
+        if (videoRef.current) {
+          videoRef.current.muted = newMuted;
+        }
+      }
+    };
+
+    window.addEventListener('spycam_video_mute_change' as any, handleGlobalMuteChange);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('spycam_video_mute_change' as any, handleGlobalMuteChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const toggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = newMuted;
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('spycam_video_muted', newMuted ? 'true' : 'false');
+      window.dispatchEvent(new CustomEvent('spycam_video_mute_change', { detail: { isMuted: newMuted } }));
+    }
+  };
 
   // Auto-hide controls after inactivity
   const handleMouseMove = () => {
@@ -228,7 +275,7 @@ export default function VideoPlayer({
 
             {/* Mute Button */}
             <button
-              onClick={() => setIsMuted(!isMuted)}
+              onClick={toggleMute}
               className="p-1 hover:text-[var(--color-val-red)] transition-colors"
               title={isMuted ? tr("Activer le son") : tr("Désactiver le son")}
             >

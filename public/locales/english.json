@@ -334,6 +334,11 @@
     "Win rate de {wr}% — sous 50%. Adaptez vos stratégies et communiquez.": "Win rate of {wr}% — below 50%. Adapt strategies and communicate.",
     "ACS de {acs} — sous 200. Participez davantage aux rounds.": "ACS of {acs} — below 200. Participate more in rounds.",
     "KAST de {kast}% — sous 65%. Impliquez-vous plus (Kill/Assist/Survived/Trade).": "KAST of {kast}% — below 65%. Get more involved (Kill/Assist/Survived/Trade).",
-    "DDΔ négatif ({dd}) — vous subissez plus de dégâts que vous n'en infligez.": "Negative DDΔ ({dd}) — you take more damage than you deal."
+    "DDΔ négatif ({dd}) — vous subissez plus de dégâts que vous n'en infligez.": "Negative DDΔ ({dd}) — you take more damage than you deal.",
+    "En cochant cette case, j'accepte que mes statistiques Valorant puissent être recherchées et vues par les autres utilisateurs de la plateforme. (Vous pourrez repasser en privé à tout moment dans les paramètres).": "By checking this box, I agree that my Valorant stats can be searched and viewed by other users on the platform. (You can switch back to private at any time in the settings).",
+    "Langue": "Language",
+    "Mode Test AppControl (Prévisualisation)": "AppControl Test Mode (Preview)",
+    "Riot Games": "Riot Games",
+    "Thème": "Theme"
   }
 }

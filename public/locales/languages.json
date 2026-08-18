@@ -4,7 +4,7 @@
     {
       "id": "french",
       "label": "Français",
-      "flag": "🇫🇷"
+      "flag": "/locales/flags/french.png"
     },
     {
       "id": "english",

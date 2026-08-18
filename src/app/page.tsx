@@ -153,6 +153,7 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
   const [loading, setLoading] = useState(false);
   const [languages, setLanguages] = useState<LanguageInfo[]>([]);
   const [showAllLanguages, setShowAllLanguages] = useState(false);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState('');
 
   useEffect(() => {
     loadLanguagesList().then(list => {
@@ -529,89 +530,127 @@ function SettingsView({ onClose, smartRating, setSmartRating, theme, setTheme, b
                 <p className="text-sm text-[var(--color-text-secondary)] mt-1">{"Sélectionnez votre langue d'affichage préférée."}</p>
               </div>
 
-              {/* Languages List with Background Cover Image + Dark Gradient to Right */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-[var(--color-border)]">
-                {(showAllLanguages ? languages : languages.slice(0, 5)).map((l) => {
-                  const isSelected = (draftLocale || 'french') === l.id;
-                  const isImageFlag = l.flag && (l.flag.startsWith('/') || l.flag.startsWith('http') || l.flag.includes('.'));
-                  
-                  return (
-                    <button
-                      key={l.id}
-                      onClick={() => setDraftLocale(l.id)}
-                      className={`relative overflow-hidden rounded-2xl p-5 border-2 transition-all duration-300 flex items-center justify-between text-left group min-h-[90px] cursor-pointer ${
-                        isSelected
-                          ? 'border-[var(--color-val-red)] shadow-[0_0_25px_rgba(255,70,85,0.4)] scale-[1.02]'
-                          : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)] hover:scale-[1.01]'
-                      } bg-[#0a0e13]`}>
-                      {/* Image background with dark gradient to the right with transparency */}
-                      {isImageFlag ? (
-                        <>
-                          <img
-                            src={l.flag}
-                            alt=""
-                            className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/30 pointer-events-none"></div>
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 bg-[var(--color-surface)] pointer-events-none"></div>
-                      )}
-
-                      {/* Content with high contrast text */}
-                      <div className="relative z-10 flex items-center gap-3.5">
-                        {!isImageFlag && (
-                          <span className="text-3xl filter drop-shadow-md select-none">{l.flag || '🌐'}</span>
-                        )}
-                        <div className="flex flex-col">
-                          <span className="font-black text-base text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                            {l.label}
-                          </span>
-                          <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
-                            {l.id}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Check badge when selected */}
-                      {isSelected && (
-                        <div className="relative z-10 w-6 h-6 rounded-full bg-[var(--color-val-red)] flex items-center justify-center shadow-lg">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+              {/* Language Search Bar */}
+              <div className="relative w-full max-w-md">
+                <input
+                  type="text"
+                  value={languageSearchQuery}
+                  onChange={(e) => setLanguageSearchQuery(e.target.value)}
+                  placeholder={"Rechercher une langue..."}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 pl-10 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)]/50 focus:border-[var(--color-val-red)] focus:outline-none transition-colors"
+                />
+                <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {languageSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setLanguageSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] hover:text-white text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
-              {/* Toggle "Afficher plus" / "Afficher moins" */}
-              {languages.length > 5 && (
-                <div className="flex justify-center pt-2">
-                  <button
-                    onClick={() => setShowAllLanguages(!showAllLanguages)}
-                    className="px-6 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-                  >
-                    <span>{showAllLanguages ? "Afficher moins" : `Afficher plus (${languages.length - 5} de plus)`}</span>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={`transition-transform duration-200 ${showAllLanguages ? 'rotate-180' : ''}`}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-              )}
+              {/* Languages List with Background Cover Image + Dark Gradient to Right */}
+              {(() => {
+                const filtered = languages.filter(l => {
+                  if (!languageSearchQuery.trim()) return true;
+                  const q = languageSearchQuery.toLowerCase();
+                  return (l.label || '').toLowerCase().includes(q) || (l.id || '').toLowerCase().includes(q);
+                });
+                const displayed = languageSearchQuery.trim() || showAllLanguages ? filtered : filtered.slice(0, 5);
+
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-[var(--color-border)]">
+                      {displayed.map((l) => {
+                        const isSelected = (draftLocale || 'french') === l.id;
+                        const isImageFlag = l.flag && (l.flag.startsWith('/') || l.flag.startsWith('http') || l.flag.includes('.'));
+                        
+                        return (
+                          <button
+                            key={l.id}
+                            type="button"
+                            onClick={() => setDraftLocale(l.id)}
+                            className={`relative overflow-hidden rounded-2xl p-5 border-2 transition-all duration-300 flex items-center justify-between text-left group min-h-[90px] cursor-pointer ${
+                              isSelected
+                                ? 'border-[var(--color-val-red)] shadow-[0_0_25px_rgba(255,70,85,0.4)] scale-[1.02] bg-[var(--color-val-red)]/10'
+                                : 'border-[var(--color-border)] hover:border-[var(--color-text-secondary)] hover:scale-[1.01] bg-[#0a0e13]'
+                            }`}>
+                            {/* Image background with dark gradient to the right with transparency */}
+                            {isImageFlag ? (
+                              <>
+                                <img
+                                  src={l.flag}
+                                  alt=""
+                                  className="absolute inset-0 w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/30 pointer-events-none"></div>
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 bg-[var(--color-surface)] pointer-events-none"></div>
+                            )}
+
+                            {/* Content with high contrast text */}
+                            <div className="relative z-10 flex items-center gap-3.5">
+                              {!isImageFlag && (
+                                <span className="text-3xl filter drop-shadow-md select-none">{l.flag || '🌐'}</span>
+                              )}
+                              <div className="flex flex-col">
+                                <span className="font-black text-base text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                                  {l.label}
+                                </span>
+                                <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                                  {l.id}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Check badge when selected */}
+                            {isSelected && (
+                              <div className="relative z-10 w-6 h-6 rounded-full bg-[var(--color-val-red)] flex items-center justify-center shadow-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Toggle "Afficher plus" / "Afficher moins" */}
+                    {!languageSearchQuery.trim() && filtered.length > 5 && (
+                      <div className="flex justify-center pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowAllLanguages(!showAllLanguages)}
+                          className="px-6 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                        >
+                          <span>{showAllLanguages ? "Afficher moins" : `Afficher plus (+${filtered.length - 5})`}</span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`transition-transform duration-200 ${showAllLanguages ? 'rotate-180' : ''}`}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
-
+          
           {settingsTab === 'about' && (
              <div className="glass-panel rounded-2xl p-8">
                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Valorant Performance Tracker</h3>

@@ -80,6 +80,41 @@ function adaptColorForLightMode(color: string): string {
   return `rgb(${Math.round(r2*255)}, ${Math.round(g2*255)}, ${Math.round(b2*255)})`;
 }
 
+
+export function toReactStyleKey(prop: string): string {
+  if (prop.startsWith('--')) {
+    return prop; // Keep CSS custom properties (--variable) intact for React
+  }
+  if (prop.startsWith('-ms-')) {
+    return prop.slice(1).replace(/-([a-z0-9])/gi, (_, c) => c.toUpperCase());
+  }
+  if (prop.startsWith('-webkit-') || prop.startsWith('-moz-') || prop.startsWith('-o-')) {
+    const cleaned = prop.slice(1);
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).replace(/-([a-z0-9])/gi, (_, c) => c.toUpperCase());
+  }
+  return prop.replace(/-([a-z0-9])/gi, (_, c) => c.toUpperCase());
+}
+
+export function parseInlineStyle(styleStr?: string, isLightMode = false): React.CSSProperties {
+  if (!styleStr || typeof styleStr !== 'string') return {};
+  const inlineStyle: React.CSSProperties = {};
+  styleStr.split(';').forEach(rule => {
+    const colonIdx = rule.indexOf(':');
+    if (colonIdx === -1) return;
+    const rawProp = rule.substring(0, colonIdx).trim();
+    const val = rule.substring(colonIdx + 1).trim();
+    if (rawProp && val) {
+      const key = toReactStyleKey(rawProp);
+      let finalVal = val;
+      if (isLightMode && (key === 'color' || key === 'backgroundColor')) {
+        finalVal = adaptColorForLightMode(val);
+      }
+      (inlineStyle as any)[key] = finalVal;
+    }
+  });
+  return inlineStyle;
+}
+
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
   const days = Math.floor(totalSeconds / 86400);
@@ -295,7 +330,7 @@ export default function RichTextRenderer({ content }: { content: string }) {
   // Handle Fold separation: [fold], <!--fold-->, or <div class="val-fold">
   const foldParts = useMemo(() => {
     if (blocks || !content || typeof content !== 'string') return null;
-    const foldRegex = /\[fold\]|<!--\s*fold\s*-->|<div\s+class=["'][^"']*val-fold[^"']*["'][^>]*>.*?<\/div>|<hr\s+class=["'][^"']*val-fold[^"']*["']\s*\/?>/i;
+    const foldRegex = /\[fold\]|<!--\s*fold\s*-->|<div\s+class=["'][^"']*val-fold[^"']*["'][^>]*>[\s\S]*?<\/div>|<hr\s+class=["'][^"']*val-fold[^"']*["']\s*\/?>/i;
     if (foldRegex.test(content)) {
       const parts = content.split(foldRegex);
       if (parts.length >= 2) {
@@ -356,13 +391,14 @@ export default function RichTextRenderer({ content }: { content: string }) {
       if (domNode instanceof Element && domNode.attribs) {
         const className = domNode.attribs.class || '';
         const tagName = domNode.name?.toLowerCase();
+        const userStyle = parseInlineStyle(domNode.attribs.style, isLightMode);
 
-        // Handle Video player token
-        if (className.includes('val-video')) {
-          const videoUrl = domNode.attribs['data-url'];
+        // Handle Video player token / video tag
+        if (className.includes('val-video') || tagName === 'video') {
+          const videoUrl = domNode.attribs['data-url'] || domNode.attribs.src || ((domNode.children as any[])?.find((c: any) => c.name === 'video')?.attribs?.src);
           return (
-            <div className="my-6 w-full">
-              <VideoPlayer src={videoUrl} className="w-full" />
+            <div className="my-6 w-full overflow-hidden" style={userStyle}>
+              <VideoPlayer src={videoUrl} className="w-full h-full rounded-xl" />
             </div>
           );
         }
@@ -372,7 +408,7 @@ export default function RichTextRenderer({ content }: { content: string }) {
           const sizeAttr = domNode.attribs.size;
           const colorAttr = domNode.attribs.color;
           const faceAttr = domNode.attribs.face;
-          const inlineStyle: React.CSSProperties = {};
+          const inlineStyle: React.CSSProperties = { ...userStyle };
 
           if (sizeAttr) {
             const fontSizeMap: Record<string, string> = {
@@ -399,48 +435,58 @@ export default function RichTextRenderer({ content }: { content: string }) {
         if (className.includes('val-timer')) {
           const isoDate = domNode.attribs['data-date'];
           const target = new Date(isoDate).getTime();
-          if (isNaN(target)) return <span className="text-red-400 font-bold">[Date invalide]</span>;
+          if (isNaN(target)) return <span style={userStyle} className="text-red-400 font-bold">[Date invalide]</span>;
           const diff = target - now;
-          if (diff <= 0) return <span className="val-timer-finished font-bold text-emerald-400">Terminé</span>;
-          return <span className="val-timer-active font-mono font-bold text-[var(--color-val-red)]">{formatDuration(diff)}</span>;
+          if (diff <= 0) return <span style={userStyle} className="val-timer-finished font-bold text-emerald-400">Terminé</span>;
+          return <span style={userStyle} className="val-timer-active font-mono font-bold text-[var(--color-val-red)]">{formatDuration(diff)}</span>;
         }
 
         // Custom elapsed timer (chronometer) widget
         if (className.includes('val-chrono')) {
           const isoDate = domNode.attribs['data-date'];
           const start = new Date(isoDate).getTime();
-          if (isNaN(start)) return <span className="text-red-400 font-bold">[Date invalide]</span>;
+          if (isNaN(start)) return <span style={userStyle} className="text-red-400 font-bold">[Date invalide]</span>;
           const diff = now - start;
-          if (diff < 0) return <span className="val-chrono-pending font-bold text-[var(--color-text-secondary)]">Pas encore commencé</span>;
-          return <span className="val-chrono-active font-mono font-bold text-amber-400">{formatDuration(diff)}</span>;
+          if (diff < 0) return <span style={userStyle} className="val-chrono-pending font-bold text-[var(--color-text-secondary)]">Pas encore commencé</span>;
+          return <span style={userStyle} className="val-chrono-active font-mono font-bold text-amber-400">{formatDuration(diff)}</span>;
         }
 
         // Custom formatted date display
         if (className.includes('val-date')) {
           const isoDate = domNode.attribs['data-date'];
-          return <span className="val-date-display font-bold text-[var(--color-text-primary)]">{formatFrenchDate(isoDate)}</span>;
+          return <span style={userStyle} className="val-date-display font-bold text-[var(--color-text-primary)]">{formatFrenchDate(isoDate)}</span>;
         }
 
-        // External Link Button Widget
+        // External Link Button Widget with full CSS injection support
         if (className.includes('val-link-btn')) {
-          const url = domNode.attribs.href;
-          const label = domNode.attribs['data-label'] || 'Ouvrir le lien';
+          const url = domNode.attribs.href || '#';
+          const label = domNode.attribs['data-label'];
+          
           return (
             <a 
               href={url} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="val-link-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider bg-[#1a1f2e] hover:bg-[var(--color-val-red)] text-[var(--color-text-primary)] hover:text-white border border-[var(--color-border)] hover:border-[var(--color-val-red)] transition-all duration-300 shadow-md group cursor-pointer"
+              style={userStyle}
+              className={`val-link-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 shadow-md group cursor-pointer ${
+                !domNode.attribs.style?.includes('background') && !domNode.attribs.style?.includes('bg')
+                  ? 'bg-[#1a1f2e] hover:bg-[var(--color-val-red)] text-[var(--color-text-primary)] hover:text-white border border-[var(--color-border)] hover:border-[var(--color-val-red)]'
+                  : ''
+              } ${className}`.trim()}
             >
-              <span>{label}</span>
+              {domNode.children && domNode.children.length > 0 ? (
+                domToReact(domNode.children as DOMNode[], options)
+              ) : (
+                <span>{label || 'Ouvrir le lien'}</span>
+              )}
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
           );
         }
 
-        // Download File Button Widget
+        // Download File Button Widget with CSS injection support
         if (className.includes('val-file-btn')) {
-          const url = domNode.attribs.href;
+          const url = domNode.attribs.href || '#';
           const label = domNode.attribs['data-label'] || 'Télécharger';
           let actualLabel = label;
           const childrenAny = domNode.children as any[];
@@ -450,39 +496,41 @@ export default function RichTextRenderer({ content }: { content: string }) {
           } else if (childrenAny?.[0]?.data && !className.includes('val-link-btn')) {
              actualLabel = childrenAny[0].data;
           }
-          return <FileDownloadButton url={url} label={actualLabel} />;
+          return <div style={userStyle} className="inline-block"><FileDownloadButton url={url} label={actualLabel} /></div>;
         }
 
-        // Accent tag / val-accent highlight
+        // Accent tag / val-accent highlight with CSS injection support
         if (tagName === 'accent' || className.includes('val-accent')) {
           return (
-            <span className="val-accent text-[var(--color-val-red)] font-bold">
+            <span style={userStyle} className="val-accent text-[var(--color-val-red)] font-bold">
               {domToReact(domNode.children as DOMNode[], options)}
             </span>
           );
         }
 
-        // Preserve inline styles on all elements
-        if (domNode.attribs.style && ['h1','h2','h3','h4','h5','h6','p','div','span','strong','em','blockquote'].includes(tagName)) {
-          const inlineStyle: React.CSSProperties = {};
-          domNode.attribs.style.split(';').forEach(rule => {
-            const colonIdx = rule.indexOf(':');
-            if (colonIdx === -1) return;
-            const prop = rule.substring(0, colonIdx).trim();
-            const val = rule.substring(colonIdx + 1).trim();
-            if (prop && val) {
-              const camelProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-              let finalVal = val;
-              if (isLightMode && (camelProp === 'color' || camelProp === 'backgroundColor')) {
-                finalVal = adaptColorForLightMode(val);
-              }
-              (inlineStyle as any)[camelProp] = finalVal;
-            }
-          });
+        // Void tags that cannot have children in React
+        if (tagName === 'img') {
+          return (
+            <img
+              src={domNode.attribs.src}
+              alt={domNode.attribs.alt || ''}
+              style={userStyle}
+              className={className || undefined}
+              loading="lazy"
+            />
+          );
+        }
 
+        if (['hr', 'br', 'input', 'wbr', 'area', 'col'].includes(tagName)) {
+          const VoidTag = tagName as any;
+          return <VoidTag style={userStyle} className={className || undefined} />;
+        }
+
+        // Preserve inline styles on container and text elements
+        if (domNode.attribs.style) {
           const Tag = tagName as any;
           return (
-            <Tag style={inlineStyle} className={className || undefined}>
+            <Tag style={userStyle} className={className || undefined}>
               {domToReact(domNode.children as DOMNode[], options)}
             </Tag>
           );
