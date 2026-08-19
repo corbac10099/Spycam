@@ -8,6 +8,12 @@ import { tr, trFormat } from '@/lib/i18n';
 interface VideoClip {
   label: string;
   videoUrl: string;
+  qualityUrls?: {
+    '1080p'?: string;
+    '720p'?: string;
+    '480p'?: string;
+    '360p'?: string;
+  };
   thumbnailUrl: string;
   description?: string;
   loop?: boolean;
@@ -113,6 +119,7 @@ export default function AbilityCard({
               <VideoPlayer
                 key={currentVideo?.videoUrl || currentVideoIndex}
                 src={currentVideo?.videoUrl}
+                qualityUrls={currentVideo?.qualityUrls}
                 poster={currentVideo?.thumbnailUrl}
                 autoPlay={false}
                 loop={globalLoop}

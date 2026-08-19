@@ -394,11 +394,24 @@ export default function RichTextRenderer({ content }: { content: string }) {
         const userStyle = parseInlineStyle(domNode.attribs.style, isLightMode);
 
         // Handle Video player token / video tag
-        if (className.includes('val-video') || tagName === 'video') {
+        if (className.includes('val-video') || tagName === 'video' || tagName === 'video-player') {
           const videoUrl = domNode.attribs['data-url'] || domNode.attribs.src || ((domNode.children as any[])?.find((c: any) => c.name === 'video')?.attribs?.src);
+          const q1080 = domNode.attribs['data-quality-1080'] || domNode.attribs['quality-1080'] || videoUrl;
+          const q720 = domNode.attribs['data-quality-720'] || domNode.attribs['quality-720'];
+          const q480 = domNode.attribs['data-quality-480'] || domNode.attribs['quality-480'];
+          const q360 = domNode.attribs['data-quality-360'] || domNode.attribs['quality-360'];
+          const poster = domNode.attribs['data-poster'] || domNode.attribs.poster;
+
+          const qualityUrls = {
+            '1080p': q1080,
+            '720p': q720,
+            '480p': q480,
+            '360p': q360,
+          };
+
           return (
             <div className="my-6 w-full overflow-hidden" style={userStyle}>
-              <VideoPlayer src={videoUrl} className="w-full h-full rounded-xl" />
+              <VideoPlayer src={videoUrl} qualityUrls={qualityUrls} poster={poster} className="w-full h-full rounded-xl" />
             </div>
           );
         }

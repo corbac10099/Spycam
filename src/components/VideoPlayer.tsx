@@ -3,8 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { tr } from '@/lib/i18n';
 
+export type VideoQuality = '1080p' | '720p' | '480p' | '360p';
+
 export interface VideoPlayerProps {
   src?: string;
+  qualityUrls?: Partial<Record<VideoQuality, string>>;
   poster?: string;
   autoPlay?: boolean;
   loop?: boolean;
@@ -15,6 +18,7 @@ export interface VideoPlayerProps {
 
 export default function VideoPlayer({
   src,
+  qualityUrls,
   poster,
   autoPlay = false,
   loop = true,
@@ -35,7 +39,7 @@ export default function VideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
-  const [selectedQuality, setSelectedQuality] = useState('1080p');
+  const [selectedQuality, setSelectedQuality] = useState<VideoQuality>('1080p');
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [qualityBadge, setQualityBadge] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -45,14 +49,43 @@ export default function VideoPlayer({
   const loopTimeout = useRef<NodeJS.Timeout | null>(null);
   const qualityBadgeTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const handleQualityChange = (q: string) => {
+  // Get active video source based on selected quality
+  const getActiveVideoSrc = (q: VideoQuality): string | undefined => {
+    if (qualityUrls && qualityUrls[q] && qualityUrls[q]!.trim()) {
+      return qualityUrls[q];
+    }
+    return qualityUrls?.['1080p'] || src;
+  };
+
+  const activeSrc = getActiveVideoSrc(selectedQuality);
+
+  const handleQualityChange = (q: VideoQuality) => {
+    if (q === selectedQuality) {
+      setShowQualityMenu(false);
+      return;
+    }
+
+    const prevTime = videoRef.current ? videoRef.current.currentTime : currentTime;
+    const wasPlaying = isPlaying;
+    const targetUrl = getActiveVideoSrc(q);
+
     setSelectedQuality(q);
     setShowQualityMenu(false);
     setQualityBadge(q);
+
     if (qualityBadgeTimeout.current) clearTimeout(qualityBadgeTimeout.current);
     qualityBadgeTimeout.current = setTimeout(() => {
       setQualityBadge(null);
     }, 1500);
+
+    // Switch video stream dynamically while preserving playback time
+    if (videoRef.current && targetUrl && targetUrl !== videoRef.current.currentSrc) {
+      videoRef.current.src = targetUrl;
+      videoRef.current.currentTime = prevTime;
+      if (wasPlaying) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
   };
 
   const qualityFilters: Record<string, string> = {
@@ -61,6 +94,10 @@ export default function VideoPlayer({
     '480p': 'blur(0.9px) contrast(1.04)',
     '360p': 'blur(1.8px) contrast(1.1)',
   };
+
+  // If a dedicated quality URL is provided, don't blur; otherwise use fallback filter
+  const hasDedicatedUrl = !!(qualityUrls && qualityUrls[selectedQuality] && qualityUrls[selectedQuality]!.trim());
+  const effectiveFilter = hasDedicatedUrl ? 'none' : (qualityFilters[selectedQuality] || 'none');
 
   // Sync mute state across all video players in real-time
   useEffect(() => {
@@ -218,7 +255,7 @@ export default function VideoPlayer({
       {/* Video Element */}
       <video
         ref={videoRef}
-        src={src}
+        src={activeSrc}
         poster={poster}
         playsInline
         muted={isMuted}
@@ -229,7 +266,7 @@ export default function VideoPlayer({
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onClick={togglePlay}
-        style={{ filter: qualityFilters[selectedQuality] || 'none' }}
+        style={{ filter: effectiveFilter }}
         className="w-full h-full object-cover cursor-pointer transition-all duration-300"
       />
 
@@ -342,10 +379,10 @@ export default function VideoPlayer({
               {/* Quality Dropdown Menu */}
               {showQualityMenu && (
                 <div className="absolute bottom-full right-0 mb-2 bg-[#121820] border border-[var(--color-border)] rounded-lg shadow-2xl py-1 z-40 min-w-[70px] sm:min-w-[80px]">
-                  {qualities.map(q => (
+                  {qualities.map((q) => (
                     <button
                       key={q}
-                      onClick={() => handleQualityChange(q)}
+                      onClick={() => handleQualityChange(q as VideoQuality)}
                       className={`w-full text-left px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[11px] hover:bg-[var(--color-val-red)]/20 hover:text-[var(--color-val-red)] transition-colors flex items-center justify-between cursor-pointer ${
                         selectedQuality === q ? 'text-[var(--color-val-red)] font-black' : 'text-white/80'
                       }`}
