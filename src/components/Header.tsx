@@ -380,7 +380,7 @@ export default function Header({
                       e.stopPropagation();
                       onRemoveFavorite({ gameName: fav.gameName, tagLine: fav.tagLine });
                     }}
-                    className="w-3.5 h-3.5 rounded-full hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-[9px]"
+                    className="w-3.5 h-3.5 rounded-full hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-1 text-[9px] cursor-pointer"
                     title="Retirer des favoris"
                   >
                     ✕
