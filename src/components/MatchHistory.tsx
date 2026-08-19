@@ -1,0 +1,422 @@
+"use client";
+
+import React, { useState } from "react";
+import { tr } from "@/lib/i18n";
+
+export interface MatchHistoryProps {
+  matches: any[];
+  searchPlayer: (id: string) => void;
+  visibleCount: number;
+  onLoadMore: () => void;
+}
+
+export const SkullIcon = React.memo(({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" className={className}>
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7zm-2 9H8V9h2v2zm6 0h-2V9h2v2zm-2.5 4h-3v-1.5h3V15z" />
+  </svg>
+));
+SkullIcon.displayName = "SkullIcon";
+
+export const SpikeExplodeIcon = React.memo(({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" className={className}>
+    <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z" />
+  </svg>
+));
+SpikeExplodeIcon.displayName = "SpikeExplodeIcon";
+
+export const SpikeDefuseIcon = React.memo(({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" className={className}>
+    <path d="M12 2l2.5 6.5L21 11l-6.5 2.5L12 20l-2.5-6.5L3 11l6.5-2.5L12 2zm-8 18l16-16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+));
+SpikeDefuseIcon.displayName = "SpikeDefuseIcon";
+
+export const RoundBar = React.memo(function RoundBar({ round }: { round: any }) {
+  const isWin = round.winner === "myTeam";
+  const hasSpikeAction = round.winCondition === "SpikeExploded" || round.winCondition === "SpikeDefused";
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 group relative cursor-crosshair">
+      {/* Tooltip */}
+      <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#0a0e13] border border-[var(--color-border)] px-3 py-2 rounded-lg text-xs whitespace-nowrap z-20 shadow-xl pointer-events-none flex flex-col gap-1">
+        <span className="font-black uppercase tracking-widest text-[10px] text-[var(--color-text-secondary)]">Manche {round.roundNum}</span>
+        <span className={`font-bold ${isWin ? "text-[#0ebf99]" : "text-[#ff4655]"}`}>
+          {isWin ? "Gagné" : "Perdu"} ({round.winCondition})
+        </span>
+      </div>
+
+      <span className="text-[10px] text-[var(--color-text-secondary)] font-bold tracking-widest mb-1">{round.roundNum}</span>
+
+      {/* Main round bar */}
+      <div className={`w-3.5 sm:w-4 h-10 sm:h-12 rounded-sm ${isWin ? "bg-[#0ebf99]" : "bg-[#ff4655]"} transition-transform group-hover:-translate-y-1`}></div>
+
+      {/* Events below the bar */}
+      <div className="flex flex-col items-center gap-1.5 mt-1 h-14">
+        {hasSpikeAction && (
+          <div className="text-[var(--color-text-secondary)] flex justify-center mb-0.5">
+            {round.winCondition === "SpikeExploded" ? <SpikeExplodeIcon /> : <SpikeDefuseIcon />}
+          </div>
+        )}
+        {round.myKillsInRound > 0 && (
+          <div className="flex items-center gap-0.5 text-[#0ebf99] font-black text-[9px]">
+            {round.myKillsInRound} <SkullIcon />
+          </div>
+        )}
+        {round.diedInRound && (
+          <div className="flex items-center gap-0.5 text-[#ff4655] font-black text-[9px]">
+            1 <SkullIcon />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+export const PlayerRow = React.memo(function PlayerRow({ player }: { player: any }) {
+  return (
+    <div
+      className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${
+        player.isMe
+          ? "bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] shadow-inner"
+          : "bg-[var(--color-background)] border border-transparent hover:border-[var(--color-border)]"
+      }`}
+    >
+      <img referrerPolicy="no-referrer" src={player.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={player.agent} loading="lazy" />
+      <div className="flex-1 min-w-0">
+        <div
+          className={`font-bold text-sm truncate ${
+            player.isMe ? "text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]" : "text-[var(--color-text-on-surface)]"
+          }`}
+        >
+          {player.isMe ? tr("Vous") : player.name}
+        </div>
+        <div className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest">{player.agent}</div>
+      </div>
+      <div className="flex items-center gap-3 text-xs font-bold px-2">
+        <span className="w-8 text-right text-[var(--color-text-on-surface)] font-black" title="Score de combat">
+          {player.acs}
+        </span>
+        <span className="w-[72px] text-right">
+          <span className="text-emerald-400">{player.kills}</span>
+          <span className="text-[var(--color-text-secondary)] font-normal mx-0.5">/</span>
+          <span className="text-red-400">{player.deaths}</span>
+          <span className="text-[var(--color-text-secondary)] font-normal mx-0.5">/</span>
+          <span className="text-blue-400">{player.assists}</span>
+        </span>
+      </div>
+    </div>
+  );
+});
+
+export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPlayer }: { match: any; searchPlayer: (id: string) => void }) {
+  const [tab, setTab] = useState<"overview" | "scoreboard" | "timeline" | "duels">("overview");
+
+  return (
+    <div className="glass-panel rounded-2xl p-4 sm:p-6 mt-1 border border-[var(--color-border)] animate-in fade-in slide-in-from-top-4 duration-300 shadow-[0_15px_40px_rgba(0,0,0,0.5)] z-10 relative">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-4 sm:gap-6 border-b border-[var(--color-border)] mb-6">
+        {[
+          { id: "overview", label: "Aperçu" },
+          { id: "scoreboard", label: "Classement" },
+          { id: "timeline", label: "Chronologie" },
+          { id: "duels", label: "Duels" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id as any)}
+            className={`pb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold transition-all relative cursor-pointer ${
+              tab === t.id ? "text-[var(--color-val-red)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            {t.label}
+            {tab === t.id && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-val-red)] shadow-[0_0_10px_var(--color-val-red)]"></div>}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview */}
+      {tab === "overview" && (
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex-1 space-y-2">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-3 text-center bg-emerald-500/10 py-1 rounded border border-emerald-500/20">
+              Équipe Victoire
+            </h4>
+            {(match.won ? match.myTeam : match.enemyTeam)?.map((p: any) => (
+              <PlayerRow key={p.puuid} player={p} />
+            ))}
+          </div>
+          <div className="w-px bg-[var(--color-border)] hidden md:block"></div>
+          <div className="flex-1 space-y-2">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-3 text-center bg-red-500/10 py-1 rounded border border-red-500/20">
+              Équipe Défaite
+            </h4>
+            {(match.won ? match.enemyTeam : match.myTeam)?.map((p: any) => (
+              <PlayerRow key={p.puuid} player={p} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Scoreboard */}
+      {tab === "scoreboard" && (
+        <div className="overflow-x-auto -mx-2 sm:mx-0">
+          <table className="w-full text-left text-sm whitespace-nowrap min-w-[500px]">
+            <thead>
+              <tr className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-widest border-b border-[var(--color-border)]">
+                <th className="pb-3 px-2 font-bold w-12 text-center">#</th>
+                <th className="pb-3 px-2 font-bold">Joueur</th>
+                <th className="pb-3 px-2 font-bold text-center">Score Combat</th>
+                <th className="pb-3 px-2 font-bold text-center">K / D / A</th>
+                <th className="pb-3 px-2 font-bold text-center hidden sm:table-cell">Éco</th>
+                <th className="pb-3 px-2 font-bold text-center hidden sm:table-cell">1er Sang</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...(match.myTeam || []), ...(match.enemyTeam || [])]
+                .sort((a, b) => b.acs - a.acs)
+                .map((p: any, idx: number) => (
+                  <tr
+                    key={p.puuid}
+                    className={`border-b border-[rgba(255,255,255,0.02)] transition-colors ${
+                      p.isMe ? "bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)]" : "hover:bg-[var(--color-surface-hover)]"
+                    }`}
+                  >
+                    <td className="py-2 px-2 text-center text-[10px] text-[var(--color-text-secondary)] font-bold">{idx + 1}</td>
+                    <td className="py-2 px-2 flex items-center gap-3">
+                      <img referrerPolicy="no-referrer" src={p.agentIcon} className="w-8 h-8 rounded-lg shadow-sm" alt={p.agent} loading="lazy" />
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (p.isPublicProfile && p.tag) {
+                                searchPlayer(`${p.name}#${p.tag}`);
+                              }
+                            }}
+                            className={`font-bold ${p.isPublicProfile ? "hover:underline cursor-pointer" : "cursor-default opacity-70"} ${
+                              p.isMe ? "text-[var(--color-val-red)] drop-shadow-[0_0_5px_rgba(255,70,85,0.3)]" : "text-[var(--color-text-on-surface)]"
+                            }`}
+                          >
+                            {p.isMe ? tr("Vous") : p.name}
+                          </button>
+                          {!p.isPublicProfile && (
+                            <span className="text-[8px] bg-[var(--color-background)] border border-[var(--color-border)] px-1.5 py-0.5 rounded text-[var(--color-text-secondary)] opacity-75 whitespace-nowrap">
+                              Profil privé
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-wider">{p.agent}</span>
+                      </div>
+                    </td>
+                    <td className="py-2 px-2 text-center font-black text-[var(--color-text-on-surface)]">{p.acs}</td>
+                    <td className="py-2 px-2 text-center text-xs font-bold">
+                      <span className="text-emerald-400">{p.kills}</span> <span className="text-[var(--color-text-secondary)] font-normal">/</span>{" "}
+                      <span className="text-red-400">{p.deaths}</span> <span className="text-[var(--color-text-secondary)] font-normal">/</span>{" "}
+                      <span className="text-blue-400">{p.assists}</span>
+                    </td>
+                    <td className="py-2 px-2 text-center text-[var(--color-text-secondary)] font-bold hidden sm:table-cell">{p.econScore}</td>
+                    <td className="py-2 px-2 text-center text-[var(--color-text-secondary)] font-bold hidden sm:table-cell">{p.firstBloods}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Timeline */}
+      {tab === "timeline" && (
+        <div className="flex flex-col gap-6 py-2">
+          {/* Timeline Graph */}
+          <div className="flex items-start justify-center gap-1.5 sm:gap-2 overflow-x-auto pb-4 pt-16">
+            {match.timeline?.slice(0, 12).map((r: any) => (
+              <RoundBar key={r.roundNum} round={r} />
+            ))}
+            {match.timeline?.length > 12 && (
+              <div className="flex flex-col items-center justify-center h-20 px-1 sm:px-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)]">
+                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  <path d="M12 7v5l3 3"></path>
+                </svg>
+              </div>
+            )}
+            {match.timeline?.slice(12).map((r: any) => (
+              <RoundBar key={r.roundNum} round={r} />
+            ))}
+          </div>
+
+          {/* Event Log */}
+          <div className="bg-[var(--color-background)] p-4 sm:p-5 rounded-2xl text-xs space-y-3 max-h-[250px] overflow-y-auto border border-[var(--color-border)] shadow-inner custom-scrollbar">
+            <h4 className="font-bold text-[var(--color-text-primary)] uppercase tracking-widest text-[10px] mb-4">
+              Journal des événements marqués
+            </h4>
+            {match.timeline?.map((r: any) => (
+              <div
+                key={r.roundNum}
+                className="flex gap-4 border-b border-[rgba(255,255,255,0.02)] pb-3 items-center group hover:bg-[rgba(255,255,255,0.01)] transition-colors px-2 rounded-lg"
+              >
+                <span className="text-[10px] text-[var(--color-text-secondary)] w-12 font-black tracking-widest">M {r.roundNum}</span>
+
+                <div className="flex-1 flex gap-3">
+                  {r.myKillsInRound > 0 && (
+                    <span className="text-[#0ebf99] font-bold bg-[#0ebf99]/10 px-2 py-0.5 rounded border border-[#0ebf99]/20">
+                      {r.myKillsInRound} élimination(s)
+                    </span>
+                  )}
+                  {r.diedInRound && (
+                    <span className="text-[#ff4655] font-bold bg-[#ff4655]/10 px-2 py-0.5 rounded border border-[#ff4655]/20">
+                      Mort(e)
+                    </span>
+                  )}
+                  {!r.myKillsInRound && !r.diedInRound && (
+                    <span className="text-[var(--color-text-secondary)] italic">Pas d&apos;événement majeur</span>
+                  )}
+                </div>
+
+                <span className="text-[9px] uppercase tracking-widest text-right flex flex-col items-end gap-0.5">
+                  <span className="text-[var(--color-text-secondary)]">Victoire</span>
+                  <span className={`font-black ${r.winner === "myTeam" ? "text-[#0ebf99]" : "text-[#ff4655]"}`}>{r.winCondition}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Duels */}
+      {tab === "duels" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {match.duels?.map((d: any, idx: number) => (
+            <div
+              key={idx}
+              className="bg-[var(--color-background)] border border-[var(--color-border)] p-4 rounded-xl flex items-center justify-between hover:border-[var(--color-text-secondary)] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <img referrerPolicy="no-referrer" src={d.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={d.name} loading="lazy" />
+                <div className="flex flex-col">
+                  <span className="font-bold text-sm text-[var(--color-text-on-surface)]">{d.name}</span>
+                  <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-wider">Ennemi</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1.5">
+                <span className="text-[10px] font-bold tracking-wider">
+                  <span className="text-[var(--color-text-secondary)] uppercase">Tué :</span>{" "}
+                  <span className="text-emerald-400 text-sm ml-1">{d.kills}</span>
+                </span>
+                <span className="text-[10px] font-bold tracking-wider">
+                  <span className="text-[var(--color-text-secondary)] uppercase">Mort par :</span>{" "}
+                  <span className="text-red-400 text-sm ml-1">{d.deaths}</span>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+function MatchHistoryComponent({ matches, searchPlayer, visibleCount, onLoadMore }: MatchHistoryProps) {
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+
+  if (!matches || matches.length === 0) {
+    return (
+      <div className="glass-panel rounded-2xl p-10 text-center animate-in fade-in duration-500">
+        <p className="text-sm text-[var(--color-text-secondary)] font-bold uppercase tracking-wider">
+          Aucun match trouvé pour cette sélection
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 animate-in fade-in duration-500">
+      {matches.slice(0, visibleCount).map((match: any) => {
+        const isExpanded = expandedMatchId === match.matchId;
+        return (
+          <div key={match.matchId} className="flex flex-col gap-2">
+            <div
+              onClick={() => setExpandedMatchId(isExpanded ? null : match.matchId)}
+              className={`glass-panel rounded-2xl p-4 flex items-center gap-3 sm:gap-4 transition-all duration-300 border-l-4 cursor-pointer select-none ${
+                match.won ? "border-l-emerald-500 hover:border-l-emerald-400" : "border-l-red-500 hover:border-l-red-400"
+              } ${isExpanded ? "bg-[var(--color-surface-hover)] shadow-lg" : "hover:bg-[var(--color-surface-hover)]"}`}
+            >
+              {/* Mode Icon */}
+              {match.modeIcon && (
+                <img
+                  referrerPolicy="no-referrer"
+                  src={match.modeIcon}
+                  alt={match.mode}
+                  className="w-7 h-7 sm:w-8 sm:h-8 opacity-70 drop-shadow-md mode-icon hidden xs:block"
+                  title={match.mode}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+
+              <img
+                referrerPolicy="no-referrer"
+                src={match.agentIcon}
+                alt={match.agent}
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl border border-[rgba(255,255,255,0.1)] shadow-md flex-shrink-0"
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <span className="font-bold text-[var(--color-text-on-surface)] text-sm">{match.agent}</span>
+                  <span className="text-[10px] text-[var(--color-text-secondary)] uppercase">{match.map}</span>
+                  {match.season && (
+                    <span className="text-[9px] text-[var(--color-val-red)] font-bold bg-[rgba(255,70,85,0.1)] px-1.5 py-0.5 rounded">
+                      {match.season}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 sm:gap-4 mt-1">
+                  <span className="text-xs text-[var(--color-text-secondary)]">
+                    <span className="text-emerald-400 font-bold">{match.kills}</span>/
+                    <span className="text-red-400 font-bold">{match.deaths}</span>/
+                    <span className="text-blue-400 font-bold">{match.assists}</span>
+                  </span>
+                  <span className="text-xs text-[var(--color-text-secondary)]">ACS {match.acs}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end flex-shrink-0">
+                <div className="flex items-baseline gap-1.5 sm:gap-2">
+                  {match.score && <span className="text-base sm:text-lg font-black text-[var(--color-text-on-surface)]">{match.score}</span>}
+                  <span className={`text-xs font-black uppercase tracking-wider ${match.won ? "text-emerald-400" : "text-red-400"}`}>
+                    {match.won ? "Victoire" : "Défaite"}
+                  </span>
+                </div>
+                <span className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">
+                  {new Date(match.date).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {isExpanded && <ExpandedMatch match={match} searchPlayer={searchPlayer} />}
+          </div>
+        );
+      })}
+
+      {/* Bouton Charger Plus */}
+      {visibleCount < matches.length && (
+        <div className="flex justify-center pt-4">
+          <button
+            onClick={onLoadMore}
+            className="bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] text-[var(--color-text-primary)] hover:text-white font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-full transition-all duration-300 border border-[var(--color-border)] shadow-md hover:shadow-[0_0_20px_rgba(255,70,85,0.4)] cursor-pointer"
+          >
+            {tr("Charger plus (+10)")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default React.memo(MatchHistoryComponent);
