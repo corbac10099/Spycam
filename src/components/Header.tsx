@@ -138,12 +138,12 @@ export default function Header({
 
         {/* Center: Navigation Actions + Smart Search */}
         <div className="flex-1 max-w-2xl flex justify-center items-center gap-1.5 sm:gap-2">
-          {/* Home button */}
+          {/* Home button (Desktop only, Mobile uses bottom bar) */}
           {myRiotId && (
             <button
               onClick={onGoHome}
               title="Retour à mon profil"
-              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 border cursor-pointer ${
+              className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
                 !newsView && !agentsView && !settingsOpen
                   ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
                   : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
@@ -156,11 +156,11 @@ export default function Header({
             </button>
           )}
 
-          {/* News button */}
+          {/* News button (Desktop only) */}
           <button
             onClick={() => onOpenNews()}
             title="Actualités"
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 border cursor-pointer ${
+            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
               newsView && !agentsView
                 ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
                 : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
@@ -174,11 +174,11 @@ export default function Header({
             </svg>
           </button>
 
-          {/* Agents Wiki button */}
+          {/* Agents Wiki button (Desktop only) */}
           <button
             onClick={onOpenAgents}
             title="Wiki Agents"
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 border cursor-pointer ${
+            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
               agentsView
                 ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
                 : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
@@ -337,7 +337,7 @@ export default function Header({
           <button
             onClick={onToggleSettings}
             title="Paramètres"
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-colors flex items-center justify-center border cursor-pointer ${
+            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-colors items-center justify-center border cursor-pointer ${
               settingsOpen
                 ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
                 : "bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]"
