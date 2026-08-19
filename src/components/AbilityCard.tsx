@@ -106,8 +106,8 @@ export default function AbilityCard({
         </div>
 
         {/* TAB 2: VIDEO */}
-        {hasVideos && (
-          <div style={{ display: activeTab === 'video' ? 'block' : 'none' }} className="animate-in fade-in duration-300">
+        {hasVideos && activeTab === 'video' && (
+          <div className="animate-in fade-in duration-300">
             <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 group">
               {/* VIDEO PLAYER COMPONENT */}
               <VideoPlayer
