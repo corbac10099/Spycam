@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage, loadLanguagesList, LanguageInfo } from '@/lib/i18n';
+import { trackPageView } from '@/lib/analytics';
 
 // 5 Theme options with background and accent previews
 const THEMES = [
@@ -85,6 +86,7 @@ function OnboardingContent() {
 
   // Load available languages from i18n
   useEffect(() => {
+    trackPageView('Onboarding (1ère Connexion)', '/onboarding');
     loadLanguagesList().then((list) => {
       if (list && list.length > 0) {
         setLanguages(list);

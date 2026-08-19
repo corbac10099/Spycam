@@ -12,6 +12,7 @@ import MatchHistory from "@/components/MatchHistory";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PerformanceCharts from "@/components/PerformanceCharts";
+import { trackPageView } from "@/lib/analytics";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -133,6 +134,13 @@ function HomeContent() {
       if (window.location.pathname !== path) {
         window.history.pushState(null, "", path);
       }
+
+      const pageTitle = view === "news" ? "Actualités & Patchs"
+        : view === "agents" ? "Agents & Guides"
+        : view === "settings" ? "Profil & Paramètres"
+        : tab === "maps" ? "Cartes & Lineups"
+        : "Accueil / Live Tracker";
+      trackPageView(pageTitle, path);
     },
     [riotIdToSlug, TAB_TO_SLUG]
   );
