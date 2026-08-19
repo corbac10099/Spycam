@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getR2Client, cleanR2Key } from '@/lib/r2';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
+import { prisma } from '@/lib/prisma';
 
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'spycam-videos';
 
@@ -22,6 +23,16 @@ export async function GET(req: NextRequest) {
 
   try {
     const range = req.headers.get('range');
+
+    // Asynchronously log load metrics if it's the initial video load (no range or range starts at 0)
+    if (!range || range.startsWith('bytes=0-')) {
+      prisma.mediaLoad.create({
+        data: {
+          mediaKey: key,
+          mediaType: 'video',
+        },
+      }).catch(() => {});
+    }
 
     const command = new GetObjectCommand({
       Bucket: R2_BUCKET_NAME,

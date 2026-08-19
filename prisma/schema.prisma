@@ -105,3 +105,31 @@ model Banner {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ==========================================
+// Analytics & Media Metrics
+// ==========================================
+
+model PageVisit {
+  id        String   @id @default(cuid())
+  path      String
+  pageName  String   @default("Accueil")
+  userAgent String?
+  ipHash    String?
+  createdAt DateTime @default(now())
+
+  @@index([path])
+  @@index([createdAt])
+}
+
+model MediaLoad {
+  id        String   @id @default(cuid())
+  mediaKey  String
+  mediaType String   @default("video")
+  bytesSent BigInt   @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([mediaKey])
+  @@index([createdAt])
+}
+
