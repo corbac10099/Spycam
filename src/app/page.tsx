@@ -667,7 +667,7 @@ function HomeContent() {
 
   return (
     <>
-      <main className="flex-1 flex flex-col relative overflow-hidden min-h-screen pb-24 md:pb-16">
+      <main className="flex-1 flex flex-col relative overflow-hidden min-h-screen pb-28 md:pb-16">
         <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-val-red)] opacity-10 blur-[120px] rounded-full pointer-events-none"></div>
         <DebugPanel isOpen={debugOpen} onClose={() => setDebugOpen(false)} onGenerate={handleDebugGenerate} />
 
@@ -987,7 +987,7 @@ function HomeContent() {
                             }
 
                             return (
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in duration-500">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3.5 animate-in fade-in duration-500">
                                 {!appliedHiddenStats.includes("kills") && (
                                   <StatCard label="Éliminations" value={s.kills} smartRating={smartRating} />
                                 )}
@@ -1071,7 +1071,7 @@ function HomeContent() {
                                   />
                                 )}
                                 {!appliedHiddenStats.includes("matches") && (
-                                  <StatCard label="Parties" value={s.matchesPlayed} colSpan={3} smartRating={smartRating} />
+                                  <StatCard label="Parties" value={s.matchesPlayed} smartRating={smartRating} />
                                 )}
                               </div>
                             );

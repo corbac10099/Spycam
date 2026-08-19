@@ -70,10 +70,10 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
     return null;
   }
 
-  // Full-width dimensions (wider viewbox, tighter side margins so it spans edge-to-edge)
-  const width = 1000;
-  const height = 200;
-  const padding = { top: 30, right: 20, bottom: 30, left: 20 };
+  // Dynamic responsive viewBox dimensions (2.7:1 ratio for prominent curves on both mobile and PC)
+  const width = 500;
+  const height = 180;
+  const padding = { top: 25, right: 15, bottom: 25, left: 15 };
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
@@ -384,21 +384,21 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
       </div>
 
       {/* Legend & Summary */}
-      <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)] text-[10px] text-[var(--color-text-secondary)]">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between pt-2.5 mt-1 border-t border-[var(--color-border)] text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] gap-2">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+          <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Victoire
           </span>
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-red-500"></span> Défaite
           </span>
           {threshold !== null && (
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1">
               <span className="w-2 h-0.5 bg-[#38bdf8]"></span> Seuil ({threshold})
             </span>
           )}
         </div>
-        <span className="font-mono opacity-60">Survolez le graphique pour inspecter chaque match</span>
+        <span className="font-mono opacity-60 hidden sm:inline-block">Survolez le graphique pour inspecter chaque match</span>
       </div>
     </div>
   );
