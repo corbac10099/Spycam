@@ -144,54 +144,47 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
 
   return (
-    <div className="glass-panel rounded-2xl p-4 sm:p-6 mb-6 animate-in fade-in duration-500 w-full">
+    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 md:p-6 mb-4 sm:mb-6 animate-in fade-in duration-500 w-full">
       {/* Header controls: Title & Range Selector on Left, Metric Selector on Right */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-        <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="text-base font-black uppercase tracking-wider text-[var(--color-text-primary)]">
-              Progression & Tendances
-            </span>
+      <div className="flex flex-row items-center justify-between gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs sm:text-sm md:text-base font-black uppercase tracking-wider text-[var(--color-text-primary)]">
+            Progression
+          </span>
 
-            {/* Range Selector: 10, 20, Tous */}
-            <div className="flex items-center gap-1 bg-[var(--color-background)]/80 p-0.5 rounded-lg border border-[var(--color-border)]">
-              {[
-                { id: 10, label: "10" },
-                { id: 20, label: "20" },
-                { id: "all", label: `Tous (${totalAvailable})` },
-              ].map((r) => (
-                <button
-                  key={String(r.id)}
-                  onClick={() => setMatchLimit(r.id as any)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    matchLimit === r.id
-                      ? "bg-[var(--color-val-red)] text-white shadow-sm"
-                      : "text-[var(--color-text-secondary)] hover:text-white"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+          {/* Range Selector: 10, 20, Tous */}
+          <div className="flex items-center gap-0.5 bg-[var(--color-background)]/80 p-0.5 rounded-lg border border-[var(--color-border)]">
+            {[
+              { id: 10, label: "10" },
+              { id: 20, label: "20" },
+              { id: "all", label: `Tous (${totalAvailable})` },
+            ].map((r) => (
+              <button
+                key={String(r.id)}
+                onClick={() => setMatchLimit(r.id as any)}
+                className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  matchLimit === r.id
+                    ? "bg-[var(--color-val-red)] text-white shadow-sm"
+                    : "text-[var(--color-text-secondary)] hover:text-white"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
           </div>
-
-          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-            Moyenne sur la période ({chartData.length} matchs) :{" "}
-            <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
-          </p>
         </div>
 
         {/* Metric Selector (K/D, ACS, Headshot %) */}
-        <div className="flex items-center gap-1 bg-[var(--color-surface)] p-1 rounded-xl border border-[var(--color-border)]">
+        <div className="flex items-center gap-0.5 sm:gap-1 bg-[var(--color-surface)] p-0.5 sm:p-1 rounded-xl border border-[var(--color-border)]">
           {[
-            { id: "kd", label: "Ratio K/D" },
+            { id: "kd", label: "K/D" },
             { id: "acs", label: "ACS" },
-            { id: "hs", label: "Headshot %" },
+            { id: "hs", label: "HS %" },
           ].map((m) => (
             <button
               key={m.id}
               onClick={() => setActiveMetric(m.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
                 activeMetric === m.id
                   ? "bg-[var(--color-val-red)] text-white shadow-md shadow-[var(--color-val-red)]/30"
                   : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
@@ -203,12 +196,17 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
         </div>
       </div>
 
+      <div className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-2">
+        Moyenne ({chartData.length} matchs) :{" "}
+        <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
+      </div>
+
       {/* Full-width SVG Chart with smooth mouse tracking */}
       <div className="w-full relative">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-48 select-none cursor-crosshair"
+          className="w-full h-36 sm:h-48 select-none cursor-crosshair"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >

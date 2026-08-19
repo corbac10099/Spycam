@@ -812,8 +812,8 @@ function HomeContent() {
 
                 return (
                   <div className={`w-full flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 ${profileThemeClass}`}>
-                    {/* Bannière Profil */}
-                    <div className="w-full relative rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-[0_8px_30px_var(--color-glass-shadow)] bg-[#0a0e13] aspect-[3.8/1] min-h-[140px] max-h-[300px]">
+                    {/* Bannière Profil Responsive */}
+                    <div className="w-full relative rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-[0_8px_30px_var(--color-glass-shadow)] bg-[#0a0e13] min-h-[110px] sm:min-h-[140px] aspect-[2.4/1] sm:aspect-[3.6/1] md:aspect-[3.8/1]">
                       <img
                         referrerPolicy="no-referrer"
                         src={profileBannerUrl}
@@ -823,28 +823,28 @@ function HomeContent() {
                       />
                       <div className="absolute inset-0 bg-black/40"></div>
 
-                      <div className="relative z-10 px-4 sm:px-8 py-4 sm:py-5 grid grid-cols-3 items-center h-full w-full">
-                        {/* Gauche : Profil */}
-                        <div className="flex items-center gap-3 sm:gap-5 justify-self-start">
-                          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)]">
+                      <div className="relative z-10 px-3 sm:px-6 md:px-8 py-3 sm:py-5 flex items-center justify-between h-full w-full gap-2">
+                        {/* Gauche : Avatar + Pseudo + Tag */}
+                        <div className="flex items-center gap-2 sm:gap-4 md:gap-5 min-w-0 flex-1">
+                          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                            <div className="w-11 h-11 xs:w-13 xs:h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)]">
                               <img referrerPolicy="no-referrer" src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
                             </div>
                             {p.mainAgent && (
-                              <div className="flex items-center gap-1.5 bg-[rgba(0,0,0,0.5)] rounded-full px-2 py-0.5 border border-[rgba(255,255,255,0.1)] hidden sm:flex">
-                                <img referrerPolicy="no-referrer" src={p.mainAgent.icon} alt={p.mainAgent.name} className="w-4 h-4 rounded-full shadow-md" />
+                              <div className="hidden sm:flex items-center gap-1.5 bg-[rgba(0,0,0,0.5)] rounded-full px-2 py-0.5 border border-[rgba(255,255,255,0.1)]">
+                                <img referrerPolicy="no-referrer" src={p.mainAgent.icon} alt={p.mainAgent.name} className="w-3.5 h-3.5 rounded-full shadow-md" />
                                 <span className="text-[9px] font-bold text-white uppercase tracking-wider">{p.mainAgent.name}</span>
                               </div>
                             )}
                           </div>
 
                           <div className="flex flex-col min-w-0" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
-                            <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
-                              <span className="text-lg sm:text-2xl font-black tracking-tight text-white truncate">{p.gameName}</span>
-                              <span className="text-xs sm:text-sm text-[var(--color-text-secondary)] font-medium">#{p.tagLine}</span>
+                            <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
+                              <span className="text-sm xs:text-base sm:text-xl md:text-2xl font-black tracking-tight text-white truncate max-w-[110px] xs:max-w-[150px] sm:max-w-none">{p.gameName}</span>
+                              <span className="text-[10px] sm:text-xs md:text-sm text-[var(--color-text-secondary)] font-medium">#{p.tagLine}</span>
                             </div>
                             {p.mainAgent && (
-                              <span className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] mt-0.5 font-bold">
+                              <span className="text-[8px] sm:text-[9px] md:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.1em] sm:tracking-[0.2em] mt-0.5 font-bold truncate">
                                 Main • {p.mainAgent.role}
                               </span>
                             )}
@@ -852,37 +852,37 @@ function HomeContent() {
                         </div>
 
                         {/* Centre : Niveau */}
-                        <div className="flex flex-col items-center justify-self-center">
-                          <span className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] mb-1 sm:mb-2 font-bold" style={{ textShadow: "0px 2px 8px rgba(0,0,0,0.8)" }}>
+                        <div className="flex flex-col items-center flex-shrink-0 px-1 sm:px-3">
+                          <span className="text-[8px] sm:text-[9px] md:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.15em] mb-0.5 sm:mb-1 font-bold" style={{ textShadow: "0px 2px 8px rgba(0,0,0,0.8)" }}>
                             Niveau
                           </span>
-                          <div className="relative flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16">
-                            <div className="absolute inset-0 border-2 border-[var(--color-val-light)] opacity-50 transform rotate-45 rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)]"></div>
-                            <span className="text-xl sm:text-3xl font-black text-[var(--color-val-light)] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] z-10">
+                          <div className="relative flex items-center justify-center w-8 h-8 xs:w-9 xs:h-9 sm:w-12 sm:h-12 md:w-16 md:h-16">
+                            <div className="absolute inset-0 border-2 border-[var(--color-val-light)] opacity-50 transform rotate-45 rounded-md sm:rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)]"></div>
+                            <span className="text-xs xs:text-sm sm:text-xl md:text-3xl font-black text-[var(--color-val-light)] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] z-10">
                               {p.level}
                             </span>
                           </div>
                         </div>
 
                         {/* Droite : Rang + Favori */}
-                        <div className="flex items-center gap-2 sm:gap-4 justify-self-end">
-                          <div className="flex flex-col items-end hidden xs:flex" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
+                        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 flex-shrink-0">
+                          <div className="flex flex-col items-end hidden md:flex" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
                             <span className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">Rang</span>
                             <span className="text-xs sm:text-lg font-black text-white uppercase tracking-wider">{p.rank}</span>
                           </div>
-                          <img referrerPolicy="no-referrer" src={p.rankUrl} alt={p.rank} className="w-12 h-12 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
+                          <img referrerPolicy="no-referrer" src={p.rankUrl} alt={p.rank} className="w-9 h-9 xs:w-11 xs:h-11 sm:w-14 sm:h-14 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
 
                           {!canEditProfile && (
                             <button
                               onClick={() => toggleFavorite(p)}
                               title={isFavorited(p.gameName, p.tagLine) ? "Retirer des favoris" : "Ajouter aux favoris"}
-                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm border cursor-pointer ${
+                              className={`w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm border cursor-pointer ${
                                 isFavorited(p.gameName, p.tagLine)
                                   ? "bg-yellow-500/20 border-yellow-500/40 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]"
                                   : "bg-black/30 border-white/10 text-white/50 hover:text-yellow-400 hover:border-yellow-500/30"
                               }`}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={isFavorited(p.gameName, p.tagLine) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill={isFavorited(p.gameName, p.tagLine) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                               </svg>
                             </button>
@@ -892,9 +892,9 @@ function HomeContent() {
                     </div>
 
                     {/* Tabs + Mode Filter */}
-                    <div className="w-full mt-6 sm:mt-8">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-[var(--color-border)] mb-6 gap-4">
-                        <div className="flex items-center gap-6 sm:gap-8">
+                    <div className="w-full mt-4 sm:mt-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-[var(--color-border)] mb-4 sm:mb-6 gap-3">
+                        <div className="flex items-center gap-4 sm:gap-8">
                           {[
                             { id: "performance", label: "Performances" },
                             { id: "agents", label: "Agents" },
@@ -907,7 +907,7 @@ function HomeContent() {
                                 const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
                                 pushUrl({ tab: tab.id, playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
                               }}
-                              className={`pb-4 text-xs sm:text-sm uppercase tracking-widest font-bold transition-all relative cursor-pointer ${
+                              className={`pb-3 text-xs sm:text-sm uppercase tracking-widest font-bold transition-all relative cursor-pointer ${
                                 activeTab === tab.id
                                   ? "text-[var(--color-val-red)]"
                                   : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
