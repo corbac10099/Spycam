@@ -37,11 +37,30 @@ export default function VideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const [selectedQuality, setSelectedQuality] = useState('1080p');
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [qualityBadge, setQualityBadge] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
 
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const loopTimeout = useRef<NodeJS.Timeout | null>(null);
+  const qualityBadgeTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleQualityChange = (q: string) => {
+    setSelectedQuality(q);
+    setShowQualityMenu(false);
+    setQualityBadge(q);
+    if (qualityBadgeTimeout.current) clearTimeout(qualityBadgeTimeout.current);
+    qualityBadgeTimeout.current = setTimeout(() => {
+      setQualityBadge(null);
+    }, 1500);
+  };
+
+  const qualityFilters: Record<string, string> = {
+    '1080p': 'none',
+    '720p': 'blur(0.35px)',
+    '480p': 'blur(0.9px) contrast(1.04)',
+    '360p': 'blur(1.8px) contrast(1.1)',
+  };
 
   // Sync mute state across all video players in real-time
   useEffect(() => {
@@ -210,8 +229,17 @@ export default function VideoPlayer({
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onClick={togglePlay}
-        className="w-full h-full object-cover cursor-pointer"
+        style={{ filter: qualityFilters[selectedQuality] || 'none' }}
+        className="w-full h-full object-cover cursor-pointer transition-all duration-300"
       />
+
+      {/* Quality change badge notification */}
+      {qualityBadge && (
+        <div className="absolute top-3 right-3 z-40 bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[var(--color-val-red)]/50 text-white font-bold text-[11px] animate-in fade-in zoom-in-90 duration-150 flex items-center gap-1.5 shadow-xl pointer-events-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-val-red)] animate-pulse"></span>
+          <span>{tr("Qualité :")} {qualityBadge}</span>
+        </div>
+      )}
 
       {/* Large Center Play Button when paused */}
       {!isPlaying && (
@@ -317,10 +345,7 @@ export default function VideoPlayer({
                   {qualities.map(q => (
                     <button
                       key={q}
-                      onClick={() => {
-                        setSelectedQuality(q);
-                        setShowQualityMenu(false);
-                      }}
+                      onClick={() => handleQualityChange(q)}
                       className={`w-full text-left px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[11px] hover:bg-[var(--color-val-red)]/20 hover:text-[var(--color-val-red)] transition-colors flex items-center justify-between cursor-pointer ${
                         selectedQuality === q ? 'text-[var(--color-val-red)] font-black' : 'text-white/80'
                       }`}

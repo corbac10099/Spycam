@@ -114,7 +114,7 @@ export default function AbilityCard({
                 key={currentVideo?.videoUrl || currentVideoIndex}
                 src={currentVideo?.videoUrl}
                 poster={currentVideo?.thumbnailUrl}
-                autoPlay={globalLoop}
+                autoPlay={false}
                 loop={globalLoop}
                 loopDelayMs={globalLoopDelayMs}
                 className="w-full h-full"
