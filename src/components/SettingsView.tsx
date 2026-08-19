@@ -237,56 +237,56 @@ export default function SettingsView({
         {/* Content */}
         <div className="flex-1 min-w-0">
           {settingsTab === "features" && (
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8">
-              <div className="flex flex-col gap-6">
+            <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8">
+              <div className="flex flex-col gap-4 sm:gap-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Indicateurs visuels (Smart Rating)</h3>
-                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                    <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Indicateurs visuels (Smart Rating)</h3>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
                       Active les repères visuels colorés sur les performances clés (K/D, ADR, Winrate, etc.)
                     </p>
                   </div>
                   <button
                     onClick={() => setDraftSmartRating(!draftSmartRating)}
-                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${
+                    className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
                       draftSmartRating ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
                     }`}
                   >
                     <span
-                      className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                        draftSmartRating ? "translate-x-7" : "translate-x-1"
+                      className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        draftSmartRating ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
                       }`}
                     ></span>
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-4 pt-6 border-t border-[var(--color-border)]">
+                <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Lecture en boucle des vidéos d&apos;agents</h3>
-                      <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Lecture en boucle des vidéos d&apos;agents</h3>
+                      <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
                         Rejoue automatiquement les aperçus vidéo des compétences d&apos;agents
                       </p>
                     </div>
                     <button
                       onClick={() => setDraftVideoLoop(!draftVideoLoop)}
-                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${
+                      className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
                         draftVideoLoop ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
                       }`}
                     >
                       <span
-                        className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                          draftVideoLoop ? "translate-x-7" : "translate-x-1"
+                        className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                          draftVideoLoop ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
                         }`}
                       ></span>
                     </button>
                   </div>
 
                   {draftVideoLoop && (
-                    <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300 pl-2">
+                    <div className="flex flex-col gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-2 duration-300 pl-1 sm:pl-2">
                       <div className="flex justify-between">
-                        <span className="text-sm font-bold text-[var(--color-text-secondary)]">Délai avant relecture</span>
-                        <span className="text-sm font-bold text-[var(--color-val-red)]">{draftVideoLoopDelay} ms</span>
+                        <span className="text-xs sm:text-sm font-bold text-[var(--color-text-secondary)]">Délai avant relecture</span>
+                        <span className="text-xs sm:text-sm font-bold text-[var(--color-val-red)]">{draftVideoLoopDelay} ms</span>
                       </div>
                       <input
                         type="range"
@@ -305,39 +305,39 @@ export default function SettingsView({
           )}
 
           {settingsTab === "privacy" && (
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-6">
+            <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Confidentialité du profil</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Confidentialité du profil</h3>
+                <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
                   Gérez qui peut consulter vos statistiques et historiques de parties
                 </p>
               </div>
 
-              <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+              <div className="bg-[var(--color-background)] p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-[var(--color-border)] flex items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center gap-3 sm:gap-4">
                   <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl ${
+                    className={`w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-base sm:text-xl flex-shrink-0 ${
                       draftIsPublic ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"
                     }`}
                   >
                     {draftIsPublic ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
                         <path d="M2 12h20" />
                       </svg>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
                     )}
                   </div>
                   <div>
-                    <h4 className="font-bold text-base text-[var(--color-text-primary)]">
+                    <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)]">
                       {draftIsPublic ? "Profil Public" : "Profil Privé"}
                     </h4>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-md">
+                    <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-md">
                       {draftIsPublic
                         ? "Tout le monde peut consulter votre profil et vos statistiques."
                         : "Votre profil est masqué pour les autres utilisateurs."}
@@ -346,28 +346,28 @@ export default function SettingsView({
                 </div>
                 <button
                   onClick={() => setDraftIsPublic(!draftIsPublic)}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${
+                  className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
                     draftIsPublic ? "bg-green-500" : "bg-gray-600"
                   }`}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                      draftIsPublic ? "translate-x-7" : "translate-x-1"
+                    className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                      draftIsPublic ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
                     }`}
                   ></span>
                 </button>
               </div>
 
-              <div className="pt-6 border-t border-[var(--color-border)]">
-                <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-2">Visibilité des statistiques</h4>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-4">
+              <div className="pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)] mb-1 sm:mb-2">Visibilité des statistiques</h4>
+                <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mb-3 sm:mb-4">
                   Décochez les statistiques que vous ne souhaitez pas voir sur votre propre profil.
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
                   {statOptions.map((stat) => (
                     <label
                       key={stat.id}
-                      className="flex items-center gap-3 p-3 bg-[var(--color-surface-hover)] rounded-xl border border-[var(--color-border)] cursor-pointer hover:border-[var(--color-val-red)] transition-colors"
+                      className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-[var(--color-surface-hover)] rounded-lg sm:rounded-xl border border-[var(--color-border)] cursor-pointer hover:border-[var(--color-val-red)] transition-colors"
                     >
                       <input
                         type="checkbox"
@@ -379,29 +379,29 @@ export default function SettingsView({
                             setDraftHiddenStats([...draftHiddenStats, stat.id]);
                           }
                         }}
-                        className="w-4 h-4 accent-[var(--color-val-red)] cursor-pointer"
+                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 accent-[var(--color-val-red)] cursor-pointer flex-shrink-0"
                       />
-                      <span className="text-sm font-bold text-[var(--color-text-primary)]">{stat.label}</span>
+                      <span className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">{stat.label}</span>
                     </label>
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
+                <div className="flex items-center justify-between p-3 sm:p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
                   <div>
-                    <h5 className="font-bold text-sm text-[var(--color-text-primary)]">Appliquer le masquage aux visiteurs</h5>
-                    <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                    <h5 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)]">Appliquer le masquage aux visiteurs</h5>
+                    <p className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5">
                       Masque également ces statistiques pour tous les visiteurs de votre profil
                     </p>
                   </div>
                   <button
                     onClick={() => setDraftEnforcePublicStats(!draftEnforcePublicStats)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-4 cursor-pointer ${
+                    className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
                       draftEnforcePublicStats ? "bg-[var(--color-val-red)]" : "bg-gray-600"
                     }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                        draftEnforcePublicStats ? "translate-x-6" : "translate-x-1"
+                      className={`inline-block h-3.5 w-3.5 sm:h-4 sm:w-4 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        draftEnforcePublicStats ? "translate-x-4.5 sm:translate-x-6" : "translate-x-1"
                       }`}
                     ></span>
                   </button>
@@ -411,12 +411,12 @@ export default function SettingsView({
           )}
 
           {settingsTab === "appearance" && (
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-10">
+            <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8 space-y-6 sm:space-y-10">
               {/* Sélecteur de Thème */}
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Thème de l&apos;interface</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-5">Choisissez l&apos;ambiance visuelle globale</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] mb-1 sm:mb-2">Thème de l&apos;interface</h3>
+                <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mb-3 sm:mb-5">Choisissez l&apos;ambiance visuelle globale</p>
+                <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
                   {[
                     { id: "dark", name: "Sombre", bg: "#0a0e13", surface: "#0f1923", accent: "#8b97a3" },
                     { id: "light", name: "Clair", bg: "#f0f1f5", surface: "#ffffff", accent: "#525f6e" },
@@ -428,7 +428,7 @@ export default function SettingsView({
                     <button
                       key={t.id}
                       onClick={() => setDraftTheme(t.id)}
-                      className={`relative rounded-xl p-3 flex flex-col items-center gap-2 border-2 transition-all duration-300 cursor-pointer ${
+                      className={`relative rounded-xl p-2 sm:p-3 flex flex-col items-center gap-1.5 sm:gap-2 border-2 transition-all duration-300 cursor-pointer ${
                         draftTheme === t.id
                           ? "border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105"
                           : "border-[var(--color-border)] hover:border-[var(--color-text-secondary)]"
@@ -438,10 +438,10 @@ export default function SettingsView({
                         <div className="flex-1"></div>
                         <div className="h-[40%] rounded-t-md mx-1" style={{ backgroundColor: t.surface, border: `1px solid ${t.accent}20` }}></div>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-primary)]">{t.name}</span>
+                      <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-[var(--color-text-primary)] truncate">{t.name}</span>
                       {draftTheme === t.id && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-val-red)] rounded-full flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[var(--color-val-red)] rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
                         </div>
@@ -455,29 +455,29 @@ export default function SettingsView({
 
               {/* Option Couleur Custom */}
               {draftTheme === "custom" && (
-                <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] animate-in fade-in duration-300">
-                  <h4 className="font-bold text-base text-[var(--color-text-primary)] mb-4">Personnalisation des couleurs</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-[var(--color-background)] p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-[var(--color-border)] animate-in fade-in duration-300">
+                  <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)] mb-3 sm:mb-4">Personnalisation des couleurs</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">Couleur d&apos;accentuation</span>
-                      <div className="flex items-center gap-3">
+                      <span className="text-xs sm:text-sm text-[var(--color-text-secondary)] font-medium">Couleur d&apos;accentuation</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <input
                           type="color"
                           value={draftCustomAccent}
                           onChange={(e) => setDraftCustomAccent(e.target.value)}
-                          className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-0"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg cursor-pointer bg-transparent border-0"
                         />
                         <span className="font-mono text-xs text-[var(--color-text-primary)]">{draftCustomAccent}</span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--color-text-secondary)] font-medium">Couleur de fond</span>
-                      <div className="flex items-center gap-3">
+                      <span className="text-xs sm:text-sm text-[var(--color-text-secondary)] font-medium">Couleur de fond</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <input
                           type="color"
                           value={draftCustomBg}
                           onChange={(e) => setDraftCustomBg(e.target.value)}
-                          className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-0"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg cursor-pointer bg-transparent border-0"
                         />
                         <span className="font-mono text-xs text-[var(--color-text-primary)]">{draftCustomBg}</span>
                       </div>
@@ -487,28 +487,28 @@ export default function SettingsView({
               )}
 
               {/* Gestion de la Bannière */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
-                    <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Bannière de profil</h3>
-                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                    <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Bannière de profil</h3>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
                       Personnalisez l&apos;image d&apos;en-tête de votre profil
                     </p>
                   </div>
                   <button
                     onClick={() => setCatalogOpen(true)}
-                    className="px-4 py-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer text-[var(--color-text-primary)]"
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-[var(--color-text-primary)]"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
                       <circle cx="9" cy="9" r="2" />
                       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
                     </svg>
-                    Choisir dans le catalogue
+                    <span>Catalogue</span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                   {banners.map((b, idx) => (
                     <button
                       key={idx}
@@ -522,26 +522,26 @@ export default function SettingsView({
                       {b.url ? (
                         <img referrerPolicy="no-referrer" src={b.url} alt={b.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-[var(--color-surface)] text-[10px] font-bold text-[var(--color-text-secondary)]">
+                        <div className="w-full h-full flex items-center justify-center bg-[var(--color-surface)] text-[9px] sm:text-[10px] font-bold text-[var(--color-text-secondary)]">
                           Par défaut
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/40 flex items-end p-2">
-                        <span className="text-[10px] font-bold text-white uppercase">{b.name}</span>
+                      <div className="absolute inset-0 bg-black/40 flex items-end p-1.5 sm:p-2">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-white uppercase">{b.name}</span>
                       </div>
                     </button>
                   ))}
                 </div>
 
                 {/* Ajustement Vertical de la Bannière (Y Offset) */}
-                <div className="bg-[var(--color-background)] p-6 rounded-2xl border border-[var(--color-border)] space-y-4">
+                <div className="bg-[var(--color-background)] p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-[var(--color-border)] space-y-3 sm:space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-[var(--color-text-primary)]">Cadrage vertical (Hauteur)</span>
+                    <span className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)]">Cadrage vertical (Hauteur)</span>
                     <span className="text-xs font-mono font-bold text-[var(--color-val-red)]">{draftBannerOffsetY}%</span>
                   </div>
 
                   {/* Visual Preview Box */}
-                  <div className="relative w-full aspect-[3.8/1] max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
+                  <div className="relative w-full aspect-[3.8/1] max-h-[120px] sm:max-h-[140px] rounded-xl overflow-hidden border border-[var(--color-border)] bg-[#0a0e13] shadow-md">
                     <img
                       referrerPolicy="no-referrer"
                       src={draftBannerUrl || p?.cardWideUrl || "https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png"}
@@ -550,16 +550,16 @@ export default function SettingsView({
                       className="absolute inset-0 w-full h-full object-cover transition-all duration-75"
                     />
                     <div className="absolute inset-0 bg-black/40"></div>
-                    <div className="relative z-10 p-3 flex items-center justify-between h-full">
+                    <div className="relative z-10 p-2 sm:p-3 flex items-center justify-between h-full">
                       <div className="flex items-center gap-2">
                         {p?.cardUrl ? (
-                          <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/20">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg overflow-hidden border border-white/20">
                             <img referrerPolicy="no-referrer" src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
                           </div>
                         ) : null}
-                        <span className="text-xs font-black text-white drop-shadow-md">{p?.gameName || "Mon Profil"}</span>
+                        <span className="text-[11px] sm:text-xs font-black text-white drop-shadow-md">{p?.gameName || "Mon Profil"}</span>
                       </div>
-                      <span className="text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-2 py-0.5 rounded backdrop-blur-sm">
+                      <span className="text-[9px] sm:text-[10px] font-black text-[var(--color-val-light)] border border-[var(--color-val-light)]/40 px-1.5 sm:px-2 py-0.5 rounded backdrop-blur-sm">
                         Aperçu
                       </span>
                     </div>
@@ -571,10 +571,10 @@ export default function SettingsView({
                     max="100"
                     value={draftBannerOffsetY}
                     onChange={(e) => setDraftBannerOffsetY(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)]"
+                    className="w-full h-1.5 sm:h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)]"
                   />
-                  <p className="text-[11px] text-[var(--color-text-secondary)]">
-                    Glissez le curseur pour voir l&apos;image s&apos;ajuster en temps réel dans le cadre ci-dessus.
+                  <p className="text-[10px] sm:text-[11px] text-[var(--color-text-secondary)]">
+                    Glissez le curseur pour ajuster l&apos;image en temps réel dans le cadre ci-dessus.
                   </p>
                 </div>
 
@@ -584,10 +584,10 @@ export default function SettingsView({
           )}
 
           {settingsTab === "language" && (
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-6">
+            <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
               <div>
-                <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Langue de l&apos;interface</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1">Sélectionnez votre langue d&apos;affichage préférée.</p>
+                <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Langue de l&apos;interface</h3>
+                <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">Sélectionnez votre langue d&apos;affichage préférée.</p>
               </div>
 
               {/* Language Search Bar */}
@@ -597,9 +597,9 @@ export default function SettingsView({
                   value={languageSearchQuery}
                   onChange={(e) => setLanguageSearchQuery(e.target.value)}
                   placeholder="Rechercher une langue..."
-                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 pl-10 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)]/50 focus:border-[var(--color-val-red)] focus:outline-none transition-colors"
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-3.5 py-2 sm:py-2.5 pl-9 sm:pl-10 text-xs sm:text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)]/50 focus:border-[var(--color-val-red)] focus:outline-none transition-colors"
                 />
-                <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 {languageSearchQuery && (
@@ -624,7 +624,7 @@ export default function SettingsView({
 
                 return (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-[var(--color-border)]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4 pt-2 border-t border-[var(--color-border)]">
                       {displayed.map((l) => {
                         const isSelected = (draftLocale || "french") === l.id;
                         const isImageFlag = l.flag && (l.flag.startsWith("/") || l.flag.startsWith("http") || l.flag.includes("."));
@@ -634,9 +634,9 @@ export default function SettingsView({
                             key={l.id}
                             type="button"
                             onClick={() => setDraftLocale(l.id)}
-                            className={`relative overflow-hidden rounded-2xl p-5 border-2 transition-all duration-300 flex items-center justify-between text-left group min-h-[90px] cursor-pointer ${
+                            className={`relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 border-2 transition-all duration-300 flex items-center justify-between text-left group min-h-[64px] sm:min-h-[90px] cursor-pointer ${
                               isSelected
-                                ? "border-[var(--color-val-red)] shadow-[0_0_25px_rgba(255,70,85,0.4)] scale-[1.02] bg-[var(--color-val-red)]/10"
+                                ? "border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] scale-[1.02] bg-[var(--color-val-red)]/10"
                                 : "border-[var(--color-border)] hover:border-[var(--color-text-secondary)] hover:scale-[1.01] bg-[#0a0e13]"
                             }`}
                           >
@@ -655,13 +655,13 @@ export default function SettingsView({
                             )}
 
                             {/* Content with high contrast text */}
-                            <div className="relative z-10 flex items-center gap-3.5">
-                              {!isImageFlag && <span className="text-3xl filter drop-shadow-md select-none">{l.flag || "🌐"}</span>}
+                            <div className="relative z-10 flex items-center gap-2.5 sm:gap-3.5">
+                              {!isImageFlag && <span className="text-2xl sm:text-3xl filter drop-shadow-md select-none">{l.flag || "🌐"}</span>}
                               <div className="flex flex-col">
-                                <span className="font-black text-base text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                                <span className="font-black text-xs sm:text-base text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                                   {l.label}
                                 </span>
-                                <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                                <span className="text-[10px] sm:text-[11px] font-semibold text-gray-300 uppercase tracking-wider drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
                                   {l.id}
                                 </span>
                               </div>
@@ -669,8 +669,8 @@ export default function SettingsView({
 
                             {/* Check badge when selected */}
                             {isSelected && (
-                              <div className="relative z-10 w-6 h-6 rounded-full bg-[var(--color-val-red)] flex items-center justify-center shadow-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <div className="relative z-10 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[var(--color-val-red)] flex items-center justify-center shadow-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="20 6 9 17 4 12" />
                                 </svg>
                               </div>
@@ -686,13 +686,13 @@ export default function SettingsView({
                         <button
                           type="button"
                           onClick={() => setShowAllLanguages(!showAllLanguages)}
-                          className="px-6 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                          className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
                         >
                           <span>{showAllLanguages ? "Afficher moins" : `Afficher plus (+${filtered.length - 5})`}</span>
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
+                            width="14"
+                            height="14"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -713,9 +713,9 @@ export default function SettingsView({
           )}
 
           {settingsTab === "about" && (
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8">
-              <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Valorant Performance Tracker</h3>
-              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8">
+              <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] mb-1 sm:mb-2">Valorant Performance Tracker</h3>
+              <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
                 Suivez vos performances Valorant, vos statistiques d&apos;agents, historiques de parties et analyses détaillées.
               </p>
             </div>
