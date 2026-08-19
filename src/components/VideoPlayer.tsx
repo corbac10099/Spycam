@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { tr } from '@/lib/i18n';
+import { resolveMediaUrl } from '@/lib/media';
 
 export type VideoQuality = '1080p' | '720p' | '480p' | '360p';
 
@@ -49,12 +50,15 @@ export default function VideoPlayer({
   const loopTimeout = useRef<NodeJS.Timeout | null>(null);
   const qualityBadgeTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Get active video source based on selected quality
+  // Get active video source resolved with Cloudflare R2 secure proxy support
   const getActiveVideoSrc = (q: VideoQuality): string | undefined => {
+    let rawUrl: string | undefined;
     if (qualityUrls && qualityUrls[q] && qualityUrls[q]!.trim()) {
-      return qualityUrls[q];
+      rawUrl = qualityUrls[q];
+    } else {
+      rawUrl = qualityUrls?.['1080p'] || src;
     }
-    return qualityUrls?.['1080p'] || src;
+    return resolveMediaUrl(rawUrl);
   };
 
   const activeSrc = getActiveVideoSrc(selectedQuality);
@@ -250,6 +254,7 @@ export default function VideoPlayer({
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onContextMenu={(e) => e.preventDefault()}
       className={`relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-[var(--color-border)] select-none group ${className}`}
     >
       {/* Video Element */}
@@ -266,8 +271,12 @@ export default function VideoPlayer({
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onClick={togglePlay}
+        onContextMenu={(e) => e.preventDefault()}
+        onDragStart={(e) => e.preventDefault()}
+        controlsList="nodownload nofullscreen noremoteplayback"
+        disablePictureInPicture={false}
         style={{ filter: effectiveFilter }}
-        className="w-full h-full object-cover cursor-pointer transition-all duration-300"
+        className="w-full h-full object-cover cursor-pointer transition-all duration-300 pointer-events-auto select-none"
       />
 
       {/* Quality change badge notification */}
