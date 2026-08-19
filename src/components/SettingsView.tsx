@@ -195,20 +195,21 @@ export default function SettingsView({
   ];
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-8 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Paramètres</h2>
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-8 animate-in fade-in duration-300 pb-12">
+      <div className="flex items-center justify-between mb-4 sm:mb-8 gap-3">
+        <h2 className="text-xl sm:text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Paramètres</h2>
         <button
           onClick={onClose}
-          className="px-6 py-2.5 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] cursor-pointer"
+          className="px-3.5 sm:px-6 py-2 sm:py-2.5 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] cursor-pointer flex items-center gap-1.5 flex-shrink-0"
         >
-          Retour au profil
+          <span className="text-sm sm:text-base">←</span>
+          <span>Retour au profil</span>
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar */}
-        <div className="w-full md:w-64 flex flex-col gap-2">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-8">
+        {/* Sidebar / Top Tabs Bar on mobile */}
+        <div className="w-full md:w-64 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar flex-shrink-0">
           {[
             { id: "features", label: "Fonctionnalités" },
             { id: "privacy", label: "Confidentialité" },
@@ -222,9 +223,9 @@ export default function SettingsView({
                 setSettingsTab(tab.id);
                 pushUrl({ view: "settings", settingsTab: tab.id });
               }}
-              className={`text-left px-5 py-4 rounded-xl font-bold uppercase tracking-wider text-sm transition-all cursor-pointer ${
+              className={`text-left px-3.5 sm:px-5 py-2.5 sm:py-4 rounded-xl font-bold uppercase tracking-wider text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
                 settingsTab === tab.id
-                  ? "bg-[var(--color-surface-hover)] border-l-4 border-[var(--color-val-red)] text-[var(--color-text-primary)] shadow-md"
+                  ? "bg-[var(--color-surface-hover)] border-b-2 md:border-b-0 md:border-l-4 border-[var(--color-val-red)] text-[var(--color-text-primary)] shadow-md"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
               }`}
             >
@@ -234,9 +235,9 @@ export default function SettingsView({
         </div>
 
         {/* Content */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {settingsTab === "features" && (
-            <div className="glass-panel rounded-2xl p-6 sm:p-8">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8">
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -304,7 +305,7 @@ export default function SettingsView({
           )}
 
           {settingsTab === "privacy" && (
-            <div className="glass-panel rounded-2xl p-6 sm:p-8 space-y-6">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-6">
               <div>
                 <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Confidentialité du profil</h3>
                 <p className="text-sm text-[var(--color-text-secondary)] mt-1">
@@ -410,7 +411,7 @@ export default function SettingsView({
           )}
 
           {settingsTab === "appearance" && (
-            <div className="glass-panel rounded-2xl p-6 sm:p-8 space-y-10">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-10">
               {/* Sélecteur de Thème */}
               <div>
                 <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Thème de l&apos;interface</h3>
@@ -583,7 +584,7 @@ export default function SettingsView({
           )}
 
           {settingsTab === "language" && (
-            <div className="glass-panel rounded-2xl p-6 sm:p-8 space-y-6">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-6">
               <div>
                 <h3 className="font-bold text-lg text-[var(--color-text-primary)]">Langue de l&apos;interface</h3>
                 <p className="text-sm text-[var(--color-text-secondary)] mt-1">Sélectionnez votre langue d&apos;affichage préférée.</p>
@@ -712,7 +713,7 @@ export default function SettingsView({
           )}
 
           {settingsTab === "about" && (
-            <div className="glass-panel rounded-2xl p-6 sm:p-8">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8">
               <h3 className="font-bold text-lg text-[var(--color-text-primary)] mb-2">Valorant Performance Tracker</h3>
               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
                 Suivez vos performances Valorant, vos statistiques d&apos;agents, historiques de parties et analyses détaillées.
@@ -721,18 +722,18 @@ export default function SettingsView({
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-[var(--color-border)]">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
             <button
               onClick={handleCancel}
               disabled={loading}
-              className="px-6 py-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold rounded-xl transition-all border border-[var(--color-border)] disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] text-xs sm:text-sm font-bold rounded-xl transition-all border border-[var(--color-border)] disabled:opacity-50 cursor-pointer text-center"
             >
               Annuler
             </button>
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-6 py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer text-center"
             >
               {loading ? (
                 <>

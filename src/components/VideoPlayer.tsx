@@ -217,10 +217,10 @@ export default function VideoPlayer({
       {!isPlaying && (
         <div
           onClick={togglePlay}
-          className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer transition-all duration-300 hover:bg-black/30"
+          className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer transition-all duration-300 hover:bg-black/30 z-20"
         >
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[var(--color-val-red)] rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(255,70,85,0.6)] transform group-hover:scale-105 transition-transform">
-            <svg viewBox="0 0 24 24" fill="white" className="w-8 h-8 sm:w-10 sm:h-10 ml-1">
+          <div className="w-11 h-11 xs:w-13 xs:h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-[var(--color-val-red)] rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(255,70,85,0.6)] transform group-hover:scale-105 transition-transform">
+            <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 ml-0.5 sm:ml-1">
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
@@ -229,7 +229,7 @@ export default function VideoPlayer({
 
       {/* Controls Overlay (Fades out when inactive) */}
       <div
-        className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 sm:p-4 transition-opacity duration-300 flex flex-col gap-2 z-30 ${
+        className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-2 xs:p-2.5 sm:p-4 transition-opacity duration-300 flex flex-col gap-1 sm:gap-2 z-30 ${
           showControls || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -246,7 +246,7 @@ export default function VideoPlayer({
             onTouchStart={() => setIsSeeking(true)}
             onTouchEnd={() => setIsSeeking(false)}
             onChange={handleSeek}
-            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)] hover:h-2.5 transition-all"
+            className="w-full h-1 sm:h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[var(--color-val-red)] hover:h-2 sm:hover:h-2.5 transition-all"
             style={{
               background: `linear-gradient(to right, var(--color-val-red) 0%, var(--color-val-red) ${progressPercent}%, rgba(255,255,255,0.2) ${progressPercent}%, rgba(255,255,255,0.2) 100%)`
             }}
@@ -254,20 +254,20 @@ export default function VideoPlayer({
         </div>
 
         {/* Bottom Controls Bar */}
-        <div className="flex items-center justify-between text-white text-xs font-bold pt-1">
+        <div className="flex items-center justify-between text-white text-[11px] sm:text-xs font-bold pt-0.5 sm:pt-1">
           {/* Left: Play/Pause, Mute, Time */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <button
               onClick={togglePlay}
-              className="p-1 hover:text-[var(--color-val-red)] transition-colors"
+              className="p-1 hover:text-[var(--color-val-red)] transition-colors cursor-pointer"
               title={isPlaying ? tr("Pause") : tr("Lecture")}
             >
               {isPlaying ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                 </svg>
               ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               )}
@@ -276,17 +276,17 @@ export default function VideoPlayer({
             {/* Mute Button */}
             <button
               onClick={toggleMute}
-              className="p-1 hover:text-[var(--color-val-red)] transition-colors"
+              className="p-1 hover:text-[var(--color-val-red)] transition-colors cursor-pointer"
               title={isMuted ? tr("Activer le son") : tr("Désactiver le son")}
             >
               {isMuted ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                   <line x1="23" y1="9" x2="17" y2="15"></line>
                   <line x1="17" y1="9" x2="23" y2="15"></line>
                 </svg>
               ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                   <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                 </svg>
@@ -294,26 +294,26 @@ export default function VideoPlayer({
             </button>
 
             {/* Time Stamp */}
-            <span className="text-[11px] text-white/80 font-mono tracking-wider">
+            <span className="text-[9px] xs:text-[10px] sm:text-[11px] text-white/80 font-mono tracking-wider">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
           </div>
 
           {/* Right: Quality Selector & Fullscreen */}
-          <div className="flex items-center gap-3 relative">
+          <div className="flex items-center gap-1.5 sm:gap-3 relative">
             {/* Quality Selector */}
             <div className="relative">
               <button
                 onClick={() => setShowQualityMenu(!showQualityMenu)}
-                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors text-[10px] uppercase font-mono tracking-wider flex items-center gap-1 border border-white/10"
+                className="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors text-[9px] sm:text-[10px] uppercase font-mono tracking-wider flex items-center gap-0.5 sm:gap-1 border border-white/10 cursor-pointer"
               >
                 <span>{selectedQuality}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                <svg width="8" height="8" className="sm:w-2.5 sm:h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
               </button>
 
               {/* Quality Dropdown Menu */}
               {showQualityMenu && (
-                <div className="absolute bottom-full right-0 mb-2 bg-[#121820] border border-[var(--color-border)] rounded-lg shadow-2xl py-1 z-40 min-w-[80px]">
+                <div className="absolute bottom-full right-0 mb-2 bg-[#121820] border border-[var(--color-border)] rounded-lg shadow-2xl py-1 z-40 min-w-[70px] sm:min-w-[80px]">
                   {qualities.map(q => (
                     <button
                       key={q}
@@ -321,7 +321,7 @@ export default function VideoPlayer({
                         setSelectedQuality(q);
                         setShowQualityMenu(false);
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-[var(--color-val-red)]/20 hover:text-[var(--color-val-red)] transition-colors flex items-center justify-between ${
+                      className={`w-full text-left px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[11px] hover:bg-[var(--color-val-red)]/20 hover:text-[var(--color-val-red)] transition-colors flex items-center justify-between cursor-pointer ${
                         selectedQuality === q ? 'text-[var(--color-val-red)] font-black' : 'text-white/80'
                       }`}
                     >
@@ -336,15 +336,15 @@ export default function VideoPlayer({
             {/* Fullscreen Button */}
             <button
               onClick={toggleFullscreen}
-              className="p-1 hover:text-[var(--color-val-red)] transition-colors"
+              className="p-1 hover:text-[var(--color-val-red)] transition-colors cursor-pointer"
               title={isFullscreen ? tr("Quitter le plein écran") : tr("Plein écran")}
             >
               {isFullscreen ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
                 </svg>
               ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                 </svg>
               )}
