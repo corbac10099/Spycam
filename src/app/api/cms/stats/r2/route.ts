@@ -11,27 +11,15 @@ export async function GET() {
   const client = getR2Client();
 
   if (!client) {
-    // If R2 credentials are not configured yet, return a clean simulated status
     return NextResponse.json({
       configured: false,
       message: 'Cloudflare R2 non configuré dans .env',
       totalObjects: 0,
       totalBytes: 0,
-      formattedTotal: '0 MB',
-      byCategory: [
-        { category: 'Agents (Clips)', count: 24, bytes: 145000000, formatted: '145 MB' },
-        { category: 'Trailers & Teasers', count: 4, bytes: 420000000, formatted: '420 MB' },
-        { category: 'Actualités', count: 8, bytes: 85000000, formatted: '85 MB' },
-        { category: 'Autres Médias', count: 2, bytes: 12000000, formatted: '12 MB' },
-      ],
-      mediaLoadsCount: 3840,
-      topFiles: [
-        { key: 'trailers/act4_trailer_1080p.mp4', size: '180 MB', loads: 1420, category: 'Trailers' },
-        { key: 'agents/jett/smoke1_1080p.mp4', size: '18 MB', loads: 890, category: 'Agents' },
-        { key: 'agents/reyna/leer_1080p.mp4', size: '15 MB', loads: 620, category: 'Agents' },
-        { key: 'news/patch_9_08_teaser.mp4', size: '45 MB', loads: 510, category: 'Actualités' },
-        { key: 'agents/sova/recon_arrow.mp4', size: '22 MB', loads: 400, category: 'Agents' },
-      ],
+      formattedTotal: 'Non configuré',
+      byCategory: [],
+      mediaLoadsCount: 0,
+      topFiles: [],
     });
   }
 

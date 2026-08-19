@@ -28,15 +28,6 @@ export async function GET(req: NextRequest) {
       count: v._count.id,
     }));
 
-    // If no visits recorded yet, provide realistic starter distribution
-    const effectiveByPage = byPage.length > 0 ? byPage : [
-      { pageName: 'Accueil / Live Tracker', count: 1420 },
-      { pageName: 'Agents & Guides', count: 980 },
-      { pageName: 'Actualités & Patchs', count: 640 },
-      { pageName: 'Cartes & Lineups', count: 430 },
-      { pageName: 'Profil & Paramètres', count: 310 },
-    ];
-
     // Timeline for the last N days
     const timelineData: { date: string; label: string; count: number }[] = [];
     for (let i = days - 1; i >= 0; i--) {
@@ -59,18 +50,15 @@ export async function GET(req: NextRequest) {
         },
       }).catch(() => 0);
 
-      // Fallback base curve if brand new DB
-      const baseSim = [180, 240, 290, 380, 420, 510, 620][6 - (i % 7)] || 250;
-
       timelineData.push({
         date: isoDate,
         label: dayLabel,
-        count: count > 0 ? count : baseSim,
+        count: count,
       });
     }
 
     return NextResponse.json({
-      byPage: effectiveByPage,
+      byPage: byPage,
       timeline: timelineData,
       days,
     });
