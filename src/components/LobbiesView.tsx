@@ -79,9 +79,9 @@ export function getPlayerAvatar(name: string = "player", customUrl?: string): st
 
 export const VALORANT_ROLE_ICONS: Record<string, string> = {
   "Duelliste": "https://media.valorant-api.com/agents/roles/dbe8757e-9e92-4ed4-b39f-9dfc589691d4/displayicon.png",
-  "Initiateur": "https://media.valorant-api.com/agents/roles/1b47567f-8f7b-444b-a003-c44b0f86ac45/displayicon.png",
-  "Contrôleur": "https://media.valorant-api.com/agents/roles/4ee40330-ecba-4be2-9e0f-abda10915878/displayicon.png",
-  "Sentinelle": "https://media.valorant-api.com/agents/roles/5fc02f99-4091-4486-a526-9c35bba3ac39/displayicon.png",
+  "Initiateur": "https://media.valorant-api.com/agents/roles/1b47567f-8f7b-444b-aae3-b0c634622d10/displayicon.png",
+  "Contrôleur": "https://media.valorant-api.com/agents/roles/4ee40330-ecdd-4f2f-98a8-eb1243428373/displayicon.png",
+  "Sentinelle": "https://media.valorant-api.com/agents/roles/5fc02f99-4091-4486-a531-98459a3e95e9/displayicon.png",
   "Tous Rôles": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/0/smallicon.png",
 };
 
