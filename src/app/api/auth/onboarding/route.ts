@@ -6,19 +6,36 @@ import { prisma } from '@/lib/prisma';
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
+    const body = await request.json();
+    const guestId = request.headers.get("x-guest-id") || body?.guestId;
 
-    if (!session?.user?.email) {
+    let targetEmail = session?.user?.email;
+    let isGuest = false;
+
+    if (!targetEmail && guestId) {
+      const guestUser = await prisma.user.findFirst({
+        where: {
+          id: guestId,
+          email: { endsWith: "@temp.spycam.gg" },
+        },
+      });
+      if (guestUser) {
+        targetEmail = guestUser.email;
+        isGuest = true;
+      }
+    }
+
+    if (!targetEmail) {
       return NextResponse.json(
         { error: 'Non authentifié.' },
         { status: 401 }
       );
     }
 
-    const body = await request.json();
     const { language, theme, isPublic } = body;
 
     const updatedUser = await prisma.user.update({
-      where: { email: session.user.email },
+      where: { email: targetEmail },
       data: {
         language: language || 'fr',
         theme: theme || 'dark',

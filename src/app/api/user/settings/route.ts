@@ -6,13 +6,27 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    const body = await req.json();
+    const guestId = req.headers.get("x-guest-id") || body?.guestId;
 
-    if (!session || !session.user || !(session.user as any).id) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    let userId = (session?.user as any)?.id;
+
+    if (!userId && guestId) {
+      // Vérifier que c'est bien un compte invité temporaire
+      const guestUser = await prisma.user.findFirst({
+        where: {
+          id: guestId,
+          email: { endsWith: "@temp.spycam.gg" },
+        },
+      });
+      if (guestUser) {
+        userId = guestUser.id;
+      }
     }
 
-    const userId = (session.user as any).id;
-    const body = await req.json();
+    if (!userId) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
 
     const { theme, bannerUrl, bannerOffsetY, smartRating, isPublic, videoLoop, videoLoopDelay, hiddenStats, enforcePublicStats, language } = body;
     const updateData: any = {};

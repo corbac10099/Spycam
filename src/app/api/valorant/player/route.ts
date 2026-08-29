@@ -693,6 +693,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Format du Riot ID invalide. Utilisez Pseudo#Tag.' }, { status: 400 });
     }
 
+    // Dedicated simulated account for Beta Demo guests
+    if (tagLine?.toUpperCase() === 'BETA' || gameName?.toLowerCase() === 'shadow' || gameName?.toLowerCase() === 'beta') {
+      const mockData = generateMockData();
+      return NextResponse.json({
+        player: {
+          gameName: gameName || "Shadow",
+          tagLine: tagLine || "BETA",
+          puuid: "debug-beta-guest-puuid",
+          level: 284,
+          rank: "Immortel 3",
+          cardUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/displayicon.png",
+          cardWideUrl: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
+          rankUrl: "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/26/largeicon.png",
+          customBannerUrl: null,
+          customBannerOffsetY: 50,
+          customTheme: "default",
+          mainAgent: mockData.mainAgent,
+          stats: mockData.stats,
+          agentStats: mockData.agentStats,
+          matchHistory: mockData.matchHistory,
+        }
+      });
+    }
+
     // Dedicated simulated account for Riot reviewer testing
     if (gameName.toLowerCase() === 'riot_test' || gameName.toLowerCase() === 'riot') {
       const mockData = generateMockData();

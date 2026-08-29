@@ -146,10 +146,15 @@ export default function SettingsView({
   const handleSave = async () => {
     setLoading(true);
     try {
+      const guestId = typeof window !== "undefined" ? sessionStorage.getItem("spycam_guest_id") : null;
       const res = await fetch("/api/user/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(guestId ? { "x-guest-id": guestId } : {}),
+        },
         body: JSON.stringify({
+          guestId: guestId || undefined,
           smartRating: draftSmartRating,
           theme: draftTheme === "custom" ? `custom:bg=${draftCustomBg},accent=${draftCustomAccent}` : draftTheme,
           bannerUrl: draftBannerUrl,

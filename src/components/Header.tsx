@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { signOut } from "next-auth/react";
 import NotificationsDropdown from "./NotificationsDropdown";
+import LiveClock from "./LiveClock";
 
 export interface HeaderProps {
   session: any;
@@ -121,24 +122,25 @@ export default function Header({
   return (
     <header className="w-full z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md sticky top-0 mb-6 sm:mb-8 flex flex-col">
       {/* Top Navbar */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 w-full gap-2 sm:gap-4">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-3">
+      <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 w-full">
+        {/* Left: Logo + Nav buttons */}
+        <div className="flex items-center gap-2 sm:gap-3 relative z-10">
           <div
             onClick={onGoHome}
-            className="w-10 h-10 sm:w-12 sm:h-12 bg-[var(--color-val-red)] rounded-xl flex items-center justify-center text-white font-black text-xl sm:text-2xl shadow-[0_0_15px_rgba(255,70,85,0.4)] cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
-            title="Spycam Home"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center cursor-pointer select-none transition-transform hover:scale-105 active:scale-95 group"
+            title="Spycam Accueil"
           >
-            V
+            <img
+              src="/spycam-icon.png"
+              alt="Spycam Logo"
+              className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,70,85,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(255,70,85,0.9)] transition-all"
+            />
           </div>
           <span className="font-black text-lg text-[var(--color-text-primary)] tracking-widest hidden md:inline-block">
             SPYCAM
           </span>
-        </div>
 
-        {/* Center: Navigation Actions + Smart Search */}
-        <div className="flex-1 max-w-2xl flex justify-center items-center gap-1.5 sm:gap-2">
-          {/* Home button (Desktop only, Mobile uses bottom bar) */}
+          {/* Home button (Desktop only) */}
           {myRiotId && (
             <button
               onClick={onGoHome}
@@ -188,9 +190,11 @@ export default function Header({
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
           </button>
+        </div>
 
-          {/* Search Form + Dropdown Container */}
-          <div ref={searchContainerRef} className="relative w-full flex-1 flex justify-center max-w-sm sm:max-w-md">
+        {/* Center: Search Bar — absolutely centered in the header */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4 sm:px-6">
+          <div ref={searchContainerRef} className="relative w-full max-w-sm sm:max-w-md pointer-events-auto">
             <form onSubmit={handleSubmit} className="relative w-full">
               <input
                 ref={inputRef}
@@ -306,8 +310,11 @@ export default function Header({
           </div>
         </div>
 
-        {/* Right: Notifications, Auth & Settings */}
+        {/* Right: Clock, Notifications, Auth & Settings */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Live Clock (Desktop PC only) */}
+          <LiveClock />
+
           {/* Notifications Dropdown */}
           <NotificationsDropdown
             onNavigateToNews={onOpenNews}

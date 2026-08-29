@@ -451,17 +451,39 @@ export default function LoginPage() {
               Bientôt disponible
             </span>
           </button>
+
+          {/* Bouton Accéder à la Bêta Démo */}
+          <button
+            type="button"
+            onClick={() => {
+              sessionStorage.setItem('spycam_guest_mode', 'true');
+              router.push('/');
+            }}
+            className="w-full bg-gradient-to-r from-[var(--color-val-red)] to-[#ff7b86] hover:from-[#ff5865] hover:to-[#ff8d97] active:scale-[0.99] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(255,70,85,0.3)] mt-2"
+          >
+            <span>⚡ Tester la Bêta Démo (Sans Inscription)</span>
+          </button>
         </div>
 
         {/* Footer Link */}
-        <div className="mt-8 text-center text-sm text-[var(--color-text-secondary)]">
-          Pas encore de compte ?{' '}
-          <Link
-            href="/register"
-            className="font-bold text-[var(--color-val-red)] hover:underline hover:text-[#ff5a67] transition-colors ml-1"
-          >
-            Inscrivez-vous
-          </Link>
+        <div className="mt-8 text-center text-sm text-[var(--color-text-secondary)] space-y-2">
+          <div>
+            Pas encore de compte ?{' '}
+            <Link
+              href="/register"
+              className="font-bold text-[var(--color-val-red)] hover:underline hover:text-[#ff5a67] transition-colors ml-1"
+            >
+              Inscrivez-vous
+            </Link>
+          </div>
+          <div>
+            <Link
+              href="/"
+              className="text-xs text-white/50 hover:text-white transition-colors"
+            >
+              ← Retour à la présentation de Spycam
+            </Link>
+          </div>
         </div>
       </div>
     </main>

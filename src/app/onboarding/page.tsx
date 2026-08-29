@@ -79,10 +79,17 @@ function OnboardingContent() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState<boolean>(false);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
 
   // Search and display toggle for languages
   const [languageSearchQuery, setLanguageSearchQuery] = useState<string>('');
   const [showAllLanguages, setShowAllLanguages] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("spycam_guest_mode") === "true") {
+      setIsGuest(true);
+    }
+  }, []);
 
   // Load available languages from i18n
   useEffect(() => {
@@ -101,12 +108,13 @@ function OnboardingContent() {
     }
   }, [currentLang]);
 
-  // Authentication check (ignored in test mode)
+  // Authentication check (ignored in test mode or guest mode)
   useEffect(() => {
-    if (!isTestMode && status === 'unauthenticated') {
+    const isGuestSession = isGuest || (typeof window !== "undefined" && sessionStorage.getItem("spycam_guest_mode") === "true");
+    if (!isTestMode && !isGuestSession && status === 'unauthenticated') {
       router.push('/login');
     }
-  }, [status, router, isTestMode]);
+  }, [status, router, isTestMode, isGuest]);
 
   // Dynamically apply selected theme class for live preview
   useEffect(() => {
@@ -152,7 +160,10 @@ function OnboardingContent() {
   const handleComplete = async () => {
     if (isSubmitting) return;
 
-    if (isTestMode && !session) {
+    const isGuest = typeof window !== "undefined" && sessionStorage.getItem("spycam_guest_mode") === "true";
+    const guestId = typeof window !== "undefined" ? sessionStorage.getItem("spycam_guest_id") : null;
+
+    if (isTestMode && !session && !isGuest) {
       setIsSubmitting(true);
       setTimeout(() => {
         setIsSubmitting(false);
@@ -167,8 +178,16 @@ function OnboardingContent() {
     try {
       const res = await fetch('/api/auth/onboarding', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language, theme, isPublic }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(guestId ? { 'x-guest-id': guestId } : {}),
+        },
+        body: JSON.stringify({
+          language,
+          theme,
+          isPublic,
+          guestId: guestId || undefined,
+        }),
       });
 
       if (res.ok) {
@@ -185,13 +204,17 @@ function OnboardingContent() {
     }
   };
 
-  // Loading state during session check (only when not in test mode)
-  if (!isTestMode && status === 'loading') {
+  // Loading state during session check (only when not in test mode and not in guest mode)
+  const isGuestActive = isGuest || (typeof window !== "undefined" && sessionStorage.getItem("spycam_guest_mode") === "true");
+
+  if (!isTestMode && !isGuestActive && status === 'loading') {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[var(--color-background)]">
-        <div className="w-16 h-16 bg-[var(--color-val-red)] rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-[0_0_30px_rgba(255,70,85,0.5)] animate-pulse mb-4">
-          V
-        </div>
+        <img
+          src="/spycam-icon.png"
+          alt="Spycam Logo"
+          className="w-16 h-16 object-contain animate-pulse drop-shadow-[0_0_30px_rgba(255,70,85,0.7)] mb-4"
+        />
         <div className="text-[var(--color-text-secondary)] text-sm font-bold uppercase tracking-widest animate-pulse">
           Chargement...
         </div>
@@ -199,8 +222,8 @@ function OnboardingContent() {
     );
   }
 
-  // If unauthenticated and not test mode, do not flash content before redirect
-  if (!isTestMode && status === 'unauthenticated') {
+  // If unauthenticated and not test mode and not guest mode, do not flash content before redirect
+  if (!isTestMode && !isGuestActive && status === 'unauthenticated') {
     return null;
   }
 

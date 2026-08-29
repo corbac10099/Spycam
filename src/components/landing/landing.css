@@ -1,0 +1,90 @@
+﻿/* ==========================================================================
+   SPYCAM LANDING PAGE — CLEAN & ESSENTIAL STYLES
+   Design épuré, élégant, dark glassmorphism Valorant
+   ========================================================================== */
+
+.spycam-landing {
+  background-color: #070a0e;
+  color: #ece8e1;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism Cards */
+.sp-card {
+  background: rgba(14, 19, 26, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  transition: all 0.25s ease;
+}
+
+.sp-card:hover {
+  background: rgba(18, 25, 35, 0.8);
+  border-color: rgba(255, 70, 85, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 70, 85, 0.08);
+}
+
+.sp-card-static {
+  background: rgba(14, 19, 26, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+}
+
+/* Buttons */
+.sp-btn-primary {
+  background: #ff4655;
+  color: #ffffff;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 25px rgba(255, 70, 85, 0.4);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sp-btn-primary:hover {
+  background: #ff5865;
+  box-shadow: 0 0 35px rgba(255, 70, 85, 0.65);
+  transform: translateY(-2px);
+}
+
+.sp-btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  color: #ece8e1;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sp-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Subtle background glowing spots */
+.sp-bg-glow {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 70, 85, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}

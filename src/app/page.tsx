@@ -13,6 +13,7 @@ import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PerformanceCharts from "@/components/PerformanceCharts";
 import { trackPageView } from "@/lib/analytics";
+import LandingPage from "@/components/landing/LandingPage";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -23,6 +24,84 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isSimulatedNewUser = searchParams?.get("simulate") === "true";
+
+  // Guest / Beta Demo Mode — connected to Neon DB temporary user
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const [guestUser, setGuestUser] = useState<any>(null);
+
+  const initGuestSession = useCallback(async (redirectToOnboarding = false) => {
+    try {
+      const res = await fetch("/api/auth/guest-session", { method: "POST" });
+      const data = await res.json();
+      if (data.success && data.user) {
+        sessionStorage.setItem("spycam_guest_mode", "true");
+        sessionStorage.setItem("spycam_guest_id", data.guestId);
+        setGuestUser(data.user);
+        setIsGuestMode(true);
+        if (data.user.theme) setTheme(data.user.theme);
+        if (data.user.bannerUrl !== undefined) setBannerUrl(data.user.bannerUrl || "");
+        if (data.user.bannerOffsetY !== undefined) setBannerOffsetY(data.user.bannerOffsetY ?? 50);
+        if (data.user.isPublic !== undefined) setIsPublic(data.user.isPublic);
+        if (data.user.videoLoop !== undefined) setVideoLoop(data.user.videoLoop);
+        if (data.user.videoLoopDelay !== undefined) setVideoLoopDelay(data.user.videoLoopDelay);
+
+        if (redirectToOnboarding || !data.user.onboardingDone) {
+          router.push("/onboarding");
+        }
+      }
+    } catch (e) {
+      console.error("Erreur init guest session:", e);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("spycam_guest_mode") === "true") {
+      initGuestSession(false);
+    }
+  }, [initGuestSession]);
+
+  const handleEnterBeta = useCallback(() => {
+    initGuestSession(true);
+  }, [initGuestSession]);
+
+  const handleExitBeta = useCallback(async () => {
+    const guestId = typeof window !== "undefined" ? sessionStorage.getItem("spycam_guest_id") : null;
+    if (guestId) {
+      try {
+        await fetch(`/api/auth/guest-session?guestId=${guestId}`, { method: "DELETE" });
+      } catch {}
+    }
+    sessionStorage.removeItem("spycam_guest_mode");
+    sessionStorage.removeItem("spycam_guest_id");
+    setIsGuestMode(false);
+    setGuestUser(null);
+  }, []);
+
+  // Nettoyage automatique du compte Neon quand tous les onglets/pages sont fermés
+  useEffect(() => {
+    if (!isGuestMode) return;
+
+    const tabKey = "spycam_demo_active_tabs";
+    const currentTabs = parseInt(localStorage.getItem(tabKey) || "0", 10) + 1;
+    localStorage.setItem(tabKey, currentTabs.toString());
+
+    const handleBeforeUnload = () => {
+      const tabs = Math.max(0, parseInt(localStorage.getItem(tabKey) || "1", 10) - 1);
+      localStorage.setItem(tabKey, tabs.toString());
+
+      if (tabs === 0) {
+        const guestId = sessionStorage.getItem("spycam_guest_id");
+        if (guestId) {
+          navigator.sendBeacon(`/api/auth/guest-session?guestId=${guestId}`);
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isGuestMode]);
 
   const simulatedSession = useMemo(
     () => ({
@@ -37,8 +116,26 @@ function HomeContent() {
     []
   );
 
-  const session = isSimulatedNewUser ? simulatedSession : realSession;
-  const status = isSimulatedNewUser ? ("authenticated" as const) : realStatus;
+  const guestSession = useMemo(
+    () => ({
+      user: guestUser || {
+        id: "temp-guest-id",
+        name: "Shadow",
+        email: "guest@temp.spycam.gg",
+        onboardingDone: true,
+        riotId: "Shadow#BETA",
+        riotPuuid: "debug-beta-guest-puuid",
+        theme: "dark",
+        language: "fr",
+        firstName: "Invité",
+      },
+    }),
+    [guestUser]
+  );
+
+  const isDemo = isSimulatedNewUser || isGuestMode;
+  const session = isSimulatedNewUser ? simulatedSession : isGuestMode ? guestSession : realSession;
+  const status = isDemo ? ("authenticated" as const) : realStatus;
 
   const [riotId, setRiotId] = useState("");
   const [myRiotId, setMyRiotId] = useState("");
@@ -259,22 +356,24 @@ function HomeContent() {
   };
 
   const canEditProfile =
-    !isSimulatedNewUser &&
-    (playerData?.player?.puuid?.startsWith("debug-") ||
-      (session?.user?.email === "laffont.romain64@gmail.com" && playerData?.player?.gameName === "Gr4phØ") ||
-      (session?.user?.email === "spycam_riot_temp@gmail.com" && playerData?.player?.gameName?.toLowerCase() === "riot_test") ||
-      (session?.user?.email === "romain.lft64@gmail.com" && playerData?.player?.gameName?.toLowerCase() === "biflette64") ||
-      ((session?.user as any)?.riotPuuid && (session?.user as any)?.riotPuuid === playerData?.player?.puuid));
+    isGuestMode ||
+    (!isSimulatedNewUser &&
+      (playerData?.player?.puuid?.startsWith("debug-") ||
+        (session?.user?.email === "laffont.romain64@gmail.com" && playerData?.player?.gameName === "Gr4phØ") ||
+        (session?.user?.email === "spycam_riot_temp@gmail.com" && playerData?.player?.gameName?.toLowerCase() === "riot_test") ||
+        (session?.user?.email === "romain.lft64@gmail.com" && playerData?.player?.gameName?.toLowerCase() === "biflette64") ||
+        ((session?.user as any)?.riotPuuid && (session?.user as any)?.riotPuuid === playerData?.player?.puuid)));
 
   // Auth redirect & Initial fetch
   useEffect(() => {
     if (status === "loading") return;
 
-    if (status === "unauthenticated" && !isSimulatedNewUser) {
-      router.replace("/login");
+    if (status === "unauthenticated" && !isDemo) {
+      // Unauthenticated visitors see the Landing Page on /
+      return;
     } else if (status === "authenticated" && session?.user) {
       const user = session.user as any;
-      if (!user.onboardingDone && !isSimulatedNewUser) {
+      if (!user.onboardingDone && !isDemo) {
         router.replace("/onboarding");
       } else {
         if (user.theme) setTheme(user.theme);
@@ -297,12 +396,14 @@ function HomeContent() {
         if (!playerData && !loading) {
           let initialRiotId = user.riotId;
 
-          if (!isSimulatedNewUser && user.email === "laffont.romain64@gmail.com") {
+          if (!isDemo && user.email === "laffont.romain64@gmail.com") {
             initialRiotId = "Gr4phØ#0001";
-          } else if (!isSimulatedNewUser && user.email === "spycam_riot_temp@gmail.com") {
+          } else if (!isDemo && user.email === "spycam_riot_temp@gmail.com") {
             initialRiotId = "riot_test#TEST";
-          } else if (!isSimulatedNewUser && user.email === "romain.lft64@gmail.com") {
+          } else if (!isDemo && user.email === "romain.lft64@gmail.com") {
             initialRiotId = "biflette64#1294";
+          } else if (isGuestMode) {
+            initialRiotId = "Shadow#BETA";
           }
 
           if (initialRiotId) setMyRiotId(initialRiotId);
@@ -663,18 +764,55 @@ function HomeContent() {
   if (status === "loading") {
     return (
       <main className="flex-1 flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-6 animate-pulse">
-          <div className="w-20 h-20 bg-[var(--color-val-red)] rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(255,70,85,0.3)]">
-            <span className="text-white text-4xl font-black">V</span>
-          </div>
-          <p className="text-[var(--color-text-secondary)] uppercase tracking-widest text-sm font-bold">Chargement...</p>
+        <div className="flex flex-col items-center gap-5">
+          <img
+            src="/spycam-icon.png"
+            alt="Spycam Logo"
+            className="w-16 h-16 object-contain animate-pulse drop-shadow-[0_0_30px_rgba(255,70,85,0.7)]"
+          />
+          <p className="text-[var(--color-text-secondary)] uppercase tracking-widest text-xs font-black">
+            Chargement...
+          </p>
         </div>
       </main>
     );
   }
 
+  // Unauthenticated visitors without demo mode see the Landing Page
+  if (status === "unauthenticated" && !isDemo) {
+    return <LandingPage onEnterBeta={handleEnterBeta} onOpenLogin={() => router.push("/login")} />;
+  }
+
   return (
     <>
+      {/* Guest / Beta Demo Top Banner */}
+      {isGuestMode && (
+        <div className="bg-gradient-to-r from-[var(--color-val-red)]/20 via-black/80 to-[var(--color-val-red)]/20 border-b border-[var(--color-val-red)]/40 px-4 py-2 flex items-center justify-between text-xs backdrop-blur-md sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-val-red)] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-val-red)]"></span>
+            </span>
+            <span className="font-black uppercase tracking-wider text-white">Mode Bêta Démo Actif</span>
+            <span className="hidden sm:inline text-white/60 text-[11px]">— Session temporaire avec profil de démonstration</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/login")}
+              className="px-3 py-1 rounded-full bg-[var(--color-val-red)] hover:bg-[#ff5865] text-white font-bold text-[11px] uppercase tracking-wider transition-colors cursor-pointer"
+            >
+              Créer un compte
+            </button>
+            <button
+              onClick={handleExitBeta}
+              className="text-white/60 hover:text-white text-[11px] font-bold uppercase transition-colors cursor-pointer"
+            >
+              Quitter la démo ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 flex flex-col relative overflow-hidden min-h-screen pb-28 md:pb-16">
         <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-val-red)] opacity-10 blur-[120px] rounded-full pointer-events-none"></div>
         <DebugPanel isOpen={debugOpen} onClose={() => setDebugOpen(false)} onGenerate={handleDebugGenerate} />
