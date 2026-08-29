@@ -11,6 +11,17 @@ interface LobbiesViewProps {
   isPublic?: boolean;
   onUpdateIsPublic?: (val: boolean) => void;
   onSelectPlayer?: (riotId: string) => void;
+  activeLobby?: LobbyItem | null;
+  setActiveLobby?: React.Dispatch<React.SetStateAction<LobbyItem | null>>;
+  isInVoice?: boolean;
+  setIsInVoice?: (inVoice: boolean) => void;
+  isMicMuted?: boolean;
+  setIsMicMuted?: (muted: boolean) => void;
+  isMyVoiceSpeaking?: boolean;
+  setIsMyVoiceSpeaking?: (speaking: boolean) => void;
+  voiceVolumeLevel?: number;
+  setVoiceVolumeLevel?: (vol: number) => void;
+  voiceManagerRef?: React.MutableRefObject<VoiceManager | null>;
 }
 
 const ROLES_LIST = [
@@ -26,12 +37,46 @@ export default function LobbiesView({
   isPublic = true,
   onUpdateIsPublic,
   onSelectPlayer,
+  activeLobby: propActiveLobby,
+  setActiveLobby: propSetActiveLobby,
+  isInVoice: propIsInVoice,
+  setIsInVoice: propSetIsInVoice,
+  isMicMuted: propIsMicMuted,
+  setIsMicMuted: propSetIsMicMuted,
+  isMyVoiceSpeaking: propIsMyVoiceSpeaking,
+  setIsMyVoiceSpeaking: propSetIsMyVoiceSpeaking,
+  voiceVolumeLevel: propVoiceVolumeLevel,
+  setVoiceVolumeLevel: propSetVoiceVolumeLevel,
+  voiceManagerRef: propVoiceManagerRef,
 }: LobbiesViewProps) {
   // Navigation states: 'landing' | 'create' | 'join' | 'salon'
-  const [currentView, setCurrentView] = useState<"landing" | "create" | "join" | "salon">("landing");
+  const [currentView, setCurrentView] = useState<"landing" | "create" | "join" | "salon">(() => {
+    return propActiveLobby ? "salon" : "landing";
+  });
 
-  // Active Lobby State (when in 'salon' view)
-  const [activeLobby, setActiveLobby] = useState<LobbyItem | null>(null);
+  // Local fallback states if not provided globally
+  const [localActiveLobby, setLocalActiveLobby] = useState<LobbyItem | null>(null);
+  const activeLobby = propActiveLobby !== undefined ? propActiveLobby : localActiveLobby;
+  const setActiveLobby = propSetActiveLobby || setLocalActiveLobby;
+
+  const [localIsInVoice, setLocalIsInVoice] = useState<boolean>(false);
+  const isInVoice = propIsInVoice !== undefined ? propIsInVoice : localIsInVoice;
+  const setIsInVoice = propSetIsInVoice || setLocalIsInVoice;
+
+  const [localIsMicMuted, setLocalIsMicMuted] = useState<boolean>(false);
+  const isMicMuted = propIsMicMuted !== undefined ? propIsMicMuted : localIsMicMuted;
+  const setIsMicMuted = propSetIsMicMuted || setLocalIsMicMuted;
+
+  const [localIsMyVoiceSpeaking, setLocalIsMyVoiceSpeaking] = useState<boolean>(false);
+  const isMyVoiceSpeaking = propIsMyVoiceSpeaking !== undefined ? propIsMyVoiceSpeaking : localIsMyVoiceSpeaking;
+  const setIsMyVoiceSpeaking = propSetIsMyVoiceSpeaking || setLocalIsMyVoiceSpeaking;
+
+  const [localVoiceVolumeLevel, setLocalVoiceVolumeLevel] = useState<number>(0);
+  const voiceVolumeLevel = propVoiceVolumeLevel !== undefined ? propVoiceVolumeLevel : localVoiceVolumeLevel;
+  const setVoiceVolumeLevel = propSetVoiceVolumeLevel || setLocalVoiceVolumeLevel;
+
+  const localVoiceManagerRef = useRef<VoiceManager | null>(null);
+  const voiceManagerRef = propVoiceManagerRef || localVoiceManagerRef;
 
   // All Lobbies State
   const [lobbies, setLobbies] = useState<LobbyItem[]>([]);
@@ -78,15 +123,10 @@ export default function LobbiesView({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const prevChatLengthRef = useRef<number>(0);
 
-  // ==================== VOICE WEBRTC STATE ====================
-  const [isInVoice, setIsInVoice] = useState<boolean>(false);
-  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
+  // ==================== VOICE WEBRTC STATE (local-only) ====================
   const [isDeafened, setIsDeafened] = useState<boolean>(false);
-  const [isMyVoiceSpeaking, setIsMyVoiceSpeaking] = useState<boolean>(false);
-  const [voiceVolumeLevel, setVoiceVolumeLevel] = useState<number>(0);
   const [remoteSpeakingMap, setRemoteSpeakingMap] = useState<Record<string, boolean>>({});
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const voiceManagerRef = useRef<VoiceManager | null>(null);
 
   // Fetch Lobbies list
   const fetchLobbies = async () => {

@@ -136,3 +136,66 @@ model MediaLoad {
   @@index([createdAt])
 }
 
+// ==========================================
+// LFG Salons & Modération (Neon DB)
+// ==========================================
+
+model Lobby {
+  id               String                 @id @default(cuid())
+  leaderName       String
+  leaderTag        String
+  leaderRank       String
+  leaderRankUrl    String?
+  leaderRankTier   Int                    @default(12)
+  isLeaderPrivate  Boolean                @default(false)
+  leaderAvatar     String?
+  mode             String                 @default("Compétitif")
+  roleNeeded       String                 @default("[\"Tous Rôles\"]")
+  micRequired      String                 @default("yes")
+  maxSlots         Int                    @default(5)
+  currentSlots     Int                    @default(1)
+  note             String?
+  region           String                 @default("EU / Paris")
+  lobbyLevel       String                 @default("Or")
+  lobbyLevelTier   Int                    @default(12)
+  membersData      String                 @default("[]")
+  voiceMembersData String                 @default("[]")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  expiresAt        DateTime               @default(now())
+  messages         LobbyMessage[]
+  transcripts      LobbyVoiceTranscript[]
+
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+model LobbyMessage {
+  id           String   @id @default(cuid())
+  lobbyId      String
+  senderName   String
+  senderTag    String
+  senderAvatar String?
+  content      String
+  isToxic      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  lobby        Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+
+  @@index([lobbyId])
+}
+
+model LobbyVoiceTranscript {
+  id         String   @id @default(cuid())
+  lobbyId    String
+  senderName String
+  senderTag  String
+  content    String
+  isToxic    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  lobby      Lobby    @relation(fields: [lobbyId], references: [id], onDelete: Cascade)
+
+  @@index([lobbyId])
+}
+

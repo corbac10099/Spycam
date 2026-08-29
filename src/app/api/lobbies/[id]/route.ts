@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LobbyMember, ChatMessage, VoiceMember, VoiceTranscriptLog } from '../route';
 import { filterToxicText } from '@/lib/moderation';
+import {
+  getLobbyByIdFromNeon,
+  updateLobbyInNeon,
+  addChatMessageToNeon,
+  addVoiceTranscriptToNeon,
+  deleteLobbyFromNeon,
+} from '@/lib/lobbyDb';
 
 export interface WebRTCSignal {
   id: string;
@@ -11,7 +18,6 @@ export interface WebRTCSignal {
   timestamp: number;
 }
 
-// In-memory WebRTC signals storage per lobby
 declare global {
   // eslint-disable-next-line no-var
   var _spycam_voice_signals: Record<string, WebRTCSignal[]> | undefined;
@@ -23,7 +29,12 @@ if (!global._spycam_voice_signals) {
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lobby = (global._spycam_lobbies || []).find((l) => l.id === id);
+
+  // Try fetching from Neon DB first
+  let lobby = await getLobbyByIdFromNeon(id);
+  if (!lobby && global._spycam_lobbies) {
+    lobby = global._spycam_lobbies.find((l) => l.id === id) || null;
+  }
 
   if (!lobby) {
     return NextResponse.json({ success: false, error: 'Salon introuvable ou expiré' }, { status: 404 });
@@ -34,7 +45,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   let signals: WebRTCSignal[] = [];
   if (forPeer && global._spycam_voice_signals && global._spycam_voice_signals[id]) {
-    // Return signals intended for this peer and filter them out
     signals = global._spycam_voice_signals[id].filter((s) => s.toId === forPeer);
     global._spycam_voice_signals[id] = global._spycam_voice_signals[id].filter((s) => s.toId !== forPeer);
   }
@@ -46,17 +56,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const body = await req.json();
-    const lobbyIndex = (global._spycam_lobbies || []).findIndex((l) => l.id === id);
 
-    if (lobbyIndex === -1) {
+    let lobby = await getLobbyByIdFromNeon(id);
+    let memLobby: any = null;
+
+    if (global._spycam_lobbies) {
+      const idx = global._spycam_lobbies.findIndex((l) => l.id === id);
+      if (idx !== -1) memLobby = global._spycam_lobbies[idx];
+    }
+
+    if (!lobby && !memLobby) {
       return NextResponse.json({ success: false, error: 'Salon introuvable' }, { status: 404 });
     }
 
-    const lobby = global._spycam_lobbies![lobbyIndex];
+    const currentLobby = lobby || memLobby;
     if (!global._spycam_voice_signals) global._spycam_voice_signals = {};
     if (!global._spycam_voice_signals[id]) global._spycam_voice_signals[id] = [];
 
-    // ACTION: WebRTC Signaling (Send offer / answer / ICE candidate)
+    // ACTION: WebRTC Signaling
     if (body.action === 'voice-signal') {
       const { fromId, toId, type, data } = body;
       if (fromId && toId && type && data) {
@@ -70,7 +87,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         };
 
         global._spycam_voice_signals[id].push(signal);
-        // Clean signals older than 30 seconds
         const thirtySecAgo = Date.now() - 30000;
         global._spycam_voice_signals[id] = global._spycam_voice_signals[id].filter((s) => s.timestamp > thirtySecAgo);
 
@@ -87,15 +103,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return NextResponse.json({ success: false, error: 'Pseudo et Tag requis' }, { status: 400 });
       }
 
-      const existing = lobby.members.find(
-        (m) => m.gameName.toLowerCase() === gameName.toLowerCase() && m.tagLine.toLowerCase() === tagLine.toLowerCase()
+      const existing = currentLobby.members.find(
+        (m: any) => m.gameName.toLowerCase() === gameName.toLowerCase() && m.tagLine.toLowerCase() === tagLine.toLowerCase()
       );
 
       if (existing) {
-        return NextResponse.json({ success: true, lobby, message: 'Déjà membre du salon' });
+        return NextResponse.json({ success: true, lobby: currentLobby, message: 'Déjà membre du salon' });
       }
 
-      if (lobby.members.length >= lobby.maxSlots) {
+      if (currentLobby.members.length >= currentLobby.maxSlots) {
         return NextResponse.json({ success: false, error: 'Le salon est complet' }, { status: 400 });
       }
 
@@ -112,8 +128,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         avatarUrl,
       };
 
-      lobby.members.push(newMember);
-      lobby.currentSlots = lobby.members.length;
+      currentLobby.members.push(newMember);
+      currentLobby.currentSlots = currentLobby.members.length;
+
+      // Update in Neon DB
+      await updateLobbyInNeon(id, { members: currentLobby.members });
 
       const joinMsg: ChatMessage = {
         id: `msg_${Date.now()}`,
@@ -122,9 +141,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         content: `${gameName}#${tagLine} a rejoint le salon !`,
         timestamp: Date.now(),
       };
-      lobby.chat.push(joinMsg);
+      currentLobby.chat.push(joinMsg);
+      await addChatMessageToNeon(id, joinMsg);
 
-      return NextResponse.json({ success: true, lobby, member: newMember });
+      return NextResponse.json({ success: true, lobby: currentLobby, member: newMember });
     }
 
     // ACTION: SEND MODERATED CHAT MESSAGE
@@ -146,21 +166,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         isToxic: modResult.isToxic,
       };
 
-      lobby.chat.push(msg);
-      if (lobby.chat.length > 100) {
-        lobby.chat = lobby.chat.slice(-100);
+      currentLobby.chat.push(msg);
+      if (currentLobby.chat.length > 100) {
+        currentLobby.chat = currentLobby.chat.slice(-100);
       }
 
-      return NextResponse.json({ success: true, message: msg, chat: lobby.chat, isToxic: modResult.isToxic });
+      // Save to Neon DB
+      await addChatMessageToNeon(id, msg);
+
+      return NextResponse.json({ success: true, message: msg, chat: currentLobby.chat, isToxic: modResult.isToxic });
     }
 
-    // ACTION: VOICE JOIN (Décrocher 📞)
+    // ACTION: VOICE JOIN
     if (body.action === 'voice-join') {
       const { memberId, gameName, tagLine, avatarUrl, rank, isPrivateRank } = body;
-      if (!lobby.voiceMembers) lobby.voiceMembers = [];
+      if (!currentLobby.voiceMembers) currentLobby.voiceMembers = [];
 
-      const existingIndex = lobby.voiceMembers.findIndex(
-        (v) => v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase()
+      const existingIndex = currentLobby.voiceMembers.findIndex(
+        (v: any) => v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase()
       );
 
       if (existingIndex === -1) {
@@ -175,53 +198,62 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           isMuted: false,
           joinedAt: Date.now(),
         };
-        lobby.voiceMembers.push(newVoiceMember);
+        currentLobby.voiceMembers.push(newVoiceMember);
 
-        lobby.chat.push({
+        // Update in Neon DB
+        await updateLobbyInNeon(id, { voiceMembers: currentLobby.voiceMembers });
+
+        const sysMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           senderName: 'Système',
           senderTag: 'SPYCAM',
           content: `📞 ${gameName}#${tagLine} a rejoint le canal vocal.`,
           timestamp: Date.now(),
-        });
+        };
+        currentLobby.chat.push(sysMsg);
+        await addChatMessageToNeon(id, sysMsg);
       }
 
-      return NextResponse.json({ success: true, voiceMembers: lobby.voiceMembers });
+      return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers });
     }
 
-    // ACTION: VOICE LEAVE (Raccrocher 🔴)
+    // ACTION: VOICE LEAVE
     if (body.action === 'voice-leave') {
       const { gameName, tagLine } = body;
-      if (lobby.voiceMembers) {
-        lobby.voiceMembers = lobby.voiceMembers.filter(
-          (v) => !(v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase())
+      if (currentLobby.voiceMembers) {
+        currentLobby.voiceMembers = currentLobby.voiceMembers.filter(
+          (v: any) => !(v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase())
         );
 
-        lobby.chat.push({
+        await updateLobbyInNeon(id, { voiceMembers: currentLobby.voiceMembers });
+
+        const leaveSys: ChatMessage = {
           id: `msg_${Date.now()}`,
           senderName: 'Système',
           senderTag: 'SPYCAM',
           content: `🔴 ${gameName}#${tagLine} a quitté le canal vocal.`,
           timestamp: Date.now(),
-        });
+        };
+        currentLobby.chat.push(leaveSys);
+        await addChatMessageToNeon(id, leaveSys);
       }
 
-      return NextResponse.json({ success: true, voiceMembers: lobby.voiceMembers || [] });
+      return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers || [] });
     }
 
     // ACTION: VOICE STATE
     if (body.action === 'voice-state') {
       const { gameName, tagLine, isSpeaking, isMuted } = body;
-      if (lobby.voiceMembers) {
-        const member = lobby.voiceMembers.find(
-          (v) => v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase()
+      if (currentLobby.voiceMembers) {
+        const member = currentLobby.voiceMembers.find(
+          (v: any) => v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase()
         );
         if (member) {
           if (typeof isSpeaking === 'boolean') member.isSpeaking = isSpeaking;
           if (typeof isMuted === 'boolean') member.isMuted = isMuted;
         }
       }
-      return NextResponse.json({ success: true, voiceMembers: lobby.voiceMembers || [] });
+      return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers || [] });
     }
 
     // ACTION: VOICE TRANSCRIPT AUDIT LOG
@@ -238,12 +270,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           isToxic: mod.isToxic,
         };
 
-        if (!lobby.voiceTranscripts) lobby.voiceTranscripts = [];
-        lobby.voiceTranscripts.push(logEntry);
+        if (!currentLobby.voiceTranscripts) currentLobby.voiceTranscripts = [];
+        currentLobby.voiceTranscripts.push(logEntry);
 
-        if (lobby.voiceTranscripts.length > 150) {
-          lobby.voiceTranscripts = lobby.voiceTranscripts.slice(-150);
+        if (currentLobby.voiceTranscripts.length > 150) {
+          currentLobby.voiceTranscripts = currentLobby.voiceTranscripts.slice(-150);
         }
+
+        // Save transcript to Neon DB
+        await addVoiceTranscriptToNeon(id, logEntry);
       }
       return NextResponse.json({ success: true });
     }
@@ -251,20 +286,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ACTION: LEAVE LOBBY
     if (body.action === 'leave') {
       const { gameName, tagLine } = body;
-      lobby.members = lobby.members.filter(
-        (m) => !(m.gameName.toLowerCase() === gameName?.toLowerCase() && m.tagLine.toLowerCase() === tagLine?.toLowerCase())
+      currentLobby.members = currentLobby.members.filter(
+        (m: any) => !(m.gameName.toLowerCase() === gameName?.toLowerCase() && m.tagLine.toLowerCase() === tagLine?.toLowerCase())
       );
-      if (lobby.voiceMembers) {
-        lobby.voiceMembers = lobby.voiceMembers.filter(
-          (v) => !(v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase())
+      if (currentLobby.voiceMembers) {
+        currentLobby.voiceMembers = currentLobby.voiceMembers.filter(
+          (v: any) => !(v.gameName.toLowerCase() === gameName?.toLowerCase() && v.tagLine.toLowerCase() === tagLine?.toLowerCase())
         );
       }
-      lobby.currentSlots = lobby.members.length;
+      currentLobby.currentSlots = currentLobby.members.length;
 
-      if (lobby.members.length === 0 || (lobby.leaderName.toLowerCase() === gameName?.toLowerCase() && lobby.leaderTag.toLowerCase() === tagLine?.toLowerCase())) {
-        global._spycam_lobbies = global._spycam_lobbies!.filter((l) => l.id !== id);
+      if (currentLobby.members.length === 0 || (currentLobby.leaderName.toLowerCase() === gameName?.toLowerCase() && currentLobby.leaderTag.toLowerCase() === tagLine?.toLowerCase())) {
+        if (global._spycam_lobbies) {
+          global._spycam_lobbies = global._spycam_lobbies.filter((l) => l.id !== id);
+        }
+        await deleteLobbyFromNeon(id);
         return NextResponse.json({ success: true, removed: true });
       }
+
+      await updateLobbyInNeon(id, { members: currentLobby.members, voiceMembers: currentLobby.voiceMembers });
 
       const leaveMsg: ChatMessage = {
         id: `msg_${Date.now()}`,
@@ -273,9 +313,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         content: `${gameName}#${tagLine} a quitté le salon.`,
         timestamp: Date.now(),
       };
-      lobby.chat.push(leaveMsg);
+      currentLobby.chat.push(leaveMsg);
+      await addChatMessageToNeon(id, leaveMsg);
 
-      return NextResponse.json({ success: true, lobby });
+      return NextResponse.json({ success: true, lobby: currentLobby });
     }
 
     return NextResponse.json({ success: false, error: 'Action non reconnue' }, { status: 400 });
@@ -289,5 +330,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (global._spycam_lobbies) {
     global._spycam_lobbies = global._spycam_lobbies.filter((l) => l.id !== id);
   }
+  await deleteLobbyFromNeon(id);
   return NextResponse.json({ success: true });
 }

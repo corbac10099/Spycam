@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo, useCallback } from "react";
+import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useLanguage, tr, trFormat } from "@/lib/i18n";
@@ -24,6 +24,9 @@ import { UserBadges } from "@/components/UserBadges";
 import LobbiesView from "@/components/LobbiesView";
 import HotkeysHelpModal from "@/components/HotkeysHelpModal";
 import { registerServiceWorker } from "@/lib/pushNotifications";
+import FloatingVoiceBar from "@/components/FloatingVoiceBar";
+import { VoiceManager } from "@/lib/voiceManager";
+import { LobbyItem } from "@/app/api/lobbies/route";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -161,6 +164,15 @@ function HomeContent() {
   const [agentsView, setAgentsView] = useState(false);
   const [lobbiesView, setLobbiesView] = useState(false);
   const [showHotkeysModal, setShowHotkeysModal] = useState(false);
+  
+  // Persistent Global Voice & Lobby State across all page views
+  const [activeVoiceLobby, setActiveVoiceLobby] = useState<LobbyItem | null>(null);
+  const [isInVoiceGlobal, setIsInVoiceGlobal] = useState<boolean>(false);
+  const [isMicMutedGlobal, setIsMicMutedGlobal] = useState<boolean>(false);
+  const [isMyVoiceSpeakingGlobal, setIsMyVoiceSpeakingGlobal] = useState<boolean>(false);
+  const [voiceVolumeLevelGlobal, setVoiceVolumeLevelGlobal] = useState<number>(0);
+  const globalVoiceManagerRef = useRef<VoiceManager | null>(null);
+
   const [ecoMode, setEcoMode] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("spycam_eco_mode") === "true";
@@ -1050,6 +1062,17 @@ function HomeContent() {
               playerData={playerData?.player || playerData}
               isPublic={isPublic}
               onUpdateIsPublic={setIsPublic}
+              activeLobby={activeVoiceLobby}
+              setActiveLobby={setActiveVoiceLobby}
+              isInVoice={isInVoiceGlobal}
+              setIsInVoice={setIsInVoiceGlobal}
+              isMicMuted={isMicMutedGlobal}
+              setIsMicMuted={setIsMicMutedGlobal}
+              isMyVoiceSpeaking={isMyVoiceSpeakingGlobal}
+              setIsMyVoiceSpeaking={setIsMyVoiceSpeakingGlobal}
+              voiceVolumeLevel={voiceVolumeLevelGlobal}
+              setVoiceVolumeLevel={setVoiceVolumeLevelGlobal}
+              voiceManagerRef={globalVoiceManagerRef}
               onSelectPlayer={(id) => {
                 setLobbiesView(false);
                 searchPlayer(id);
@@ -1517,6 +1540,51 @@ function HomeContent() {
           onOpenLeaderboard={() => setShowLeaderboardModal(true)}
           onToggleFullscreen={toggleFullscreen}
         />
+
+        {/* Persistent Floating Voice Bar when navigating across Spycam */}
+        {!lobbiesView && isInVoiceGlobal && activeVoiceLobby && (
+          <FloatingVoiceBar
+            activeLobby={activeVoiceLobby}
+            isInVoice={isInVoiceGlobal}
+            isMicMuted={isMicMutedGlobal}
+            isSpeaking={isMyVoiceSpeakingGlobal}
+            voiceVolumeLevel={voiceVolumeLevelGlobal}
+            onToggleMute={() => {
+              const nextMute = !isMicMutedGlobal;
+              setIsMicMutedGlobal(nextMute);
+              globalVoiceManagerRef.current?.setMute(nextMute);
+            }}
+            onOpenSalon={() => {
+              setNewsView(false);
+              setAgentsView(false);
+              setSettingsOpen(false);
+              setLobbiesView(true);
+            }}
+            onLeaveVoice={async () => {
+              if (globalVoiceManagerRef.current) {
+                globalVoiceManagerRef.current.stop();
+                globalVoiceManagerRef.current = null;
+              }
+              setIsInVoiceGlobal(false);
+              setIsMyVoiceSpeakingGlobal(false);
+              if (activeVoiceLobby) {
+                try {
+                  const myName = playerData?.gameName || playerData?.player?.gameName || "Joueur";
+                  const myTag = playerData?.tagLine || playerData?.player?.tagLine || "EUW";
+                  await fetch(`/api/lobbies/${activeVoiceLobby.id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      action: "voice-leave",
+                      gameName: myName,
+                      tagLine: myTag,
+                    }),
+                  });
+                } catch {}
+              }
+            }}
+          />
+        )}
       </main>
 
       {/* Legal Disclaimer */}

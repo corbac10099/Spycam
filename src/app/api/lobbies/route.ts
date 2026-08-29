@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { filterToxicText } from '@/lib/moderation';
+import { getLobbiesFromNeon, createLobbyInNeon } from '@/lib/lobbyDb';
 
 export interface LobbyMember {
   id: string;
@@ -214,11 +215,13 @@ export async function GET(req: NextRequest) {
   const minTier = searchParams.get('minTier') ? parseInt(searchParams.get('minTier')!) : null;
   const maxTier = searchParams.get('maxTier') ? parseInt(searchParams.get('maxTier')!) : null;
 
-  // Clean lobbies older than 24 hours from public listing (logs retained in memory/database)
-  const oneDayAgo = Date.now() - 1000 * 60 * 60 * 24;
-  global._spycam_lobbies = (global._spycam_lobbies || []).filter((l) => l.createdAt > oneDayAgo);
+  // Fetch from Neon DB (with seamless fallback)
+  let dbLobbies = await getLobbiesFromNeon();
+  if (dbLobbies.length === 0 && global._spycam_lobbies && global._spycam_lobbies.length > 0) {
+    dbLobbies = global._spycam_lobbies;
+  }
 
-  let filtered = [...global._spycam_lobbies];
+  let filtered = [...dbLobbies];
 
   if (mode && mode !== 'all') {
     filtered = filtered.filter((l) => l.mode === mode);
@@ -340,9 +343,12 @@ export async function POST(req: NextRequest) {
     if (!global._spycam_lobbies) global._spycam_lobbies = [];
     global._spycam_lobbies.unshift(newLobby);
 
+    // Save to Neon DB
+    const savedLobby = await createLobbyInNeon(newLobby);
+
     return NextResponse.json({
       success: true,
-      lobby: newLobby,
+      lobby: savedLobby || newLobby,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
