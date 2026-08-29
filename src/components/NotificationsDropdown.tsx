@@ -18,12 +18,14 @@ export interface NotificationsDropdownProps {
   onNavigateToNews?: (newsId?: string) => void;
   onNavigateToAgents?: () => void;
   playerStats?: any;
+  compact?: boolean;
 }
 
 export default function NotificationsDropdown({
   onNavigateToNews,
   onNavigateToAgents,
   playerStats,
+  compact = false,
 }: NotificationsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -60,6 +62,14 @@ export default function NotificationsDropdown({
         type: "tip",
         read: false,
       },
+      {
+        id: "sys-badges",
+        title: "Badges & Rangs Débloqués",
+        message: "Consultez vos badges Riot exclusifs directement sur votre profil utilisateur !",
+        time: "Système",
+        type: "system",
+        read: false,
+      },
     ];
 
     // Add player stats alert with stable ID
@@ -85,28 +95,26 @@ export default function NotificationsDropdown({
       }
     }
 
-    // Fetch news from API
-    fetch("/api/cms/news")
-      .then((r) => r.json())
-      .then((newsData) => {
-        if (Array.isArray(newsData) && newsData.length > 0) {
-          const latestNews = newsData.slice(0, 3).map((n) => ({
-            id: `news-${n.id}`,
-            newsId: n.id,
-            title: `Actualité : ${n.title}`,
-            message: "Cliquez pour lire l'article complet et voir les nouveautés.",
-            time: n.createdAt
-              ? new Date(n.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
-              : "Actu",
+    // Try fetching recent Valorant news to add to notifications
+    fetch("/api/translate-news")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.news)) {
+          const topNews = data.news.slice(0, 3).map((n: any) => ({
+            id: `news-${n.id || n.title}`,
+            title: n.title,
+            message: n.description || "Découvrez les dernières nouveautés et notes de patch officielles.",
+            time: n.date ? new Date(n.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "Récemment",
             type: "news" as const,
             read: false,
             actionView: "news",
+            newsId: n.id,
           }));
-          items.unshift(...latestNews);
+          items.unshift(...topNews);
         }
+        setNotifications(items);
       })
-      .catch(() => {})
-      .finally(() => {
+      .catch(() => {
         setNotifications(items);
       });
   }, [playerStats]);
@@ -162,20 +170,26 @@ export default function NotificationsDropdown({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title="Notifications"
-        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 border relative cursor-pointer ${
-          isOpen
-            ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-            : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
-        }`}
+        className={
+          compact
+            ? `relative flex items-center justify-center p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer select-none active:scale-95 ${
+                isOpen ? "text-white bg-white/[0.1]" : ""
+              }`
+            : `w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 border relative cursor-pointer ${
+                isOpen
+                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
+                  : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
+              }`
+        }
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width={compact ? 15 : 18} height={compact ? 15 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
 
         {/* Unread Badge */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-val-red)] text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(255,70,85,0.8)] border border-[#0a0e13] animate-pulse">
+          <span className={`absolute ${compact ? "-top-0.5 -right-0.5 min-w-[14px] h-[14px] text-[8px]" : "-top-1 -right-1 min-w-[18px] h-[18px] text-[10px]"} px-0.5 rounded-full bg-[var(--color-val-red)] text-white font-black flex items-center justify-center shadow-[0_0_8px_rgba(255,70,85,0.8)] border border-[#0a0e13] animate-pulse`}>
             {unreadCount}
           </span>
         )}

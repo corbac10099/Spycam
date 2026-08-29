@@ -32,7 +32,7 @@ function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
 }
 
-function HomeContent() {
+export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView?: boolean } = {}) {
   const { data: realSession, status: realStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -162,7 +162,7 @@ function HomeContent() {
   const [newsView, setNewsView] = useState(false);
   const [targetNewsId, setTargetNewsId] = useState<string | null>(null);
   const [agentsView, setAgentsView] = useState(false);
-  const [lobbiesView, setLobbiesView] = useState(false);
+  const [lobbiesView, setLobbiesView] = useState(initialLobbiesView);
   const [showHotkeysModal, setShowHotkeysModal] = useState(false);
   
   // Persistent Global Voice & Lobby State across all page views
@@ -321,7 +321,7 @@ function HomeContent() {
       tab?: string;
       playerId?: string | null;
       isOwnProfile?: boolean;
-      view?: "news" | "agents" | "settings" | null;
+      view?: "news" | "agents" | "settings" | "lobbies" | null;
       agentSlug?: string | null;
       settingsTab?: string | null;
     }) => {
@@ -334,7 +334,9 @@ function HomeContent() {
 
       let path = "/";
 
-      if (view === "news") {
+      if (view === "lobbies") {
+        path = "/salons";
+      } else if (view === "news") {
         path = isOwn || !playerId ? "/actualites" : `/${riotIdToSlug(playerId)}/actualites`;
       } else if (view === "agents") {
         if (agentSlug) {
@@ -365,7 +367,8 @@ function HomeContent() {
         window.history.pushState(null, "", path);
       }
 
-      const pageTitle = view === "news" ? "Actualités & Patchs"
+      const pageTitle = view === "lobbies" ? "Salons LFG & Vocal"
+        : view === "news" ? "Actualités & Patchs"
         : view === "agents" ? "Agents & Guides"
         : view === "settings" ? "Profil & Paramètres"
         : tab === "maps" ? "Cartes & Lineups"
@@ -1023,6 +1026,7 @@ function HomeContent() {
             setLobbiesView(false);
             setSettingsOpen(false);
             goHome();
+            pushUrl({ tab: "performance", playerId: myRiotId, isOwnProfile: true });
           }}
           onOpenNews={(newsId) => {
             setNewsView(true);
@@ -1047,6 +1051,8 @@ function HomeContent() {
             setNewsView(false);
             setAgentsView(false);
             setSettingsOpen(false);
+            const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
+            pushUrl({ view: "lobbies", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
           }}
           onOpenHotkeys={() => setShowHotkeysModal(true)}
           onToggleSettings={() => {

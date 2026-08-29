@@ -190,7 +190,7 @@ export default function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ─── Nav Items Config (includes Leaderboard now) ───────────────────
+  // ─── Nav Items Config (includes Leaderboard) ───────────────────────
   const navItems: { id: NavId; label: string; icon: React.ReactNode; onClick: () => void; show: boolean }[] = [
     {
       id: "profile",
@@ -232,14 +232,14 @@ export default function Header({
   return (
     <header className="w-full z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md sticky top-0 mb-6 sm:mb-8 flex flex-col shadow-lg">
       {/* Top Navbar */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 w-full gap-3">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 w-full gap-2 lg:gap-4">
 
-        {/* ═══ LEFT: Logo + Sliding Nav Pill ═══ */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        {/* ═══ LEFT GROUP: Logo on far left + Nav Pill centered between Logo & Search ═══ */}
+        <div className="flex items-center flex-1 min-w-0">
           {/* Logo */}
           <div
             onClick={onGoHome}
-            className="flex items-center gap-2.5 cursor-pointer select-none transition-all hover:scale-105 active:scale-95 group"
+            className="flex items-center gap-2.5 cursor-pointer select-none transition-all hover:scale-105 active:scale-95 group flex-shrink-0 mr-2 lg:mr-4"
             title="Spycam Accueil"
           >
             <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center">
@@ -249,57 +249,59 @@ export default function Header({
                 className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,70,85,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(255,70,85,0.9)] transition-all"
               />
             </div>
-            <span className="font-black text-base sm:text-lg text-[var(--color-text-primary)] tracking-widest hidden lg:inline-block">
+            <span className="font-black text-base sm:text-lg text-[var(--color-text-primary)] tracking-widest hidden xl:inline-block">
               SPYCAM
             </span>
           </div>
 
-          {/* Navigation Pill with Sliding Indicator */}
-          <div
-            ref={navContainerRef}
-            className="hidden md:flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md relative"
-          >
-            {/* Animated Sliding Red Pill Background */}
+          {/* Centered Nav Pill Container in space between Logo and Search Bar */}
+          <div className="hidden md:flex flex-1 items-center justify-center min-w-0 px-1">
             <div
-              className="absolute top-1 bottom-1 rounded-xl bg-[var(--color-val-red)] shadow-[0_0_18px_rgba(255,70,85,0.6)] pointer-events-none z-0"
-              style={{
-                transform: `translateX(${pillStyle.left}px)`,
-                width: `${pillStyle.width}px`,
-                opacity: pillStyle.opacity,
-                transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-              }}
-            />
+              ref={navContainerRef}
+              className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md"
+            >
+              {/* Animated Sliding Red Pill Background */}
+              <div
+                className="absolute top-1 bottom-1 rounded-xl bg-[var(--color-val-red)] shadow-[0_0_18px_rgba(255,70,85,0.6)] pointer-events-none z-0"
+                style={{
+                  transform: `translateX(${pillStyle.left}px)`,
+                  width: `${pillStyle.width}px`,
+                  opacity: pillStyle.opacity,
+                  transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
+              />
 
-            {/* Nav Buttons */}
-            {navItems
-              .filter((item) => item.show)
-              .map((item) => {
-                const isActive = activeNavId === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    ref={(el) => { btnRefs.current[item.id] = el; }}
-                    onClick={() => {
-                      sounds.playTabSwitch();
-                      item.onClick();
-                    }}
-                    onMouseEnter={() => sounds.playHover()}
-                    className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-colors duration-200 active:scale-95 whitespace-nowrap ${
-                      isActive
-                        ? "text-white"
-                        : "text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="hidden xl:inline">{item.label}</span>
-                  </button>
-                );
-              })}
+              {/* Nav Buttons */}
+              {navItems
+                .filter((item) => item.show)
+                .map((item) => {
+                  const isActive = activeNavId === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      ref={(el) => { btnRefs.current[item.id] = el; }}
+                      onClick={() => {
+                        sounds.playTabSwitch();
+                        item.onClick();
+                      }}
+                      onMouseEnter={() => sounds.playHover()}
+                      className={`relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-colors duration-200 active:scale-95 whitespace-nowrap ${
+                        isActive
+                          ? "text-white"
+                          : "text-neutral-400 hover:text-white"
+                      }`}
+                    >
+                      {item.icon}
+                      <span className="hidden xl:inline">{item.label}</span>
+                    </button>
+                  );
+                })}
+            </div>
           </div>
         </div>
 
         {/* ═══ CENTER: Search Bar ═══ */}
-        <div className="flex-1 flex items-center justify-center max-w-md mx-auto">
+        <div className="w-full max-w-xs sm:max-w-sm flex-shrink-0 mx-1 lg:mx-2">
           <div ref={searchContainerRef} className="relative w-full">
             <form onSubmit={handleSubmit} className="relative w-full">
               <input
@@ -313,7 +315,7 @@ export default function Header({
                 }}
                 onKeyDown={() => sounds.playTyping()}
                 onFocus={() => setIsFocused(true)}
-                className={`w-full bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm outline-none transition-all duration-300 pr-16 ${
+                className={`w-full bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm outline-none transition-all duration-300 pr-16 ${
                   isFocused ? "shadow-[0_0_25px_rgba(255,255,255,0.3)] ring-2 ring-[var(--color-val-red)]" : ""
                 }`}
                 required
@@ -421,51 +423,56 @@ export default function Header({
           </div>
         </div>
 
-        {/* ═══ RIGHT: Clock+Notifs capsule + Paramètres button + Logout ═══ */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* ═══ RIGHT: Identically styled Capsules (same size & shape as left) ═══ */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end min-w-0">
 
-          {/* ── Capsule: Clock + Notifications ── */}
-          <div className="hidden md:flex items-center p-0.5 rounded-full bg-black/25 border border-white/10 backdrop-blur-md">
+          {/* ── Capsule 1: LiveClock + Notifications ── */}
+          <div className="hidden md:flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md">
             <LiveClock />
-            <div className="w-px h-5 bg-white/10" />
+            <div className="w-px h-4 bg-white/10" />
             <NotificationsDropdown
+              compact={true}
               onNavigateToNews={onOpenNews}
               onNavigateToAgents={onOpenAgents}
               playerStats={playerStats}
             />
           </div>
 
-          {/* ── Paramètres button (with text) ── */}
-          <button
-            onClick={() => {
-              sounds.playTabSwitch();
-              onToggleSettings();
-            }}
-            onMouseEnter={() => sounds.playHover()}
-            title="Paramètres & Raccourcis"
-            className={`hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all border text-xs font-bold cursor-pointer active:scale-95 ${
-              settingsOpen
-                ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                : "bg-black/25 hover:bg-white/[0.07] border-white/10 text-white/80 hover:text-white backdrop-blur-md"
-            }`}
-          >
-            <IconSettings size={15} className={settingsOpen ? "animate-spin-slow" : ""} />
-            <span>Paramètres</span>
-          </button>
+          {/* ── Capsule 2: Paramètres ── */}
+          <div className="hidden md:flex items-center p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md">
+            <button
+              onClick={() => {
+                sounds.playTabSwitch();
+                onToggleSettings();
+              }}
+              onMouseEnter={() => sounds.playHover()}
+              title="Paramètres & Raccourcis"
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-all duration-200 active:scale-95 whitespace-nowrap ${
+                settingsOpen
+                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
+                  : "text-neutral-400 hover:text-white hover:bg-white/[0.07]"
+              }`}
+            >
+              <IconSettings size={15} className={settingsOpen ? "animate-spin-slow" : ""} />
+              <span>Paramètres</span>
+            </button>
+          </div>
 
-          {/* ── Logout button ── */}
-          <button
-            onClick={() => {
-              sounds.playClick();
-              signOut({ callbackUrl: "/login" });
-            }}
-            onMouseEnter={() => sounds.playHover()}
-            className="hidden md:flex items-center gap-1 px-3 py-2 rounded-full bg-black/25 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/70 hover:text-red-400 transition-all cursor-pointer active:scale-95 backdrop-blur-md text-xs font-bold"
-            title="Déconnexion"
-          >
-            <IconLogOut size={14} />
-            <span className="hidden lg:inline">Quitter</span>
-          </button>
+          {/* ── Capsule 3: Quitter / Déconnexion ── */}
+          <div className="hidden md:flex items-center p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md">
+            <button
+              onClick={() => {
+                sounds.playClick();
+                signOut({ callbackUrl: "/login" });
+              }}
+              onMouseEnter={() => sounds.playHover()}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-neutral-400 hover:text-red-400 hover:bg-red-500/10 cursor-pointer select-none transition-all duration-200 active:scale-95 whitespace-nowrap"
+              title="Déconnexion"
+            >
+              <IconLogOut size={14} />
+              <span className="hidden lg:inline">Quitter</span>
+            </button>
+          </div>
 
           {/* ── Mobile fallback buttons ── */}
           <div className="flex md:hidden items-center gap-1.5">

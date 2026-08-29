@@ -1,27 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { HomeContent } from "@/app/page";
 
 /**
- * Route /salons — redirige vers la page principale avec la vue Salons activée.
- * Permet l'accès direct via http://127.0.0.1:3000/salons
+ * Route /salons — affiche directement la vue Salons LFG & Vocal de Spycam
+ * tout en conservant l'URL /salons dans la barre d'adresse.
  */
 export default function SalonsPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/?view=lobbies");
-  }, [router]);
-
   return (
-    <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-2 border-[var(--color-val-red)] border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-bold text-white/60 uppercase tracking-wider">
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center text-[var(--color-text-secondary)] font-bold tracking-widest uppercase animate-pulse">
           Chargement des salons...
-        </span>
-      </div>
-    </div>
+        </div>
+      }
+    >
+      <HomeContent initialLobbiesView={true} />
+    </Suspense>
   );
 }
