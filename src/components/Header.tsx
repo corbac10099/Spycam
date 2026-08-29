@@ -73,12 +73,6 @@ export default function Header({
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Quantum Hopping Animation State ────────────────────────────────
-  const [quantumHopPhase, setQuantumHopPhase] = useState<
-    "none" | "search" | "clock" | "settings" | "notifications" | "logout"
-  >("none");
-  const [isQuantumJumping, setIsQuantumJumping] = useState(false);
-
   // ─── Sliding Pill State ─────────────────────────────────────────────
   const navContainerRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<Record<NavId, HTMLButtonElement | null>>({
@@ -107,7 +101,7 @@ export default function Header({
 
   // Measure active button and position the sliding pill
   useLayoutEffect(() => {
-    if (!activeNavId || !navContainerRef.current || isQuantumJumping) {
+    if (!activeNavId || !navContainerRef.current) {
       setPillStyle((prev) => ({ ...prev, opacity: 0 }));
       return;
     }
@@ -124,65 +118,7 @@ export default function Header({
       width: btnRect.width,
       opacity: 1,
     });
-  }, [activeNavId, myRiotId, leaderboardOpen, isQuantumJumping]);
-
-  // ─── Quantum Jump Orchestrator (Left -> Search -> Clock -> Target) ──
-  const triggerQuantumJump = (
-    target: "settings" | "notifications" | "logout",
-    action: () => void
-  ) => {
-    setIsQuantumJumping(true);
-    // Phase 1: Left pill dissolves
-    setPillStyle((prev) => ({ ...prev, opacity: 0 }));
-
-    // Phase 2 (75ms): Emerges through Search Bar
-    setTimeout(() => {
-      setQuantumHopPhase("search");
-      sounds.playTabSwitch();
-    }, 75);
-
-    // Phase 3 (185ms): Emerges through Clock & Notifs capsule
-    setTimeout(() => {
-      setQuantumHopPhase("clock");
-      sounds.playHover();
-    }, 185);
-
-    // Phase 4 (295ms): Impacts & locks onto Target button
-    setTimeout(() => {
-      setQuantumHopPhase(target);
-      sounds.playLockIn();
-      action();
-
-      setTimeout(() => {
-        setQuantumHopPhase("none");
-        setIsQuantumJumping(false);
-      }, 350);
-    }, 295);
-  };
-
-  // ─── Reverse Quantum Jump (Right -> Clock -> Search -> Left Nav) ────
-  const handleNavClick = (item: { id: NavId; onClick: () => void }) => {
-    if (settingsOpen || activeNavId === null) {
-      setIsQuantumJumping(true);
-      setQuantumHopPhase("clock");
-      sounds.playHover();
-
-      setTimeout(() => {
-        setQuantumHopPhase("search");
-        sounds.playTabSwitch();
-      }, 90);
-
-      setTimeout(() => {
-        setQuantumHopPhase("none");
-        setIsQuantumJumping(false);
-        sounds.playLockIn();
-        item.onClick();
-      }, 210);
-    } else {
-      sounds.playTabSwitch();
-      item.onClick();
-    }
-  };
+  }, [activeNavId, myRiotId, leaderboardOpen]);
 
   // ─── Recent Searches ───────────────────────────────────────────────
   useEffect(() => {
@@ -302,7 +238,7 @@ export default function Header({
         <div className="flex items-center flex-1 min-w-0">
           {/* Logo */}
           <div
-            onClick={() => handleNavClick({ id: "profile", onClick: onGoHome })}
+            onClick={onGoHome}
             className="flex items-center gap-2.5 cursor-pointer select-none transition-all hover:scale-105 active:scale-95 group flex-shrink-0 mr-2 lg:mr-4"
             title="Spycam Accueil"
           >
@@ -344,7 +280,10 @@ export default function Header({
                     <button
                       key={item.id}
                       ref={(el) => { btnRefs.current[item.id] = el; }}
-                      onClick={() => handleNavClick(item)}
+                      onClick={() => {
+                        sounds.playTabSwitch();
+                        item.onClick();
+                      }}
                       onMouseEnter={() => sounds.playHover()}
                       className={`relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-colors duration-200 active:scale-95 whitespace-nowrap ${
                         isActive
@@ -361,7 +300,7 @@ export default function Header({
           </div>
         </div>
 
-        {/* ═══ CENTER: Search Bar with Quantum Hop Effect ═══ */}
+        {/* ═══ CENTER: Search Bar ═══ */}
         <div className="w-full max-w-xs sm:max-w-sm flex-shrink-0 mx-1 lg:mx-2">
           <div ref={searchContainerRef} className="relative w-full">
             <form onSubmit={handleSubmit} className="relative w-full">
@@ -370,18 +309,10 @@ export default function Header({
                 type="text"
                 placeholder="Rechercher (Pseudo#Tag)"
                 value={riotId}
-                onChange={(e) => {
-                  sounds.playTyping();
-                  setRiotId(e.target.value);
-                }}
-                onKeyDown={() => sounds.playTyping()}
+                onChange={(e) => setRiotId(e.target.value)}
                 onFocus={() => setIsFocused(true)}
                 className={`w-full bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm outline-none transition-all duration-300 pr-16 ${
-                  isFocused
-                    ? "shadow-[0_0_25px_rgba(255,255,255,0.3)] ring-2 ring-[var(--color-val-red)]"
-                    : quantumHopPhase === "search"
-                    ? "quantum-hop-search"
-                    : ""
+                  isFocused ? "shadow-[0_0_25px_rgba(255,255,255,0.3)] ring-2 ring-[var(--color-val-red)]" : ""
                 }`}
                 required
               />
@@ -394,9 +325,9 @@ export default function Header({
               </div>
             </form>
 
-            {/* Smart Search Suggestions Dropdown */}
+            {/* Smart Search Suggestions Dropdown with Spring Pop-In */}
             {isFocused && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-2">
+              <div className="absolute left-0 right-0 top-full mt-2 bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 overflow-hidden animate-search-dropdown p-2">
                 {/* Recent Searches */}
                 {recentSearches.length > 0 && (
                   <div className="mb-1">
@@ -479,7 +410,7 @@ export default function Header({
                 )}
 
                 {recentSearches.length === 0 && favorites.length === 0 && (
-                  <div className="p-4 text-center text-xs text-[var(--color-text-secondary)]">
+                  <div className="p-4 text-center text-xs text-[var(--color-text-secondary)] animate-search-dropdown">
                     Tapez un <strong className="text-[var(--color-text-primary)]">Pseudo#Tag</strong> et appuyez sur Entrée
                   </div>
                 )}
@@ -488,15 +419,11 @@ export default function Header({
           </div>
         </div>
 
-        {/* ═══ RIGHT: Identically styled Capsules with Quantum Hop Effects ═══ */}
+        {/* ═══ RIGHT: Clean Glass Capsules (identical size & shape as left) ═══ */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end min-w-0">
 
           {/* ── Capsule 1: LiveClock + Notifications ── */}
-          <div
-            className={`hidden md:flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md transition-all ${
-              quantumHopPhase === "clock" ? "quantum-hop-clock" : ""
-            }`}
-          >
+          <div className="hidden md:flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md">
             <LiveClock />
             <div className="w-px h-4 bg-white/10" />
             <NotificationsDropdown
@@ -508,13 +435,12 @@ export default function Header({
           </div>
 
           {/* ── Capsule 2: Paramètres ── */}
-          <div
-            className={`hidden md:flex items-center p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md transition-all ${
-              quantumHopPhase === "settings" ? "quantum-hop-impact" : ""
-            }`}
-          >
+          <div className="hidden md:flex items-center p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md">
             <button
-              onClick={() => triggerQuantumJump("settings", onToggleSettings)}
+              onClick={() => {
+                sounds.playTabSwitch();
+                onToggleSettings();
+              }}
               onMouseEnter={() => sounds.playHover()}
               title="Paramètres & Raccourcis"
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-all duration-200 active:scale-95 whitespace-nowrap ${
@@ -529,15 +455,12 @@ export default function Header({
           </div>
 
           {/* ── Capsule 3: Quitter / Déconnexion ── */}
-          <div
-            className={`hidden md:flex items-center p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md transition-all ${
-              quantumHopPhase === "logout" ? "quantum-hop-impact" : ""
-            }`}
-          >
+          <div className="hidden md:flex items-center p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md">
             <button
-              onClick={() =>
-                triggerQuantumJump("logout", () => signOut({ callbackUrl: "/login" }))
-              }
+              onClick={() => {
+                sounds.playClick();
+                signOut({ callbackUrl: "/login" });
+              }}
               onMouseEnter={() => sounds.playHover()}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-neutral-400 hover:text-red-400 hover:bg-red-500/10 cursor-pointer select-none transition-all duration-200 active:scale-95 whitespace-nowrap"
               title="Déconnexion"

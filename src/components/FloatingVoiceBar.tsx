@@ -30,7 +30,7 @@ export default function FloatingVoiceBar({
   const count = activeLobby.voiceMembers?.length || 1;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 animate-in slide-in-from-bottom-6 fade-in duration-300">
+    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 animate-float-call-bar">
       <div
         className={`glass-panel rounded-2xl p-2.5 sm:p-3 border transition-all duration-300 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-2xl flex items-center gap-3 ${
           isSpeaking

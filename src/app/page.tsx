@@ -206,6 +206,30 @@ export function HomeContent({
     registerServiceWorker();
   }, []);
 
+  // Global typing sound on ALL text inputs and textareas across the entire app
+  useEffect(() => {
+    const handleGlobalTyping = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        if (
+          e.key.length === 1 ||
+          e.key === "Backspace" ||
+          e.key === "Enter" ||
+          e.key === "Delete"
+        ) {
+          sounds.playTyping();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalTyping);
+    return () => window.removeEventListener("keydown", handleGlobalTyping);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
