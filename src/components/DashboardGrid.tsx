@@ -394,6 +394,8 @@ export default function DashboardGrid({
     }
 
     e.preventDefault();
+    sounds.playGrabWidget();
+
     const startMouseX = e.clientX;
     const startMouseY = e.clientY;
     const startX = item.x;
@@ -418,8 +420,14 @@ export default function DashboardGrid({
         const deltaX = moveEvent.clientX - startMouseX;
         const deltaY = moveEvent.clientY - startMouseY;
 
-        currentTargetX = Math.max(0, Math.min(gridCols - spanW, Math.round(startX + deltaX / step)));
-        currentTargetY = Math.max(0, Math.round(startY + deltaY / step));
+        const newTargetX = Math.max(0, Math.min(gridCols - spanW, Math.round(startX + deltaX / step)));
+        const newTargetY = Math.max(0, Math.round(startY + deltaY / step));
+
+        if (newTargetX !== currentTargetX || newTargetY !== currentTargetY) {
+          sounds.playDragStep();
+          currentTargetX = newTargetX;
+          currentTargetY = newTargetY;
+        }
 
         setDraggingItem({
           id: item.id,
@@ -463,6 +471,7 @@ export default function DashboardGrid({
   ) => {
     e.preventDefault();
     e.stopPropagation();
+    sounds.playGrabWidget();
     setResizingItemId(itemId);
 
     const startX = e.clientX;
@@ -482,7 +491,12 @@ export default function DashboardGrid({
         const deltaX = moveEvent.clientX - startX;
         const colDelta = Math.round(deltaX / step);
         const maxCols = gridCols - startPosX;
-        finalColSpan = Math.max(minCol, Math.min(maxCols, currentColSpan + colDelta));
+        const newColSpan = Math.max(minCol, Math.min(maxCols, currentColSpan + colDelta));
+
+        if (newColSpan !== finalColSpan) {
+          sounds.playResizeStep();
+          finalColSpan = newColSpan;
+        }
 
         setResizeHint(`${finalColSpan} cols × ${currentRowSpan} lignes`);
         setLayout((prev) =>
@@ -491,7 +505,12 @@ export default function DashboardGrid({
       } else {
         const deltaY = moveEvent.clientY - startY;
         const rowDelta = Math.round(deltaY / step);
-        finalRowSpan = Math.max(minRow, Math.min(25, currentRowSpan + rowDelta));
+        const newRowSpan = Math.max(minRow, Math.min(25, currentRowSpan + rowDelta));
+
+        if (newRowSpan !== finalRowSpan) {
+          sounds.playResizeStep();
+          finalRowSpan = newRowSpan;
+        }
 
         setResizeHint(`${currentColSpan} cols × ${finalRowSpan} lignes`);
         setLayout((prev) =>
@@ -503,6 +522,7 @@ export default function DashboardGrid({
     const onMouseUp = () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      sounds.playDropWidget();
       setResizingItemId(null);
       setResizeHint(null);
 

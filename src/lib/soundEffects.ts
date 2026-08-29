@@ -204,7 +204,85 @@ class SoundEngine {
     } catch {}
   }
 
-  // 6. Grid Widget Snap / Drop sound
+  // 6. Grid Widget Pick up / Grab sound (taking an object)
+  public playGrabWidget() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(540, now + 0.025);
+
+      gain.gain.setValueAtTime(this.volume * 0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.035);
+    } catch {}
+  }
+
+  // 7. Grid Widget Step / Cell Snap sound (moving an object across cells)
+  public playDragStep() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(620, now);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 0.015);
+
+      gain.gain.setValueAtTime(this.volume * 0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.016);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.02);
+    } catch {}
+  }
+
+  // 8. Grid Widget Resize Step sound (dimension expanding/shrinking)
+  public playResizeStep() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.018);
+
+      gain.gain.setValueAtTime(this.volume * 0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.022);
+    } catch {}
+  }
+
+  // 9. Grid Widget Snap / Drop sound (dropping/releasing an object)
   public playDropWidget() {
     if (!this.enabled || this.volume <= 0) return;
     this.initCtx();
@@ -230,7 +308,7 @@ class SoundEngine {
     } catch {}
   }
 
-  // 7. Weapon hitmap modal open slide sound
+  // 10. Weapon hitmap modal open slide sound
   public playWeaponModal() {
     if (!this.enabled || this.volume <= 0) return;
     this.initCtx();
@@ -256,7 +334,7 @@ class SoundEngine {
     } catch {}
   }
 
-  // 8. Cancel / Reset / Close sound (gentle descending chime)
+  // 11. Cancel / Reset / Close sound (gentle descending chime)
   public playCancel() {
     if (!this.enabled || this.volume <= 0) return;
     this.initCtx();
@@ -282,7 +360,7 @@ class SoundEngine {
     } catch {}
   }
 
-  // 9. Satisfying cybernetic lock-in / save chime (the user's favorite)
+  // 12. Satisfying cybernetic lock-in / save chime (the user's favorite)
   public playLockIn() {
     if (!this.enabled || this.volume <= 0) return;
     this.initCtx();
