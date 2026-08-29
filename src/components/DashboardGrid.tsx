@@ -224,11 +224,15 @@ export default function DashboardGrid({
     return () => observer.disconnect();
   }, [isEditing]);
 
+  const isMobile = usableWidth < 768;
+  const editCanvasWidth = isEditing && isMobile ? Math.max(780, usableWidth) : usableWidth;
+
   // Square cell size: 1 column unit = 1 row unit
   const cellSize = useMemo(() => {
+    const widthToUse = isEditing ? editCanvasWidth : usableWidth;
     const totalGaps = (gridCols - 1) * GRID_GAP;
-    return Math.max(15, (usableWidth - totalGaps) / gridCols);
-  }, [usableWidth, gridCols]);
+    return Math.max(15, (widthToUse - totalGaps) / gridCols);
+  }, [usableWidth, isEditing, editCanvasWidth, gridCols]);
 
   const step = useMemo(() => cellSize + GRID_GAP, [cellSize]);
 
@@ -311,32 +315,31 @@ export default function DashboardGrid({
     const currentItem = layout.find((i) => i.id === id);
     if (!currentItem) return;
 
-    const willBeVisible = makeVisible !== undefined ? makeVisible : !currentItem.visible;
+    const newVisibility = makeVisible !== undefined ? makeVisible : !currentItem.visible;
 
-    if (!willBeVisible) {
+    if (!newVisibility) {
+      // Hide item
+      sounds.playClick();
       const updated = layout.map((item) => (item.id === id ? { ...item, visible: false } : item));
       saveState(updated);
       return;
     }
 
-    // When restoring to grid: set minimal readable size
-    const isLargeWidget = id === "chart" || id === "weapons";
-    const minRow = isLargeWidget ? Math.max(2, Math.ceil(130 / step)) : Math.max(1, Math.ceil(75 / step));
-    const minCol = id === "chart"
-      ? Math.min(gridCols, Math.max(6, Math.ceil(240 / step)))
-      : id === "weapons"
-      ? Math.min(gridCols, Math.max(4, Math.ceil(200 / step)))
-      : Math.max(2, Math.min(gridCols, Math.ceil(95 / step)));
+    // Show item: compute minimal size and find best available slot
+    sounds.playGrabWidget();
+    const isLarge = id === "chart" || id === "weapons";
+    const minCol = isLarge ? Math.min(10, gridCols) : 5;
+    const minRow = isLarge ? 4 : 1;
 
-    const visibleItems = layout.filter((item) => item.visible && item.id !== id);
-    const slot = findFirstAvailableSlot(visibleItems, minCol, minRow, gridCols);
+    const visibleItems = layout.filter((i) => i.visible && i.id !== id);
+    const { x, y } = findFirstAvailableSlot(visibleItems, minCol, minRow, gridCols);
 
     const updated = layout.map((item) => {
       if (item.id === id) {
         return {
           ...item,
-          x: slot.x,
-          y: slot.y,
+          x,
+          y,
           colSpan: minCol,
           rowSpan: minRow,
           visible: true,
@@ -423,6 +426,84 @@ export default function DashboardGrid({
     window.addEventListener("mouseup", onMouseUp);
   };
 
+  // Custom Touch Dragging for Mobile / Tablets
+  const handleCardTouchStart = (e: React.TouchEvent, item: GridItemConfig) => {
+    if (!isEditing || resizingItemId) return;
+    if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest(".resize-handle")) {
+      return;
+    }
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    sounds.playGrabWidget();
+
+    const startMouseX = touch.clientX;
+    const startMouseY = touch.clientY;
+    const startX = item.x;
+    const startY = item.y;
+    const spanW = Math.min(item.colSpan, gridCols);
+
+    setDraggingItem({
+      id: item.id,
+      deltaX: 0,
+      deltaY: 0,
+      targetX: startX,
+      targetY: startY,
+    });
+
+    let currentTargetX = startX;
+    let currentTargetY = startY;
+    let rafId: number | null = null;
+
+    const onTouchMove = (moveEvent: TouchEvent) => {
+      const t = moveEvent.touches[0];
+      if (!t) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const deltaX = t.clientX - startMouseX;
+        const deltaY = t.clientY - startMouseY;
+
+        const newTargetX = Math.max(0, Math.min(gridCols - spanW, Math.round(startX + deltaX / step)));
+        const newTargetY = Math.max(0, Math.round(startY + deltaY / step));
+
+        if (newTargetX !== currentTargetX || newTargetY !== currentTargetY) {
+          sounds.playDragStep();
+          currentTargetX = newTargetX;
+          currentTargetY = newTargetY;
+        }
+
+        setDraggingItem({
+          id: item.id,
+          deltaX,
+          deltaY,
+          targetX: currentTargetX,
+          targetY: currentTargetY,
+        });
+      });
+    };
+
+    const onTouchEnd = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+
+      sounds.playDropWidget();
+      setDraggingItem(null);
+
+      setLayout((prev) => {
+        const updated = prev.map((it) =>
+          it.id === item.id ? { ...it, x: currentTargetX, y: currentTargetY, visible: true } : it
+        );
+        const resolved = resolveCollisions(updated, item.id, gridCols);
+        saveState(resolved);
+        return resolved;
+      });
+    };
+
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+  };
+
   // Interactive Edge Resizing
   const handleResizeStart = (
     e: React.MouseEvent,
@@ -499,6 +580,86 @@ export default function DashboardGrid({
     window.addEventListener("mouseup", onMouseUp);
   };
 
+  // Interactive Edge Resizing for Touch Devices
+  const handleResizeTouchStart = (
+    e: React.TouchEvent,
+    itemId: string,
+    currentColSpan: number,
+    currentRowSpan: number,
+    direction: "horizontal" | "vertical"
+  ) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    sounds.playGrabWidget();
+    setResizingItemId(itemId);
+
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+
+    const isLarge = itemId === "chart" || itemId === "weapons";
+    const minCol = isLarge ? 4 : 1;
+    const minRow = isLarge ? 2 : 1;
+    const currentItem = layout.find((i) => i.id === itemId);
+    const startPosX = currentItem?.x ?? 0;
+
+    let finalColSpan = currentColSpan;
+    let finalRowSpan = currentRowSpan;
+
+    const onTouchMove = (moveEvent: TouchEvent) => {
+      const t = moveEvent.touches[0];
+      if (!t) return;
+      if (direction === "horizontal") {
+        const deltaX = t.clientX - startX;
+        const colDelta = Math.round(deltaX / step);
+        const maxCols = gridCols - startPosX;
+        const newColSpan = Math.max(minCol, Math.min(maxCols, currentColSpan + colDelta));
+
+        if (newColSpan !== finalColSpan) {
+          sounds.playResizeStep();
+          finalColSpan = newColSpan;
+        }
+
+        setResizeHint(`${finalColSpan} cols × ${currentRowSpan} lignes`);
+        setLayout((prev) =>
+          prev.map((item) => (item.id === itemId ? { ...item, colSpan: finalColSpan } : item))
+        );
+      } else {
+        const deltaY = t.clientY - startY;
+        const rowDelta = Math.round(deltaY / step);
+        const newRowSpan = Math.max(minRow, Math.min(25, currentRowSpan + rowDelta));
+
+        if (newRowSpan !== finalRowSpan) {
+          sounds.playResizeStep();
+          finalRowSpan = newRowSpan;
+        }
+
+        setResizeHint(`${currentColSpan} cols × ${finalRowSpan} lignes`);
+        setLayout((prev) =>
+          prev.map((item) => (item.id === itemId ? { ...item, rowSpan: finalRowSpan } : item))
+        );
+      }
+    };
+
+    const onTouchEnd = () => {
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      sounds.playDropWidget();
+      setResizingItemId(null);
+      setResizeHint(null);
+
+      setLayout((prev) => {
+        const resolved = resolveCollisions(prev, itemId, gridCols);
+        saveState(resolved);
+        return resolved;
+      });
+    };
+
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+  };
+
   // Restore all hidden items
   const handleRestoreAll = () => {
     const updated = layout.map((item) => ({ ...item, visible: true }));
@@ -514,6 +675,13 @@ export default function DashboardGrid({
       return true;
     });
   }, [layout, canEdit, hiddenStatsByPrivacy]);
+
+  const sortedActiveItems = useMemo(() => {
+    return [...activeItems].sort((a, b) => {
+      if (a.y !== b.y) return a.y - b.y;
+      return a.x - b.x;
+    });
+  }, [activeItems]);
 
   const hiddenDrawerItems = useMemo(() => {
     return layout.filter((item) => !item.visible);
@@ -763,54 +931,51 @@ export default function DashboardGrid({
       <div
         ref={gridContainerRef}
         className={`w-full transition-all duration-300 relative ${
-          isEditing ? "p-4 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/25" : ""
+          isEditing ? "p-3 sm:p-4 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/25" : ""
         }`}
       >
-        {/* Inner Grid Area */}
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            height: isEditing ? `${gridPixelHeight}px` : "auto",
-          }}
-        >
-          {/* SVG dots matrix: GPU-accelerated pattern (zero lag) */}
-          {isEditing && (
-            <svg
-              width={usableWidth}
-              height={gridPixelHeight}
-              className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
-            >
-              <defs>
-                <pattern
-                  id="spycam-grid-dots"
-                  width={step}
-                  height={step}
-                  patternUnits="userSpaceOnUse"
-                >
-                  <circle cx="2" cy="2" r="1.6" fill="rgba(255, 70, 85, 0.45)" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#spycam-grid-dots)" />
-            </svg>
-          )}
+        {/* Mobile helper notice during edit mode */}
+        {isEditing && isMobile && (
+          <div className="mb-3 px-3 py-2 bg-[var(--color-surface)]/90 border border-[var(--color-val-red)]/30 rounded-xl flex items-center gap-2 text-[11px] text-[var(--color-text-secondary)]">
+            <span>👉</span>
+            <span>
+              Faites défiler horizontalement pour accéder à toutes les cases et déplacer vos blocs.
+            </span>
+          </div>
+        )}
 
-          {/* Snapped Ghost Placeholder while dragging */}
-          {isEditing && draggingItem && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${draggingItem.targetX * step}px`,
-                top: `${draggingItem.targetY * step}px`,
-                width: `${(layout.find((i) => i.id === draggingItem.id)?.colSpan || 1) * cellSize + ((layout.find((i) => i.id === draggingItem.id)?.colSpan || 1) - 1) * GRID_GAP}px`,
-                height: `${(layout.find((i) => i.id === draggingItem.id)?.rowSpan || 1) * cellSize + ((layout.find((i) => i.id === draggingItem.id)?.rowSpan || 1) - 1) * GRID_GAP}px`,
-              }}
-              className="rounded-2xl border-2 border-dashed border-[var(--color-val-red)]/70 bg-[var(--color-val-red)]/10 z-10 pointer-events-none transition-all duration-100 ease-out"
-            />
-          )}
+        {!isEditing ? (
+          // Normal Mode:
+          // 1. Mobile (< 768px): clean responsive 2-col stack
+          // 2. Desktop (>= 768px): 29-col custom precision grid
+          isMobile ? (
+            <div className="w-full grid grid-cols-2 gap-2.5">
+              {sortedActiveItems.map((item) => {
+                const isChart = item.id === "chart";
+                const isWeapons = item.id === "weapons";
+                const isFull = isChart || isWeapons;
 
-          {!isEditing ? (
-            // Normal Mode: responsive CSS Grid
+                return (
+                  <div
+                    key={item.id}
+                    className={`${
+                      isFull ? "col-span-2" : "col-span-1"
+                    } ${
+                      isChart
+                        ? "h-[250px] min-h-[250px]"
+                        : isWeapons
+                        ? "min-h-[290px]"
+                        : "h-24 min-h-[96px]"
+                    } min-w-0 flex flex-col overflow-hidden`}
+                  >
+                    <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden">
+                      {renderItemContent(item.id)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
             <div
               style={{
                 display: "grid",
@@ -838,88 +1003,137 @@ export default function DashboardGrid({
                 );
               })}
             </div>
-          ) : (
-            // Edit Mode: absolute positioning with 60fps smooth mouse drag
-            activeItems.map((item) => {
-              const isBeingDragged = draggingItem?.id === item.id;
-              const isResizing = resizingItemId === item.id;
-              const actualColSpan = Math.min(item.colSpan, gridCols);
-              const left = item.x * step;
-              const top = item.y * step;
-              const w = actualColSpan * cellSize + (actualColSpan - 1) * GRID_GAP;
-              const h = item.rowSpan * cellSize + (item.rowSpan - 1) * GRID_GAP;
+          )
+        ) : (
+          // Edit Mode: scrollable horizontal container on small screens with touch & mouse dragging
+          <div className="w-full overflow-x-auto pb-4">
+            <div
+              style={{
+                position: "relative",
+                width: `${editCanvasWidth}px`,
+                minWidth: `${editCanvasWidth}px`,
+                height: `${gridPixelHeight}px`,
+              }}
+            >
+              {/* SVG dots matrix: GPU-accelerated pattern (zero lag) */}
+              <svg
+                width={editCanvasWidth}
+                height={gridPixelHeight}
+                className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
+              >
+                <defs>
+                  <pattern
+                    id="spycam-grid-dots"
+                    width={step}
+                    height={step}
+                    patternUnits="userSpaceOnUse"
+                  >
+                    <circle cx="2" cy="2" r="1.6" fill="rgba(255, 70, 85, 0.45)" />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#spycam-grid-dots)" />
+              </svg>
 
-              const transform = isBeingDragged
-                ? `translate3d(${draggingItem.deltaX}px, ${draggingItem.deltaY}px, 0)`
-                : "none";
-
-              return (
+              {/* Snapped Ghost Placeholder while dragging */}
+              {draggingItem && (
                 <div
-                  key={item.id}
-                  onMouseDown={(e) => handleCardMouseDown(e, item)}
                   style={{
                     position: "absolute",
-                    left: `${left}px`,
-                    top: `${top}px`,
-                    width: `${w}px`,
-                    height: `${h}px`,
-                    transform,
-                    zIndex: isBeingDragged ? 50 : isResizing ? 40 : 20,
-                    transition: isBeingDragged ? "none" : "left 0.2s ease, top 0.2s ease, width 0.15s ease, height 0.15s ease",
+                    left: `${draggingItem.targetX * step}px`,
+                    top: `${draggingItem.targetY * step}px`,
+                    width: `${(layout.find((i) => i.id === draggingItem.id)?.colSpan || 1) * cellSize + ((layout.find((i) => i.id === draggingItem.id)?.colSpan || 1) - 1) * GRID_GAP}px`,
+                    height: `${(layout.find((i) => i.id === draggingItem.id)?.rowSpan || 1) * cellSize + ((layout.find((i) => i.id === draggingItem.id)?.rowSpan || 1) - 1) * GRID_GAP}px`,
                   }}
-                  className={`group/item select-none flex flex-col min-h-0 overflow-hidden ${
-                    isBeingDragged
-                      ? "opacity-90 scale-105 shadow-[0_15px_35px_rgba(0,0,0,0.8)] ring-2 ring-[var(--color-val-red)] rounded-2xl cursor-grabbing"
-                      : isResizing
-                      ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl"
-                      : "cursor-grab hover:shadow-xl"
-                  }`}
-                >
-                  <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden pointer-events-none">
-                    {renderItemContent(item.id)}
-                  </div>
+                  className="rounded-2xl border-2 border-dashed border-[var(--color-val-red)]/70 bg-[var(--color-val-red)]/10 z-10 pointer-events-none transition-all duration-100 ease-out"
+                />
+              )}
 
-                  {/* Size & Coordinates Indicator */}
-                  <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/85 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center gap-1 border border-white/15 select-none pointer-events-none shadow-md">
-                    <span className="text-[10px] text-[var(--color-val-red)]">⋮⋮</span>
-                    <span className="text-[9px] font-black uppercase tracking-wider text-white">
-                      {actualColSpan}×{item.rowSpan}
-                    </span>
-                  </div>
+              {/* Active Draggable Widgets */}
+              {activeItems.map((item) => {
+                const isBeingDragged = draggingItem?.id === item.id;
+                const isResizing = resizingItemId === item.id;
+                const actualColSpan = Math.min(item.colSpan, gridCols);
+                const left = item.x * step;
+                const top = item.y * step;
+                const w = actualColSpan * cellSize + (actualColSpan - 1) * GRID_GAP;
+                const h = item.rowSpan * cellSize + (item.rowSpan - 1) * GRID_GAP;
 
-                  {/* Red "-" Remove Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleVisibility(item.id, false);
+                const transform = isBeingDragged
+                  ? `translate3d(${draggingItem.deltaX}px, ${draggingItem.deltaY}px, 0)`
+                  : "none";
+
+                return (
+                  <div
+                    key={item.id}
+                    onMouseDown={(e) => handleCardMouseDown(e, item)}
+                    onTouchStart={(e) => handleCardTouchStart(e, item)}
+                    style={{
+                      position: "absolute",
+                      left: `${left}px`,
+                      top: `${top}px`,
+                      width: `${w}px`,
+                      height: `${h}px`,
+                      transform,
+                      zIndex: isBeingDragged ? 50 : isResizing ? 40 : 20,
+                      transition: isBeingDragged ? "none" : "left 0.2s ease, top 0.2s ease, width 0.15s ease, height 0.15s ease",
                     }}
-                    title="Retirer"
-                    className="absolute -top-2.5 -right-2.5 z-30 w-7 h-7 rounded-full bg-red-600 hover:bg-red-500 text-white font-black text-base flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.8)] border-2 border-[#0a0e13] transition-transform hover:scale-115 cursor-pointer opacity-0 group-hover/item:opacity-100"
+                    className={`group/item select-none flex flex-col min-h-0 overflow-hidden ${
+                      isBeingDragged
+                        ? "opacity-90 scale-105 shadow-[0_15px_35px_rgba(0,0,0,0.8)] ring-2 ring-[var(--color-val-red)] rounded-2xl cursor-grabbing"
+                        : isResizing
+                        ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl"
+                        : "cursor-grab hover:shadow-xl"
+                    }`}
                   >
-                    −
-                  </button>
+                    <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden pointer-events-none">
+                      {renderItemContent(item.id)}
+                    </div>
 
-                  {/* Right resize handle */}
-                  <div
-                    onMouseDown={(e) => handleResizeStart(e, item.id, actualColSpan, item.rowSpan, "horizontal")}
-                    className="resize-handle absolute -right-2.5 top-1/2 -translate-y-1/2 z-30 w-4 h-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ew-resize shadow-lg transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
-                  >
-                    <div className="w-1 h-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
-                  </div>
+                    {/* Size & Coordinates Indicator */}
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/85 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center gap-1 border border-white/15 select-none pointer-events-none shadow-md">
+                      <span className="text-[10px] text-[var(--color-val-red)]">⋮⋮</span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-white">
+                        {actualColSpan}×{item.rowSpan}
+                      </span>
+                    </div>
 
-                  {/* Bottom resize handle */}
-                  <div
-                    onMouseDown={(e) => handleResizeStart(e, item.id, actualColSpan, item.rowSpan, "vertical")}
-                    className="resize-handle absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-30 h-4 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-lg transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
-                  >
-                    <div className="h-1 w-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
+                    {/* Red "-" Remove Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleVisibility(item.id, false);
+                      }}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      title="Retirer"
+                      className="absolute -top-2.5 -right-2.5 z-30 w-7 h-7 rounded-full bg-red-600 hover:bg-red-500 text-white font-black text-base flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.8)] border-2 border-[#0a0e13] transition-transform hover:scale-115 cursor-pointer opacity-85 sm:opacity-0 group-hover/item:opacity-100"
+                    >
+                      −
+                    </button>
+
+                    {/* Right resize handle */}
+                    <div
+                      onMouseDown={(e) => handleResizeStart(e, item.id, actualColSpan, item.rowSpan, "horizontal")}
+                      onTouchStart={(e) => handleResizeTouchStart(e, item.id, actualColSpan, item.rowSpan, "horizontal")}
+                      className="resize-handle absolute -right-2.5 top-1/2 -translate-y-1/2 z-30 w-4 h-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ew-resize shadow-lg transition-all hover:scale-110 opacity-75 sm:opacity-0 group-hover/item:opacity-100 group/handle"
+                    >
+                      <div className="w-1 h-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
+                    </div>
+
+                    {/* Bottom resize handle */}
+                    <div
+                      onMouseDown={(e) => handleResizeStart(e, item.id, actualColSpan, item.rowSpan, "vertical")}
+                      onTouchStart={(e) => handleResizeTouchStart(e, item.id, actualColSpan, item.rowSpan, "vertical")}
+                      className="resize-handle absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-30 h-4 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-lg transition-all hover:scale-110 opacity-75 sm:opacity-0 group-hover/item:opacity-100 group/handle"
+                    >
+                      <div className="h-1 w-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Drawer for Hidden Widgets */}
