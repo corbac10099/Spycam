@@ -53,6 +53,10 @@ export class VoiceManager {
   private highpassFilter: BiquadFilterNode | null = null;
   private bandpassFilter: BiquadFilterNode | null = null;
   private compressor: DynamicsCompressorNode | null = null;
+  private noiseGateGain: GainNode | null = null;
+  private audioDestination: MediaStreamAudioDestinationNode | null = null;
+  private processedStream: MediaStream | null = null;
+  private sourceNode: MediaStreamAudioSourceNode | null = null;
 
   // Speaking detection threshold in RMS
   private speakingThreshold = 0.035;
@@ -69,9 +73,19 @@ export class VoiceManager {
     if (this.highpassFilter) {
       this.highpassFilter.frequency.value = enabled ? 85 : 10;
     }
+    if (this.bandpassFilter) {
+      this.bandpassFilter.gain.value = enabled ? 3.0 : 0.0;
+    }
     if (this.compressor) {
-      this.compressor.threshold.value = enabled ? -35 : -50;
+      this.compressor.threshold.value = enabled ? -36 : -50;
       this.compressor.ratio.value = enabled ? 12 : 3;
+    }
+    if (this.noiseGateGain && this.audioCtx) {
+      if (!enabled || this.isSpeaking) {
+        this.noiseGateGain.gain.setTargetAtTime(1.0, this.audioCtx.currentTime, 0.01);
+      } else {
+        this.noiseGateGain.gain.setTargetAtTime(0.001, this.audioCtx.currentTime, 0.035);
+      }
     }
   }
 
@@ -166,34 +180,53 @@ export class VoiceManager {
         await this.audioCtx.resume();
       }
 
-      const source = this.audioCtx.createMediaStreamSource(this.stream);
+      this.sourceNode = this.audioCtx.createMediaStreamSource(this.stream);
 
       // Krisp-style DSP Filter chain
+      // 1. Highpass: Cuts desk bumps, PC fan hum, room AC (<85Hz)
       this.highpassFilter = this.audioCtx.createBiquadFilter();
       this.highpassFilter.type = "highpass";
       this.highpassFilter.frequency.value = this.isVoiceIsolationEnabled ? 85 : 10;
+      this.highpassFilter.Q.value = 0.7;
 
+      // 2. Vocal Clarity Peaking: Enhances speech intelligibility (2.4kHz)
       this.bandpassFilter = this.audioCtx.createBiquadFilter();
       this.bandpassFilter.type = "peaking";
       this.bandpassFilter.frequency.value = 2400;
-      this.bandpassFilter.gain.value = 2.5;
+      this.bandpassFilter.gain.value = this.isVoiceIsolationEnabled ? 3.0 : 0.0;
+      this.bandpassFilter.Q.value = 1.0;
 
+      // 3. Dynamic Compressor: Equalizes volume peaks
       this.compressor = this.audioCtx.createDynamicsCompressor();
-      this.compressor.threshold.value = this.isVoiceIsolationEnabled ? -35 : -50;
-      this.compressor.knee.value = 10;
+      this.compressor.threshold.value = this.isVoiceIsolationEnabled ? -36 : -50;
+      this.compressor.knee.value = 12;
       this.compressor.ratio.value = this.isVoiceIsolationEnabled ? 12 : 3;
       this.compressor.attack.value = 0.003;
       this.compressor.release.value = 0.25;
 
+      // 4. Noise Gate Gain Node: Completely silences background noise when not talking
+      this.noiseGateGain = this.audioCtx.createGain();
+      this.noiseGateGain.gain.value = this.isVoiceIsolationEnabled ? 0.001 : 1.0;
+
+      // 5. Analyser for speech detection & VU-meter
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
-      this.analyser.smoothingTimeConstant = 0.4;
+      this.analyser.smoothingTimeConstant = 0.3;
 
-      // Connect DSP chain
-      source.connect(this.highpassFilter);
+      // 6. MediaStreamDestination for WebRTC peer transmission
+      this.audioDestination = this.audioCtx.createMediaStreamDestination();
+      this.processedStream = this.audioDestination.stream;
+
+      // Connect DSP chain:
+      // source -> highpass -> bandpass -> compressor -> analyser
+      this.sourceNode.connect(this.highpassFilter);
       this.highpassFilter.connect(this.bandpassFilter);
       this.bandpassFilter.connect(this.compressor);
       this.compressor.connect(this.analyser);
+
+      // compressor -> noiseGateGain -> audioDestination
+      this.compressor.connect(this.noiseGateGain);
+      this.noiseGateGain.connect(this.audioDestination);
 
       this.startVolumeMonitoring();
       this.startSpeechRecognition();
@@ -226,25 +259,21 @@ export class VoiceManager {
       });
 
       const oldTracks = this.stream.getAudioTracks();
-      const newTrack = newStream.getAudioTracks()[0];
-
-      // Update active tracks in existing peer connections
-      this.peers.forEach((pc) => {
-        const senders = pc.getSenders();
-        const audioSender = senders.find((s) => s.track && s.track.kind === "audio");
-        if (audioSender && newTrack) {
-          audioSender.replaceTrack(newTrack);
-        }
-      });
-
       oldTracks.forEach((t) => t.stop());
       this.stream = newStream;
-      newTrack.enabled = !this.isMuted;
 
-      // Reconnect analyzer
-      if (this.audioCtx && this.analyser) {
-        const source = this.audioCtx.createMediaStreamSource(newStream);
-        source.connect(this.analyser);
+      if (this.audioCtx && this.sourceNode && this.highpassFilter) {
+        this.sourceNode.disconnect();
+        this.sourceNode = this.audioCtx.createMediaStreamSource(newStream);
+        this.sourceNode.connect(this.highpassFilter);
+      }
+
+      // Re-apply mute state if needed
+      if (this.processedStream) {
+        const processedTrack = this.processedStream.getAudioTracks()[0];
+        if (processedTrack) {
+          processedTrack.enabled = !this.isMuted;
+        }
       }
 
       return true;
@@ -298,6 +327,11 @@ export class VoiceManager {
           this.silenceTimer = null;
         }
 
+        // Instantly open the studio noise gate
+        if (this.noiseGateGain && this.audioCtx) {
+          this.noiseGateGain.gain.setTargetAtTime(1.0, this.audioCtx.currentTime, 0.008);
+        }
+
         if (!this.isSpeaking) {
           this.isSpeaking = true;
           this.callbacks.onSpeakingChange(true, rms);
@@ -312,13 +346,19 @@ export class VoiceManager {
           this.silenceTimer = setTimeout(() => {
             this.isSpeaking = false;
             this.callbacks.onSpeakingChange(false, 0);
+
+            // Close studio noise gate when quiet so fans/keyboard/breathing are 100% muted
+            if (this.noiseGateGain && this.audioCtx && this.isVoiceIsolationEnabled) {
+              this.noiseGateGain.gain.setTargetAtTime(0.001, this.audioCtx.currentTime, 0.035);
+            }
+
             if (this.isAutoDuckingEnabled) {
               this.remoteAudios.forEach((audio) => {
                 audio.volume = 1.0;
               });
             }
             this.silenceTimer = null;
-          }, 250);
+          }, 220);
         }
       }
 
@@ -349,8 +389,10 @@ export class VoiceManager {
     const pc = new RTCPeerConnection(ICE_SERVERS);
     this.peers.set(remotePeerId, pc);
 
-    if (this.stream) {
-      this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream!));
+    // Send the Krisp-isolated DSP audio stream over WebRTC
+    const outboundStream = this.processedStream || this.stream;
+    if (outboundStream) {
+      outboundStream.getTracks().forEach((track) => pc.addTrack(track, outboundStream));
     }
 
     pc.onicecandidate = (event) => {
@@ -550,6 +592,11 @@ export class VoiceManager {
         track.enabled = !muted;
       });
     }
+    if (this.processedStream) {
+      this.processedStream.getAudioTracks().forEach((track) => {
+        track.enabled = !muted;
+      });
+    }
     if (muted && this.isSpeaking) {
       this.isSpeaking = false;
       this.callbacks.onSpeakingChange(false, 0);
@@ -593,6 +640,10 @@ export class VoiceManager {
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
+    }
+    if (this.processedStream) {
+      this.processedStream.getTracks().forEach((track) => track.stop());
+      this.processedStream = null;
     }
     if (this.audioCtx && this.audioCtx.state !== "closed") {
       this.audioCtx.close().catch(() => {});

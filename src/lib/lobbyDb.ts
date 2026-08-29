@@ -28,15 +28,17 @@ export function formatDbLobby(record: any, messages: any[] = [], transcripts: an
     roleNeeded = ['Tous Rôles'];
   }
 
-  const chat: ChatMessage[] = messages.map((m: any) => ({
-    id: m.id,
-    senderName: m.senderName,
-    senderTag: m.senderTag,
-    senderAvatar: m.senderAvatar,
-    content: m.content,
-    timestamp: new Date(m.createdAt).getTime(),
-    isToxic: m.isToxic,
-  }));
+  const chat: ChatMessage[] = messages
+    .filter((m: any) => m.senderName !== 'Système' && m.senderTag !== 'SPYCAM')
+    .map((m: any) => ({
+      id: m.id,
+      senderName: m.senderName,
+      senderTag: m.senderTag,
+      senderAvatar: m.senderAvatar,
+      content: m.content,
+      timestamp: new Date(m.createdAt).getTime(),
+      isToxic: m.isToxic,
+    }));
 
   const voiceTranscripts: VoiceTranscriptLog[] = transcripts.map((t: any) => ({
     id: t.id,
@@ -209,6 +211,10 @@ export async function updateLobbyInNeon(id: string, updates: Partial<LobbyItem>)
  * Add a Chat message to Neon DB
  */
 export async function addChatMessageToNeon(lobbyId: string, msg: ChatMessage): Promise<void> {
+  // Avoid saving system notifications to Neon database
+  if (msg.senderName === 'Système' || msg.senderTag === 'SPYCAM') {
+    return;
+  }
   try {
     await (prisma as any).lobbyMessage.create({
       data: {

@@ -142,7 +142,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         timestamp: Date.now(),
       };
       currentLobby.chat.push(joinMsg);
-      await addChatMessageToNeon(id, joinMsg);
 
       return NextResponse.json({ success: true, lobby: currentLobby, member: newMember });
     }
@@ -211,7 +210,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           timestamp: Date.now(),
         };
         currentLobby.chat.push(sysMsg);
-        await addChatMessageToNeon(id, sysMsg);
       }
 
       return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers });
@@ -235,7 +233,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           timestamp: Date.now(),
         };
         currentLobby.chat.push(leaveSys);
-        await addChatMessageToNeon(id, leaveSys);
       }
 
       return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers || [] });
@@ -314,7 +311,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         timestamp: Date.now(),
       };
       currentLobby.chat.push(leaveMsg);
-      await addChatMessageToNeon(id, leaveMsg);
 
       return NextResponse.json({ success: true, lobby: currentLobby });
     }

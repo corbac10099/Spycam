@@ -1366,7 +1366,7 @@ export default function LobbiesView({
       {/* VUE 4 : SALON EN TEMPS RÉEL (STYLE DISCORD AVEC VOCAL ET CHAT ÉPURÉ)        */}
       {/* ========================================================================= */}
       {currentView === "salon" && activeLobby && (
-        <div className="w-full flex flex-col md:flex-row gap-4 min-h-[620px] animate-in fade-in zoom-in-95 duration-300">
+        <div className="w-full flex-1 flex flex-col md:flex-row gap-4 min-h-[calc(100vh-125px)] animate-in fade-in zoom-in-95 duration-300">
           {/* ==================== COLONNE GAUCHE (MEMBRES DU SALON - COLLÉE À GAUCHE) ==================== */}
           <div className="w-full md:w-64 lg:w-72 glass-panel rounded-3xl p-4 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl flex-shrink-0">
             <div className="space-y-3">
@@ -1492,11 +1492,13 @@ export default function LobbiesView({
           </div>
 
           {/* ==================== COLONNE DROITE (VOCAL DISCORD-STYLE + CHAT) ==================== */}
-          <div className="flex-1 glass-panel rounded-3xl p-4 sm:p-5 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
-            {/* TOP CALL BAR (ANIMATION D'EXPANSION PROGRESSIVE EN HAUTEUR) */}
-            <div className={`relative rounded-2xl bg-[#0b0e14]/90 border border-white/10 shadow-lg overflow-visible transition-all duration-500 ease-in-out ${
-              isInVoice ? "p-4 sm:p-5" : "p-3 sm:p-4"
-            }`}>
+          <div className="flex-1 glass-panel rounded-3xl p-4 sm:p-5 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl min-h-[calc(100vh-125px)]">
+            {/* TOP CALL BAR (ANIMATION D'EXPANSION PROGRESSIVE EN HAUTEUR DU DÉBUT À LA FIN) */}
+            <div
+              className={`relative rounded-2xl bg-[#0b0e14]/90 border border-white/10 shadow-lg overflow-visible transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                isInVoice ? "p-4 sm:p-5 max-h-[400px]" : "p-3 sm:p-4 max-h-[82px]"
+              }`}
+            >
               {!isInVoice ? (
                 /* ÉTAT DÉCONNECTÉ : RECTANGLE COMPACT AVEC CARRÉ VERT 📞 À DROITE */
                 <div className="flex items-center justify-between gap-3 transition-opacity duration-300">
@@ -1608,9 +1610,9 @@ export default function LobbiesView({
                       })}
                   </div>
 
-                  {/* DISCORD CALL CONTROL PILL BAR AVEC DÉROULANT DIRECT */}
+                  {/* DISCORD CALL CONTROL PILL BAR AVEC DÉROULANT DIRECT (VERS LE BAS) */}
                   <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/10 relative">
-                    {/* Micro button + Direct Dropdown Menu on ▾ */}
+                    {/* Micro button + Direct Dropdown Menu on ▾ (DÉPLOIEMENT VERS LE BAS) */}
                     <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
                       <button
                         onClick={() => {
@@ -1640,9 +1642,9 @@ export default function LobbiesView({
                         <IconChevronDown size={11} className={`transition-transform duration-200 ${showMicDropdown ? "rotate-180 text-emerald-400" : ""}`} />
                       </button>
 
-                      {/* INLINE MICROPHONE DROPDOWN */}
+                      {/* INLINE MICROPHONE DROPDOWN (VERS LE BAS : TOP-FULL MT-2) */}
                       {showMicDropdown && (
-                        <div className="absolute bottom-full left-0 mb-2 w-64 glass-panel rounded-2xl p-2 border border-white/20 shadow-2xl bg-[#0b0e14]/95 backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                        <div className="absolute top-full left-0 mt-2 w-64 glass-panel rounded-2xl p-2 border border-white/20 shadow-2xl bg-[#0b0e14]/95 backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                           <div className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] px-2.5 py-1 tracking-wider border-b border-white/10 mb-1 flex items-center justify-between">
                             <span>Entrée Microphone</span>
                             <IconMic size={10} className="text-emerald-400" />
@@ -1684,7 +1686,7 @@ export default function LobbiesView({
                       )}
                     </div>
 
-                    {/* Casque / Deafen button + Direct Dropdown Menu on ▾ */}
+                    {/* Casque / Deafen button + Direct Dropdown Menu on ▾ (DÉPLOIEMENT VERS LE BAS) */}
                     <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
                       <button
                         onClick={() => {
@@ -1713,9 +1715,9 @@ export default function LobbiesView({
                         <IconChevronDown size={11} className={`transition-transform duration-200 ${showOutputDropdown ? "rotate-180 text-sky-400" : ""}`} />
                       </button>
 
-                      {/* INLINE OUTPUT/HEADPHONES DROPDOWN */}
+                      {/* INLINE OUTPUT/HEADPHONES DROPDOWN (VERS LE BAS : TOP-FULL MT-2) */}
                       {showOutputDropdown && (
-                        <div className="absolute bottom-full left-0 mb-2 w-64 glass-panel rounded-2xl p-2 border border-white/20 shadow-2xl bg-[#0b0e14]/95 backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                        <div className="absolute top-full left-0 mt-2 w-64 glass-panel rounded-2xl p-2 border border-white/20 shadow-2xl bg-[#0b0e14]/95 backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                           <div className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] px-2.5 py-1 tracking-wider border-b border-white/10 mb-1 flex items-center justify-between">
                             <span>Sortie Audio / Casque</span>
                             <IconHeadphones size={10} className="text-sky-400" />
@@ -1785,8 +1787,8 @@ export default function LobbiesView({
             </div>
 
             {/* CHAT MESSAGES FEED */}
-            <div className="flex-1 flex flex-col justify-between min-h-[350px]">
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[380px] space-y-3 pr-2 custom-scrollbar">
+            <div className="flex-1 flex flex-col justify-between min-h-[380px]">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[calc(100vh-420px)] min-h-[260px] space-y-3 pr-2 custom-scrollbar">
                 {activeLobby.chat?.length === 0 ? (
                   <div className="text-center py-16 text-[var(--color-text-secondary)] text-xs">
                     Aucun message pour l&apos;instant.
