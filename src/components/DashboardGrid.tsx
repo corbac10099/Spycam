@@ -6,7 +6,8 @@ import PerformanceCharts from "./PerformanceCharts";
 
 export interface GridItemConfig {
   id: string;
-  span: 1 | 2 | 3 | 4;
+  colSpan: 1 | 2 | 3 | 4;
+  rowSpan: 1 | 2 | 3;
   visible: boolean;
 }
 
@@ -21,21 +22,21 @@ export interface DashboardGridProps {
 }
 
 const DEFAULT_LAYOUT: GridItemConfig[] = [
-  { id: "chart", span: 4, visible: true },
-  { id: "kills", span: 1, visible: true },
-  { id: "deaths", span: 1, visible: true },
-  { id: "assists", span: 1, visible: true },
-  { id: "kd", span: 1, visible: true },
-  { id: "adr", span: 1, visible: true },
-  { id: "hs", span: 1, visible: true },
-  { id: "wr", span: 1, visible: true },
-  { id: "acs", span: 1, visible: true },
-  { id: "fb", span: 1, visible: true },
-  { id: "ace", span: 1, visible: true },
-  { id: "kast", span: 1, visible: true },
-  { id: "dd", span: 1, visible: true },
-  { id: "wins", span: 1, visible: true },
-  { id: "matches", span: 1, visible: true },
+  { id: "chart", colSpan: 4, rowSpan: 2, visible: true },
+  { id: "kills", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "deaths", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "assists", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "kd", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "adr", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "hs", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "wr", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "acs", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "fb", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "ace", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "kast", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "dd", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "wins", colSpan: 1, rowSpan: 1, visible: true },
+  { id: "matches", colSpan: 1, rowSpan: 1, visible: true },
 ];
 
 const ITEM_LABELS: Record<string, { label: string; icon?: string; desc: string }> = {
@@ -65,14 +66,14 @@ export default function DashboardGrid({
   hiddenStatsByPrivacy = [],
   userStorageKey = "default",
 }: DashboardGridProps) {
-  const storageKey = `spycam_grid_layout_${userStorageKey}`;
+  const storageKey = `spycam_grid_layout_v2_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const [layout, setLayout] = useState<GridItemConfig[]>(DEFAULT_LAYOUT);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [resizingItemId, setResizingItemId] = useState<string | null>(null);
+  const [resizeHint, setResizeHint] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [saveToast, setSaveToast] = useState<boolean>(false);
 
@@ -83,9 +84,16 @@ export default function DashboardGrid({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingIds = new Set(parsed.map((item: GridItemConfig) => item.id));
+          const existingIds = new Set(parsed.map((item: any) => item.id));
+          // Migrate old span to colSpan/rowSpan if needed
+          const normalized = parsed.map((item: any) => ({
+            id: item.id,
+            colSpan: (item.colSpan || item.span || (item.id === "chart" ? 4 : 1)) as 1 | 2 | 3 | 4,
+            rowSpan: (item.rowSpan || (item.id === "chart" ? 2 : 1)) as 1 | 2 | 3,
+            visible: item.visible !== false,
+          }));
           const missing = DEFAULT_LAYOUT.filter((item) => !existingIds.has(item.id));
-          setLayout([...parsed, ...missing]);
+          setLayout([...normalized, ...missing]);
         }
       }
     } catch {}
@@ -134,7 +142,6 @@ export default function DashboardGrid({
       newVisible.splice(targetIndex, 0, restored);
       const remainingHidden = layout.filter((i) => !i.visible && i.id !== draggedId);
       setLayout([...newVisible, ...remainingHidden]);
-      setDragOverIndex(targetIndex);
       return;
     }
 
@@ -147,18 +154,15 @@ export default function DashboardGrid({
     newVisible.splice(targetIndex, 0, moved);
     const hiddenItems = layout.filter((i) => !i.visible);
     setLayout([...newVisible, ...hiddenItems]);
-    setDragOverIndex(targetIndex);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   };
 
   const handleDragEnd = () => {
     setDraggedId(null);
-    setDragOverIndex(null);
-    // Persist final position
     try {
       localStorage.setItem(storageKey, JSON.stringify(layout));
     } catch {}
@@ -167,17 +171,17 @@ export default function DashboardGrid({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDraggedId(null);
-    setDragOverIndex(null);
     try {
       localStorage.setItem(storageKey, JSON.stringify(layout));
     } catch {}
   };
 
-  // Interactive Live Edge Resizing (Holding and dragging handles)
+  // Interactive Modular Edge Resizing (Holding and dragging handles)
   const handleResizeStart = (
     e: React.MouseEvent,
     itemId: string,
-    currentSpan: number,
+    currentColSpan: number,
+    currentRowSpan: number,
     direction: "horizontal" | "vertical"
   ) => {
     e.preventDefault();
@@ -185,23 +189,30 @@ export default function DashboardGrid({
     setResizingItemId(itemId);
 
     const startX = e.clientX;
+    const startY = e.clientY;
     const container = gridContainerRef.current;
     const containerWidth = container ? container.clientWidth : 800;
-    const colWidth = Math.max(80, containerWidth / 4);
+    const colWidth = Math.max(70, containerWidth / 4);
+    const rowHeight = 105; // Standard row step height
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const spanDelta = Math.round(deltaX / colWidth);
+      if (direction === "horizontal") {
+        const deltaX = moveEvent.clientX - startX;
+        const colDelta = Math.round(deltaX / colWidth);
+        const targetColSpan = Math.max(1, Math.min(4, currentColSpan + colDelta)) as 1 | 2 | 3 | 4;
 
-      if (itemId === "chart") {
-        const nextChartSpan: 1 | 2 | 3 | 4 = deltaX > 50 ? 4 : deltaX < -50 ? 2 : (currentSpan as 1 | 2 | 3 | 4);
+        setResizeHint(`${targetColSpan} col × ${currentRowSpan} rangée(s)`);
         setLayout((prev) =>
-          prev.map((item) => (item.id === itemId ? { ...item, span: nextChartSpan } : item))
+          prev.map((item) => (item.id === itemId ? { ...item, colSpan: targetColSpan } : item))
         );
       } else {
-        const targetSpan: 1 | 2 | 3 | 4 = (Math.max(1, Math.min(4, currentSpan + spanDelta))) as 1 | 2 | 3 | 4;
+        const deltaY = moveEvent.clientY - startY;
+        const rowDelta = Math.round(deltaY / rowHeight);
+        const targetRowSpan = Math.max(1, Math.min(3, currentRowSpan + rowDelta)) as 1 | 2 | 3;
+
+        setResizeHint(`${currentColSpan} col × ${targetRowSpan} rangée(s)`);
         setLayout((prev) =>
-          prev.map((item) => (item.id === itemId ? { ...item, span: targetSpan } : item))
+          prev.map((item) => (item.id === itemId ? { ...item, rowSpan: targetRowSpan } : item))
         );
       }
     };
@@ -210,6 +221,7 @@ export default function DashboardGrid({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       setResizingItemId(null);
+      setResizeHint(null);
       setLayout((current) => {
         try {
           localStorage.setItem(storageKey, JSON.stringify(current));
@@ -334,23 +346,18 @@ export default function DashboardGrid({
     }
   };
 
-  // Convert span (1 to 4) to tailwind grid column classes
-  const getColSpanClass = (span: number, id: string) => {
-    if (id === "chart") {
-      if (span === 2) return "col-span-1 sm:col-span-2 md:col-span-2";
-      return "col-span-1 sm:col-span-2 md:col-span-4";
-    }
-    switch (span) {
-      case 2:
-        return "col-span-1 sm:col-span-2 md:col-span-2";
-      case 3:
-        return "col-span-1 sm:col-span-2 md:col-span-3";
-      case 4:
-        return "col-span-1 sm:col-span-2 md:col-span-4";
-      case 1:
-      default:
-        return "col-span-1";
-    }
+  // Convert colSpan and rowSpan to Tailwind classes with dense packing
+  const getGridItemClasses = (colSpan: number, rowSpan: number) => {
+    let colClass = "col-span-1";
+    if (colSpan === 2) colClass = "col-span-1 sm:col-span-2";
+    else if (colSpan === 3) colClass = "col-span-1 sm:col-span-2 md:col-span-3";
+    else if (colSpan === 4) colClass = "col-span-1 sm:col-span-2 md:col-span-4";
+
+    let rowClass = "row-span-1";
+    if (rowSpan === 2) rowClass = "row-span-1 sm:row-span-2";
+    else if (rowSpan === 3) rowClass = "row-span-1 sm:row-span-3";
+
+    return `${colClass} ${rowClass}`;
   };
 
   return (
@@ -366,10 +373,10 @@ export default function DashboardGrid({
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-val-red)]"></span>
                 </span>
                 <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[var(--color-val-red)]">
-                  Mode Édition de Grille
+                  Mode Grille Modulaire
                 </span>
                 <span className="hidden md:inline text-[11px] text-[var(--color-text-secondary)]">
-                  — Déplacez les cases (décalage auto) ou étirez les barres de redimensionnement
+                  — Remplissage intelligent & décalage auto (les cases s&apos;emboîtent sans espace vide)
                 </span>
               </div>
             ) : (
@@ -460,18 +467,25 @@ export default function DashboardGrid({
         </div>
       )}
 
-      {/* Main Grid Container with Customizable Background Grid Overlay */}
+      {/* Live Resize Tooltip Hint */}
+      {resizeHint && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[#0f1923] border border-[var(--color-val-red)] text-white px-4 py-2 rounded-full shadow-2xl text-xs font-black uppercase tracking-wider animate-pulse">
+          📐 {resizeHint}
+        </div>
+      )}
+
+      {/* Main Grid Container with Dense Auto-Packing & Modular Dots */}
       <div
         ref={gridContainerRef}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`w-full transition-all duration-300 relative ${
           isEditing
-            ? "p-3 sm:p-6 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/35 bg-[radial-gradient(rgba(255,70,85,0.12)_1.5px,transparent_1.5px)] [background-size:24px_24px]"
+            ? "p-3 sm:p-5 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-[radial-gradient(rgba(255,70,85,0.18)_2px,transparent_2px)] [background-size:28px_28px]"
             : ""
         }`}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 w-full transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 [grid-auto-flow:dense] gap-3 sm:gap-4 auto-rows-[minmax(95px,auto)] w-full">
           {activeItems.map((item, index) => {
             const isDragged = draggedId === item.id;
             const isResizing = resizingItemId === item.id;
@@ -482,26 +496,26 @@ export default function DashboardGrid({
                 draggable={isEditing && !resizingItemId}
                 onDragStart={(e) => handleDragStart(e, item.id)}
                 onDragEnter={() => handleDragEnter(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
+                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
-                className={`relative group/item transition-all duration-300 ease-out select-none ${getColSpanClass(
-                  item.span,
-                  item.id
+                className={`relative group/item transition-all duration-300 ease-out select-none flex flex-col ${getGridItemClasses(
+                  item.colSpan,
+                  item.rowSpan
                 )} ${isDragged ? "opacity-30 scale-95 ring-2 ring-[var(--color-val-red)]/50 rounded-2xl" : "opacity-100"} ${
-                  isResizing ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] rounded-2xl" : ""
+                  isResizing ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl" : ""
                 } ${isEditing ? "cursor-grab active:cursor-grabbing hover:shadow-lg" : ""}`}
               >
-                {/* Visual Content */}
-                <div className="w-full h-full pointer-events-auto">{renderItemContent(item.id)}</div>
+                {/* Visual Content (flex child filling 100% height and width) */}
+                <div className="w-full h-full flex-1 flex flex-col">{renderItemContent(item.id)}</div>
 
                 {/* Edit Mode Overlays & Edge Resize Bars */}
                 {isEditing && (
                   <>
-                    {/* Subtle grid indicator header at top left */}
-                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/75 backdrop-blur-md rounded-lg px-2 py-1 flex items-center gap-1.5 border border-white/15 select-none pointer-events-none shadow-md">
-                      <span className="text-[11px] text-[var(--color-val-red)]">⋮⋮</span>
+                    {/* Size Badge Indicator at top left */}
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/80 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center gap-1 border border-white/15 select-none pointer-events-none shadow-md">
+                      <span className="text-[10px] text-[var(--color-val-red)]">⋮⋮</span>
                       <span className="text-[9px] font-black uppercase tracking-wider text-white">
-                        {item.span === 4 ? "Plein (4/4)" : item.span === 3 ? "3/4" : item.span === 2 ? "2/4" : "1/4"}
+                        {item.colSpan}x{item.rowSpan}
                       </span>
                     </div>
 
@@ -518,31 +532,22 @@ export default function DashboardGrid({
                       −
                     </button>
 
-                    {/* RESIZE HANDLE: VERTICAL BAR ON RIGHT FACE */}
+                    {/* RESIZE HANDLE: VERTICAL BAR ON RIGHT FACE (Largeur en colonnes) */}
                     <div
-                      onMouseDown={(e) => handleResizeStart(e, item.id, item.span, "horizontal")}
-                      className="absolute -right-2 top-1/2 -translate-y-1/2 z-30 w-3.5 h-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ew-resize shadow-[0_0_15px_rgba(0,0,0,0.8)] transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
-                      title="Maintenir et glisser horizontalement pour élargir / rétrécir sur la grille"
+                      onMouseDown={(e) => handleResizeStart(e, item.id, item.colSpan, item.rowSpan, "horizontal")}
+                      className="absolute -right-2.5 top-1/2 -translate-y-1/2 z-30 w-4 h-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ew-resize shadow-[0_0_15px_rgba(0,0,0,0.8)] transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
+                      title="Maintenir et glisser horizontalement pour ajuster les colonnes"
                     >
-                      <div className="w-0.5 h-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
+                      <div className="w-1 h-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
                     </div>
 
-                    {/* RESIZE HANDLE: HORIZONTAL BAR ON TOP FACE */}
+                    {/* RESIZE HANDLE: HORIZONTAL BAR ON BOTTOM FACE (Hauteur en rangées) */}
                     <div
-                      onMouseDown={(e) => handleResizeStart(e, item.id, item.span, "vertical")}
-                      className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 h-3.5 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-[0_0_15px_rgba(0,0,0,0.8)] transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
-                      title="Barre de redimensionnement haut"
+                      onMouseDown={(e) => handleResizeStart(e, item.id, item.colSpan, item.rowSpan, "vertical")}
+                      className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-30 h-4 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-[0_0_15px_rgba(0,0,0,0.8)] transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
+                      title="Maintenir et glisser verticalement pour ajuster les rangées"
                     >
-                      <div className="h-0.5 w-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
-                    </div>
-
-                    {/* RESIZE HANDLE: HORIZONTAL BAR ON BOTTOM FACE */}
-                    <div
-                      onMouseDown={(e) => handleResizeStart(e, item.id, item.span, "vertical")}
-                      className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 h-3.5 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-[0_0_15px_rgba(0,0,0,0.8)] transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
-                      title="Barre de redimensionnement bas"
-                    >
-                      <div className="h-0.5 w-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
+                      <div className="h-1 w-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
                     </div>
                   </>
                 )}

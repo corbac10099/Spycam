@@ -166,7 +166,7 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
 
   return (
-    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 md:p-6 mb-4 sm:mb-6 animate-in fade-in duration-500 w-full">
+    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 md:p-6 mb-0 animate-in fade-in duration-500 w-full h-full flex flex-col justify-between">
       {/* Header controls: Title & Range Selector on Left, Metric Selector on Right */}
       <div className="flex flex-row items-center justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
