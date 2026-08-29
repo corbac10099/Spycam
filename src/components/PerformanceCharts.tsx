@@ -35,22 +35,28 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const [matchLimit, setMatchLimit] = useState<number | "all">(20);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(800);
+  const [containerHeight, setContainerHeight] = useState<number>(140);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const updateWidth = () => {
+    const updateDimensions = () => {
       if (containerRef.current) {
         const w = containerRef.current.clientWidth;
+        const h = containerRef.current.clientHeight;
         if (w > 0) setContainerWidth(w);
+        if (h > 0) setContainerHeight(h);
       }
     };
-    updateWidth();
+    updateDimensions();
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0) {
           setContainerWidth(entry.contentRect.width);
+        }
+        if (entry.contentRect.height > 0) {
+          setContainerHeight(entry.contentRect.height);
         }
       }
     });
@@ -92,10 +98,16 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
     return null;
   }
 
-  // Dynamic responsive viewBox dimensions based on container width
+  // Dynamic responsive viewBox dimensions based on measured width and height
   const width = containerWidth || 800;
-  const height = 180;
-  const padding = { top: 25, right: 20, bottom: 25, left: 20 };
+  const height = Math.max(50, containerHeight || 140);
+  const isCompact = height < 110;
+  const padding = {
+    top: isCompact ? 8 : 16,
+    right: 14,
+    bottom: isCompact ? 10 : 22,
+    left: 14,
+  };
   const graphWidth = Math.max(10, width - padding.left - padding.right);
   const graphHeight = Math.max(10, height - padding.top - padding.bottom);
 
@@ -166,11 +178,11 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
 
   return (
-    <div className="glass-panel rounded-2xl p-3.5 sm:p-5 md:p-6 mb-0 animate-in fade-in duration-500 w-full h-full flex flex-col justify-between">
+    <div className="glass-panel rounded-2xl p-2.5 sm:p-4 mb-0 animate-in fade-in duration-500 w-full h-full flex flex-col justify-between overflow-hidden">
       {/* Header controls: Title & Range Selector on Left, Metric Selector on Right */}
-      <div className="flex flex-row items-center justify-between gap-2 mb-2 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs sm:text-sm md:text-base font-black uppercase tracking-wider text-[var(--color-text-primary)]">
+      <div className="flex flex-row items-center justify-between gap-2 mb-1 flex-wrap flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[var(--color-text-primary)]">
             Progression
           </span>
 
@@ -209,7 +221,7 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
               className={`px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
                 activeMetric === m.id
                   ? "bg-[var(--color-val-red)] text-white shadow-md shadow-[var(--color-val-red)]/30"
-                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                  : "text-[var(--color-text-secondary)] hover:text-var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
               }`}
             >
               {m.label}
@@ -218,18 +230,20 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
         </div>
       </div>
 
-      <div className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-2">
-        Moyenne ({chartData.length} matchs) :{" "}
-        <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
-      </div>
+      {!isCompact && (
+        <div className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-1 flex-shrink-0">
+          Moyenne ({chartData.length} matchs) :{" "}
+          <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
+        </div>
+      )}
 
       {/* Full-width SVG Chart with smooth mouse tracking */}
-      <div ref={containerRef} className="w-full relative">
+      <div ref={containerRef} className="w-full flex-1 min-h-[40px] relative overflow-hidden flex items-center justify-center">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
           preserveAspectRatio="none"
-          className="w-full h-36 sm:h-48 select-none cursor-crosshair"
+          className="w-full h-full select-none cursor-crosshair block"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
@@ -381,48 +395,51 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
             </g>
           )}
 
-          {/* Bottom Date Labels */}
-          {points.map((p, i) => {
-            const step = Math.max(1, Math.floor(points.length / 5));
-            const showLabel = i === 0 || i === points.length - 1 || i % step === 0;
-            if (!showLabel) return null;
+          {/* Bottom Date Labels (only shown when not flattened) */}
+          {!isCompact &&
+            points.map((p, i) => {
+              const step = Math.max(1, Math.floor(points.length / 5));
+              const showLabel = i === 0 || i === points.length - 1 || i % step === 0;
+              if (!showLabel) return null;
 
-            return (
-              <text
-                key={i}
-                x={p.x}
-                y={height - 8}
-                textAnchor="middle"
-                fill="var(--color-text-secondary)"
-                fontSize="10"
-                fontWeight="bold"
-                fontFamily="sans-serif"
-                pointerEvents="none"
-              >
-                {p.date}
-              </text>
-            );
-          })}
+              return (
+                <text
+                  key={i}
+                  x={p.x}
+                  y={height - 6}
+                  textAnchor="middle"
+                  fill="var(--color-text-secondary)"
+                  fontSize="9"
+                  fontWeight="bold"
+                  fontFamily="sans-serif"
+                  pointerEvents="none"
+                >
+                  {p.date}
+                </text>
+              );
+            })}
         </svg>
       </div>
 
       {/* Legend & Summary */}
-      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between pt-2.5 mt-1 border-t border-[var(--color-border)] text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] gap-2">
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Victoire
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500"></span> Défaite
-          </span>
-          {threshold !== null && (
+      {height >= 95 && (
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between pt-1.5 mt-0.5 border-t border-[var(--color-border)] text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-0.5 bg-[#38bdf8]"></span> Seuil ({threshold})
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Victoire
             </span>
-          )}
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500"></span> Défaite
+            </span>
+            {threshold !== null && (
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-0.5 bg-[#38bdf8]"></span> Seuil ({threshold})
+              </span>
+            )}
+          </div>
+          <span className="font-mono opacity-60 hidden sm:inline-block">Survolez pour inspecter</span>
         </div>
-        <span className="font-mono opacity-60 hidden sm:inline-block">Survolez le graphique pour inspecter chaque match</span>
-      </div>
+      )}
     </div>
   );
 }
