@@ -303,3 +303,67 @@
 .animate-spin-slow {
   animation: spinSlow 3s linear infinite;
 }
+
+/* ==================== QUANTUM HOPPING NAV BEAM ==================== */
+@keyframes quantumSurgeSearch {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 70, 85, 0);
+    border-color: transparent;
+  }
+  40% {
+    box-shadow: 0 0 24px rgba(255, 70, 85, 0.95), inset 0 0 12px rgba(255, 70, 85, 0.5);
+    border-color: #ff4655;
+    background-color: rgba(255, 70, 85, 0.15);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 70, 85, 0);
+    border-color: transparent;
+  }
+}
+
+@keyframes quantumSurgeCapsule {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 70, 85, 0);
+    border-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  45% {
+    box-shadow: 0 0 28px rgba(255, 70, 85, 0.9), inset 0 0 16px rgba(255, 70, 85, 0.4);
+    border-color: #ff4655;
+    background-color: rgba(255, 70, 85, 0.25);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 70, 85, 0);
+    border-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+}
+
+@keyframes quantumImpactTarget {
+  0% {
+    transform: scale(0.92);
+    box-shadow: 0 0 35px rgba(255, 70, 85, 1);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 45px rgba(255, 70, 85, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 15px rgba(255, 70, 85, 0.5);
+  }
+}
+
+.quantum-hop-search {
+  animation: quantumSurgeSearch 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.quantum-hop-clock {
+  animation: quantumSurgeCapsule 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.quantum-hop-impact {
+  animation: quantumImpactTarget 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
