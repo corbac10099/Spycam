@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import StatCard from "./StatCard";
 import PerformanceCharts from "./PerformanceCharts";
+import WeaponHitmap from "./WeaponHitmap";
 
 export interface GridItemConfig {
   id: string;
@@ -29,24 +30,26 @@ const GRID_GAP = 10;
 
 const DEFAULT_LAYOUT: GridItemConfig[] = [
   { id: "chart", x: 0, y: 0, colSpan: 12, rowSpan: 2, visible: true },
-  { id: "kills", x: 0, y: 2, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "deaths", x: 3, y: 2, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "assists", x: 6, y: 2, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "kd", x: 9, y: 2, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "adr", x: 0, y: 3, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "hs", x: 3, y: 3, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "wr", x: 6, y: 3, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "acs", x: 9, y: 3, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "fb", x: 0, y: 4, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "ace", x: 3, y: 4, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "kast", x: 6, y: 4, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "dd", x: 9, y: 4, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "wins", x: 0, y: 5, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "matches", x: 3, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "weapons", x: 0, y: 2, colSpan: 6, rowSpan: 2, visible: true },
+  { id: "kills", x: 6, y: 2, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "deaths", x: 9, y: 2, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "assists", x: 6, y: 3, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "kd", x: 9, y: 3, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "adr", x: 0, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "hs", x: 3, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "wr", x: 6, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "acs", x: 9, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "fb", x: 0, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "ace", x: 3, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "kast", x: 6, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "dd", x: 9, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "wins", x: 0, y: 6, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "matches", x: 3, y: 6, colSpan: 3, rowSpan: 1, visible: true },
 ];
 
 const ITEM_LABELS: Record<string, { label: string; icon?: string; desc: string }> = {
   chart: { label: "Graphique de Progression", icon: "📈", desc: "Courbe d'évolution K/D, ACS et Headshot" },
+  weapons: { label: "Top Armes & Précision", icon: "🎯", desc: "Top 3 armes et silhouette des zones de tir" },
   kills: { label: "Éliminations", icon: "🎯", desc: "Total des éliminations" },
   deaths: { label: "Morts", icon: "💀", desc: "Total des morts" },
   assists: { label: "Passes décisives", icon: "🤝", desc: "Total des assists" },
@@ -320,9 +323,13 @@ export default function DashboardGrid({
     }
 
     // When restoring to grid: set minimal readable size
-    const isChart = id === "chart";
-    const minRow = isChart ? Math.max(2, Math.ceil(130 / step)) : Math.max(1, Math.ceil(75 / step));
-    const minCol = isChart ? Math.min(gridCols, Math.max(6, Math.ceil(240 / step))) : Math.max(2, Math.min(gridCols, Math.ceil(95 / step)));
+    const isLargeWidget = id === "chart" || id === "weapons";
+    const minRow = isLargeWidget ? Math.max(2, Math.ceil(130 / step)) : Math.max(1, Math.ceil(75 / step));
+    const minCol = id === "chart"
+      ? Math.min(gridCols, Math.max(6, Math.ceil(240 / step)))
+      : id === "weapons"
+      ? Math.min(gridCols, Math.max(4, Math.ceil(200 / step)))
+      : Math.max(2, Math.min(gridCols, Math.ceil(95 / step)));
 
     const visibleItems = layout.filter((item) => item.visible && item.id !== id);
     const slot = findFirstAvailableSlot(visibleItems, minCol, minRow, gridCols);
@@ -425,8 +432,9 @@ export default function DashboardGrid({
     const startX = e.clientX;
     const startY = e.clientY;
 
-    const minCol = 1;
-    const minRow = 1;
+    const isLarge = itemId === "chart" || itemId === "weapons";
+    const minCol = isLarge ? 4 : 1;
+    const minRow = isLarge ? 2 : 1;
     const currentItem = layout.find((i) => i.id === itemId);
     const startPosX = currentItem?.x ?? 0;
 
@@ -516,6 +524,8 @@ export default function DashboardGrid({
     switch (id) {
       case "chart":
         return <PerformanceCharts matchHistory={matchHistory} />;
+      case "weapons":
+        return <WeaponHitmap matchHistory={matchHistory} stats={stats} />;
       case "kills":
         return <StatCard label="Éliminations" value={stats?.kills ?? 0} smartRating={smartRating} />;
       case "deaths":

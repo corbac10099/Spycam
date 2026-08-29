@@ -61,6 +61,7 @@ export default function SettingsView({
 }: SettingsViewProps) {
   const statOptions = [
     { id: "chart", label: "Graphique de Progression", icon: "📈", desc: "Courbe d'évolution" },
+    { id: "weapons", label: "Top Armes & Précision", icon: "🎯", desc: "Top 3 armes et zones de tir" },
     { id: "kills", label: "Éliminations", icon: "🎯", desc: "Total des kills" },
     { id: "deaths", label: "Morts", icon: "💀", desc: "Total des morts" },
     { id: "assists", label: "Passes décisives", icon: "🤝", desc: "Total des assists" },

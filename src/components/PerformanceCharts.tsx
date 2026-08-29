@@ -99,14 +99,16 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   }
 
   // Dynamic responsive viewBox dimensions based on measured width and height
-  const width = containerWidth || 800;
+  const width = Math.max(120, containerWidth || 800);
   const height = Math.max(50, containerHeight || 140);
-  const isCompact = height < 110;
+  const isCompact = height < 120 || width < 380;
+  const isUltraCompact = height < 85 || width < 260;
+
   const padding = {
-    top: isCompact ? 8 : 16,
-    right: 14,
-    bottom: isCompact ? 10 : 22,
-    left: 14,
+    top: isUltraCompact ? 4 : isCompact ? 8 : 16,
+    right: 10,
+    bottom: isUltraCompact ? 6 : isCompact ? 10 : 20,
+    left: 10,
   };
   const graphWidth = Math.max(10, width - padding.left - padding.right);
   const graphHeight = Math.max(10, height - padding.top - padding.bottom);
@@ -134,17 +136,19 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const valRange = maxVal - minVal || 1;
 
   const points = chartData.map((d, i) => {
-    const x = padding.left + (i / (chartData.length - 1)) * graphWidth;
+    const x = padding.left + (i / Math.max(1, chartData.length - 1)) * graphWidth;
     const val = activeMetric === "kd" ? d.kd : activeMetric === "acs" ? d.acs : d.hs;
     const y = padding.top + graphHeight - ((val - minVal) / valRange) * graphHeight;
-    return { ...d, x, y, currentVal: val };
+    return { ...d, x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0, currentVal: val };
   });
 
   const pathD = getCubicBezierPath(points);
 
-  const areaD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${(padding.top + graphHeight).toFixed(
-    1
-  )} L ${points[0].x.toFixed(1)} ${(padding.top + graphHeight).toFixed(1)} Z`;
+  const areaD = points.length > 0
+    ? `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${(padding.top + graphHeight).toFixed(
+        1
+      )} L ${points[0].x.toFixed(1)} ${(padding.top + graphHeight).toFixed(1)} Z`
+    : "";
 
   const thresholdY =
     threshold !== null
@@ -157,6 +161,7 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
     const mouseX = ((e.clientX - rect.left) / rect.width) * width;
 
     let closest = 0;
@@ -178,47 +183,49 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
 
   return (
-    <div className="glass-panel rounded-2xl p-2.5 sm:p-4 mb-0 animate-in fade-in duration-500 w-full h-full flex flex-col justify-between overflow-hidden">
-      {/* Header controls: Title & Range Selector on Left, Metric Selector on Right */}
-      <div className="flex flex-row items-center justify-between gap-2 mb-1 flex-wrap flex-shrink-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[var(--color-text-primary)]">
-            Progression
+    <div className="glass-panel rounded-2xl p-2 sm:p-3 mb-0 animate-in fade-in duration-500 w-full h-full flex flex-col justify-between overflow-hidden">
+      {/* Header controls */}
+      <div className="flex flex-row items-center justify-between gap-1 mb-1 flex-nowrap flex-shrink-0">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] truncate">
+            {isUltraCompact ? "📈" : "Progression"}
           </span>
 
-          {/* Range Selector: 10, 20, Tous */}
-          <div className="flex items-center gap-0.5 bg-[var(--color-background)]/80 p-0.5 rounded-lg border border-[var(--color-border)]">
-            {[
-              { id: 10, label: "10" },
-              { id: 20, label: "20" },
-              { id: "all", label: `Tous (${totalAvailable})` },
-            ].map((r) => (
-              <button
-                key={String(r.id)}
-                onClick={() => setMatchLimit(r.id as any)}
-                className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                  matchLimit === r.id
-                    ? "bg-[var(--color-val-red)] text-white shadow-sm"
-                    : "text-[var(--color-text-secondary)] hover:text-white"
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+          {/* Range Selector: 10, 20, Tous (hidden in compact) */}
+          {!isCompact && (
+            <div className="flex items-center gap-0.5 bg-[var(--color-background)]/80 p-0.5 rounded-lg border border-[var(--color-border)]">
+              {[
+                { id: 10, label: "10" },
+                { id: 20, label: "20" },
+                { id: "all", label: `Tous` },
+              ].map((r) => (
+                <button
+                  key={String(r.id)}
+                  onClick={() => setMatchLimit(r.id as any)}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all cursor-pointer ${
+                    matchLimit === r.id
+                      ? "bg-[var(--color-val-red)] text-white shadow-sm"
+                      : "text-[var(--color-text-secondary)] hover:text-white"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Metric Selector (K/D, ACS, Headshot %) */}
-        <div className="flex items-center gap-0.5 sm:gap-1 bg-[var(--color-surface)] p-0.5 sm:p-1 rounded-xl border border-[var(--color-border)]">
+        <div className="flex items-center gap-0.5 bg-[var(--color-surface)] p-0.5 rounded-lg border border-[var(--color-border)] flex-shrink-0">
           {[
             { id: "kd", label: "K/D" },
             { id: "acs", label: "ACS" },
-            { id: "hs", label: "HS %" },
+            { id: "hs", label: "HS%" },
           ].map((m) => (
             <button
               key={m.id}
               onClick={() => setActiveMetric(m.id as any)}
-              className={`px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
+              className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer ${
                 activeMetric === m.id
                   ? "bg-[var(--color-val-red)] text-white shadow-md shadow-[var(--color-val-red)]/30"
                   : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
@@ -231,14 +238,13 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
       </div>
 
       {!isCompact && (
-        <div className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-1 flex-shrink-0">
-          Moyenne ({chartData.length} matchs) :{" "}
-          <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
+        <div className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] mb-0.5 flex-shrink-0">
+          Moyenne : <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
         </div>
       )}
 
       {/* Full-width SVG Chart with smooth mouse tracking */}
-      <div ref={containerRef} className="w-full flex-1 min-h-[40px] relative overflow-hidden flex items-center justify-center">
+      <div ref={containerRef} className="w-full flex-1 min-h-[30px] relative overflow-hidden flex items-center justify-center">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
