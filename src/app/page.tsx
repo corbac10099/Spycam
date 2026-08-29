@@ -1028,7 +1028,7 @@ function HomeContent() {
                 return (
                   <div className={`w-full flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 ${profileThemeClass}`}>
                     {/* Bannière Profil Responsive */}
-                    <div className="w-full relative rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-[0_8px_30px_var(--color-glass-shadow)] bg-[#0a0e13] min-h-[110px] sm:min-h-[140px] aspect-[2.4/1] sm:aspect-[3.6/1] md:aspect-[3.8/1]">
+                    <div className="w-full relative rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-[0_8px_30px_var(--color-glass-shadow)] bg-[#0a0e13] min-h-[125px] sm:min-h-[140px] aspect-[2.4/1] sm:aspect-[3.6/1] md:aspect-[3.8/1]">
                       <img
                         referrerPolicy="no-referrer"
                         src={profileBannerUrl}
@@ -1040,9 +1040,9 @@ function HomeContent() {
 
                       <div className="relative z-10 px-3 sm:px-6 md:px-8 py-3 sm:py-5 flex items-center justify-between h-full w-full gap-2">
                         {/* Gauche : Avatar + Pseudo + Tag + Badge */}
-                        <div className="flex items-center gap-2 sm:gap-4 md:gap-5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 sm:gap-4 md:gap-5 min-w-0 flex-1">
                           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                            <div className="w-11 h-11 xs:w-13 xs:h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)] bg-black/60">
+                            <div className="w-13 h-13 xs:w-15 xs:h-15 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)] bg-black/60">
                               <img referrerPolicy="no-referrer" src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
                             </div>
                             {p.mainAgent && (
@@ -1055,7 +1055,7 @@ function HomeContent() {
 
                           <div className="flex flex-col min-w-0" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                              <span className="text-sm xs:text-base sm:text-xl md:text-2xl font-black tracking-tight text-white truncate max-w-[110px] xs:max-w-[150px] sm:max-w-none">
+                              <span className="text-sm xs:text-base sm:text-xl md:text-2xl font-black tracking-tight text-white truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
                                 {displayName}
                               </span>
                               {displayTag && (
@@ -1083,7 +1083,7 @@ function HomeContent() {
                           <span className="text-[8px] sm:text-[9px] md:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.15em] mb-0.5 sm:mb-1 font-bold" style={{ textShadow: "0px 2px 8px rgba(0,0,0,0.8)" }}>
                             Niveau
                           </span>
-                          <div className="relative flex items-center justify-center w-8 h-8 xs:w-9 xs:h-9 sm:w-12 sm:h-12 md:w-16 md:h-16">
+                          <div className="relative flex items-center justify-center w-9 h-9 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-16 md:h-16">
                             <div className="absolute inset-0 border-2 border-[var(--color-val-light)] opacity-50 transform rotate-45 rounded-md sm:rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)]"></div>
                             <span className="text-xs xs:text-sm sm:text-xl md:text-3xl font-black text-[var(--color-val-light)] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] z-10">
                               {p.level}
@@ -1097,7 +1097,7 @@ function HomeContent() {
                             <span className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">Rang</span>
                             <span className="text-xs sm:text-lg font-black text-white uppercase tracking-wider">{p.rank}</span>
                           </div>
-                          <img referrerPolicy="no-referrer" src={p.rankUrl} alt={p.rank} className="w-9 h-9 xs:w-11 xs:h-11 sm:w-14 sm:h-14 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
+                          <img referrerPolicy="no-referrer" src={p.rankUrl} alt={p.rank} className="w-13 h-13 xs:w-15 xs:h-15 sm:w-16 sm:h-16 md:w-20 md:h-20 object-contain drop-shadow-[0_0_20px_rgba(0,0,0,0.8)]" />
 
                           {canEditProfile ? (
                             <button

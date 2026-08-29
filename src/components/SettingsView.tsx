@@ -163,6 +163,8 @@ export default function SettingsView({
     return 0.08;
   });
   const [draftHiddenStats, setDraftHiddenStats] = useState<string[]>(hiddenStats || []);
+  const [privacyStatsExpanded, setPrivacyStatsExpanded] = useState<boolean>(false);
+  const [badgesExpanded, setBadgesExpanded] = useState<boolean>(false);
   const [draftEnforcePublicStats, setDraftEnforcePublicStats] = useState(enforcePublicStats || false);
   const [draftTheme, setDraftTheme] = useState(theme?.startsWith("custom:") ? "custom" : theme);
   const [draftCustomBg, setDraftCustomBg] = useState(() => {
@@ -481,101 +483,134 @@ export default function SettingsView({
                   )}
                 </div>
 
-                {/* Badges de Profil Section */}
-                <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] flex items-center gap-2">
-                        <IconBadgeVerified size={18} className="text-sky-400" />
-                        <span>Badges &amp; Distinctions de Profil</span>
-                      </h3>
-                      <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
-                        Affichez vos badges certifiés, pro, créateur, ou masquez-en certains individuellement
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        sounds.playClick();
-                        setDraftShowBadge(!draftShowBadge);
-                      }}
-                      className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
-                        draftShowBadge ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                          draftShowBadge ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
-                        }`}
-                      ></span>
-                    </button>
-                  </div>
+                {/* Badges de Profil Section - Only rendered if user actually has badges */}
+                {(() => {
+                  const userBadges = p?.badge ? parseBadges(p.badge).map((b: string) => b.toLowerCase()) : [];
+                  const myOwnedBadges = Object.values(BADGES_REGISTRY).filter((badgeDef) => userBadges.includes(badgeDef.id));
 
-                  {draftShowBadge && (
-                    <div className="space-y-2 pl-1 sm:pl-2 animate-in fade-in duration-200 mt-2">
-                      <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
-                        Visibilité par type de badge :
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {Object.values(BADGES_REGISTRY).map((badgeDef) => {
-                          const isHidden = draftHiddenBadges.includes(badgeDef.id);
-                          const isAssigned = p?.badge ? parseBadges(p.badge).map((b: string) => b.toLowerCase()).includes(badgeDef.id) : false;
-                          const IconComp = badgeDef.icon;
+                  if (myOwnedBadges.length === 0) return null;
 
-                          return (
-                            <div
-                              key={badgeDef.id}
-                              onMouseEnter={() => sounds.playHover()}
-                              onClick={() => {
-                                sounds.playBreeze();
-                                if (isHidden) {
-                                  setDraftHiddenBadges(draftHiddenBadges.filter((id) => id !== badgeDef.id));
-                                } else {
-                                  setDraftHiddenBadges([...draftHiddenBadges, badgeDef.id]);
-                                }
-                              }}
-                              className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                                !isHidden
-                                  ? "bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-text-secondary)]"
-                                  : "bg-red-500/5 border-red-500/25 opacity-60 hover:opacity-100"
+                  return (
+                    <div className="flex flex-col pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                      <div
+                        onClick={() => {
+                          sounds.playClick();
+                          setBadgesExpanded(!badgesExpanded);
+                        }}
+                        className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-val-red)]/40 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center flex-shrink-0">
+                            <IconBadgeVerified size={18} className="text-sky-400" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <h3 className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] flex items-center gap-2">
+                              <span>Badges &amp; Distinctions de Profil</span>
+                              <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 text-sky-400 text-[10px] font-black">
+                                {myOwnedBadges.length}
+                              </span>
+                            </h3>
+                            <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] truncate">
+                              {badgesExpanded ? "Cliquez pour replier les options" : "Cliquez pour gérer la visibilité de vos badges"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sounds.playClick();
+                              setDraftShowBadge(!draftShowBadge);
+                            }}
+                            title={draftShowBadge ? "Afficher les badges" : "Masquer les badges"}
+                            className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 cursor-pointer ${
+                              draftShowBadge ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                                draftShowBadge ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
                               }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className={`p-1.5 rounded-lg border flex items-center justify-center ${badgeDef.bgClass} ${badgeDef.borderClass}`}>
-                                  <IconComp size={16} className={badgeDef.colorClass} />
-                                </div>
-                                <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">
-                                      {badgeDef.label}
-                                    </span>
-                                    {isAssigned && (
-                                      <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                        Actif
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-[10px] text-[var(--color-text-secondary)] line-clamp-1">
-                                    {badgeDef.description}
-                                  </span>
-                                </div>
-                              </div>
+                            ></span>
+                          </button>
 
-                              <div
-                                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex-shrink-0 ${
-                                  !isHidden
-                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                    : "bg-red-500/15 text-red-400 border border-red-500/30"
-                                }`}
-                              >
-                                {!isHidden ? "Affiché" : "Masqué"}
-                              </div>
-                            </div>
-                          );
-                        })}
+                          <span
+                            className={`text-sm sm:text-base font-black transition-transform duration-300 text-[var(--color-text-secondary)] group-hover:text-[var(--color-val-red)] ${
+                              badgesExpanded ? "rotate-90 text-[var(--color-val-red)]" : "rotate-0"
+                            }`}
+                          >
+                            →
+                          </span>
+                        </div>
                       </div>
+
+                      {badgesExpanded && draftShowBadge && (
+                        <div className="space-y-2.5 mt-3 pt-3 border-t border-[var(--color-border)]/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+                            Visibilité de vos badges obtenus :
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {myOwnedBadges.map((badgeDef) => {
+                              const isHidden = draftHiddenBadges.includes(badgeDef.id);
+                              const IconComp = badgeDef.icon;
+
+                              return (
+                                <div
+                                  key={badgeDef.id}
+                                  onMouseEnter={() => sounds.playHover()}
+                                  onClick={() => {
+                                    sounds.playBreeze();
+                                    if (isHidden) {
+                                      setDraftHiddenBadges(draftHiddenBadges.filter((id) => id !== badgeDef.id));
+                                    } else {
+                                      setDraftHiddenBadges([...draftHiddenBadges, badgeDef.id]);
+                                    }
+                                  }}
+                                  className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                    !isHidden
+                                      ? "bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-text-secondary)]"
+                                      : "bg-red-500/5 border-red-500/25 opacity-60 hover:opacity-100"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`p-1.5 rounded-lg border flex items-center justify-center ${badgeDef.bgClass} ${badgeDef.borderClass}`}>
+                                      <IconComp size={16} className={badgeDef.colorClass} />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">
+                                          {badgeDef.label}
+                                        </span>
+                                        <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                          Actif
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] text-[var(--color-text-secondary)] line-clamp-1">
+                                        {badgeDef.description}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex-shrink-0 ${
+                                      !isHidden
+                                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                        : "bg-red-500/15 text-red-400 border border-red-500/30"
+                                    }`}
+                                  >
+                                    {!isHidden ? "Affiché" : "Masqué"}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -634,98 +669,138 @@ export default function SettingsView({
                 </button>
               </div>
 
+              {/* Accordéon : Ce que voient les autres visiteurs */}
               <div className="pt-4 sm:pt-6 border-t border-[var(--color-border)]">
-                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                  <div>
-                    <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)]">
-                      Ce que voient les autres visiteurs
-                    </h4>
-                    <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5">
-                      Choisissez précisément les statistiques et graphiques accessibles aux personnes qui consultent votre profil.
-                    </p>
+                <div
+                  onClick={() => {
+                    sounds.playClick();
+                    setPrivacyStatsExpanded(!privacyStatsExpanded);
+                  }}
+                  className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-[var(--color-surface)]/60 hover:bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-val-red)]/40 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--color-val-red)]/10 border border-[var(--color-val-red)]/30 flex items-center justify-center flex-shrink-0">
+                      <IconEye size={18} className="text-[var(--color-val-red)]" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)] flex items-center gap-2">
+                        <span>Ce que voient les autres visiteurs</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-[var(--color-val-red)]/20 text-[var(--color-val-red)] text-[10px] font-black">
+                          {statOptions.length - draftHiddenStats.length}/{statOptions.length}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] truncate">
+                        {privacyStatsExpanded
+                          ? "Cliquez pour replier les options de visibilité"
+                          : "Cliquez pour déplier et choisir les statistiques visibles ou masquées"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onMouseEnter={() => sounds.playHover()}
-                      onClick={() => {
-                        sounds.playBreeze();
-                        setDraftHiddenStats([]);
-                      }}
-                      className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-emerald-400 border border-[var(--color-border)] cursor-pointer"
+
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] hidden xs:inline">
+                      {draftHiddenStats.length === 0 ? "Tout visible" : `${draftHiddenStats.length} masquée(s)`}
+                    </span>
+                    <span
+                      className={`text-sm sm:text-base font-black transition-transform duration-300 text-[var(--color-text-secondary)] group-hover:text-[var(--color-val-red)] ${
+                        privacyStatsExpanded ? "rotate-90 text-[var(--color-val-red)]" : "rotate-0"
+                      }`}
                     >
-                      Tout rendre visible
-                    </button>
-                    <button
-                      type="button"
-                      onMouseEnter={() => sounds.playHover()}
-                      onClick={() => {
-                        sounds.playBreeze();
-                        setDraftHiddenStats(statOptions.map((s) => s.id));
-                      }}
-                      className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-red-400 border border-[var(--color-border)] cursor-pointer"
-                    >
-                      Tout masquer
-                    </button>
+                      →
+                    </span>
                   </div>
                 </div>
 
-                {/* Explicative Banner */}
-                <div className="p-3 bg-[var(--color-surface)]/60 rounded-xl border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] mb-4 flex items-center gap-2">
-                  <IconShield size={16} className="text-sky-400 flex-shrink-0" />
-                  <span>
-                    Les éléments marqués comme <strong>Masqués</strong> seront invisibles pour les visiteurs externes, mais restent toujours affichés sur votre propre compte.
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4">
-                  {statOptions.map((stat) => {
-                    const isVisibleToOthers = !draftHiddenStats.includes(stat.id);
-                    return (
-                      <div
-                        key={stat.id}
-                        onMouseEnter={() => sounds.playHover()}
-                        onClick={() => {
-                          sounds.playBreeze();
-                          if (isVisibleToOthers) {
-                            setDraftHiddenStats([...draftHiddenStats, stat.id]);
-                          } else {
-                            setDraftHiddenStats(draftHiddenStats.filter((id) => id !== stat.id));
-                          }
-                        }}
-                        className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          isVisibleToOthers
-                            ? "bg-emerald-500/5 border-emerald-500/40 hover:border-emerald-500 shadow-sm"
-                            : "bg-red-500/5 border-red-500/25 opacity-70 hover:opacity-100 hover:border-red-500/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-[var(--color-text-secondary)] flex-shrink-0">{stat.icon}</span>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs sm:text-sm font-bold truncate text-[var(--color-text-primary)]">
-                              {stat.label}
-                            </span>
-                            <span className="text-[10px] font-semibold text-[var(--color-text-secondary)]">
-                              {isVisibleToOthers ? (
-                                <span className="text-emerald-400">Visible aux visiteurs</span>
-                              ) : (
-                                <span className="text-red-400">Masqué aux autres</span>
-                              )}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black transition-colors ${
-                            isVisibleToOthers ? "bg-emerald-600 text-white shadow-md" : "bg-red-900/60 text-red-300 border border-red-500/30"
-                          }`}
+                {privacyStatsExpanded && (
+                  <div className="space-y-4 mt-3 pt-3 border-t border-[var(--color-border)]/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)]">
+                        Choisissez précisément les statistiques et graphiques accessibles aux personnes qui consultent votre profil.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onMouseEnter={() => sounds.playHover()}
+                          onClick={() => {
+                            sounds.playBreeze();
+                            setDraftHiddenStats([]);
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-emerald-400 border border-[var(--color-border)] cursor-pointer"
                         >
-                          {isVisibleToOthers ? <IconEye size={12} /> : <IconLock size={12} />}
-                        </div>
+                          Tout rendre visible
+                        </button>
+                        <button
+                          type="button"
+                          onMouseEnter={() => sounds.playHover()}
+                          onClick={() => {
+                            sounds.playBreeze();
+                            setDraftHiddenStats(statOptions.map((s) => s.id));
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-red-400 border border-[var(--color-border)] cursor-pointer"
+                        >
+                          Tout masquer
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+
+                    {/* Explicative Banner */}
+                    <div className="p-3 bg-[var(--color-surface)]/60 rounded-xl border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] flex items-center gap-2">
+                      <IconShield size={16} className="text-sky-400 flex-shrink-0" />
+                      <span>
+                        Les éléments marqués comme <strong>Masqués</strong> seront invisibles pour les visiteurs externes, mais restent toujours affichés sur votre propre compte.
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4">
+                      {statOptions.map((stat) => {
+                        const isVisibleToOthers = !draftHiddenStats.includes(stat.id);
+                        return (
+                          <div
+                            key={stat.id}
+                            onMouseEnter={() => sounds.playHover()}
+                            onClick={() => {
+                              sounds.playBreeze();
+                              if (isVisibleToOthers) {
+                                setDraftHiddenStats([...draftHiddenStats, stat.id]);
+                              } else {
+                                setDraftHiddenStats(draftHiddenStats.filter((id) => id !== stat.id));
+                              }
+                            }}
+                            className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                              isVisibleToOthers
+                                ? "bg-emerald-500/5 border-emerald-500/40 hover:border-emerald-500 shadow-sm"
+                                : "bg-red-500/5 border-red-500/25 opacity-70 hover:opacity-100 hover:border-red-500/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="text-[var(--color-text-secondary)] flex-shrink-0">{stat.icon}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs sm:text-sm font-bold truncate text-[var(--color-text-primary)]">
+                                  {stat.label}
+                                </span>
+                                <span className="text-[10px] font-semibold text-[var(--color-text-secondary)]">
+                                  {isVisibleToOthers ? (
+                                    <span className="text-emerald-400">Visible aux visiteurs</span>
+                                  ) : (
+                                    <span className="text-red-400">Masqué aux autres</span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black transition-colors ${
+                                isVisibleToOthers ? "bg-emerald-600 text-white shadow-md" : "bg-red-900/60 text-red-300 border border-red-500/30"
+                              }`}
+                            >
+                              {isVisibleToOthers ? <IconEye size={12} /> : <IconLock size={12} />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

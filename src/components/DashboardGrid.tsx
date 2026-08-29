@@ -886,7 +886,7 @@ export default function DashboardGrid({
                   sounds.playTabSwitch();
                   setIsEditing(true);
                 }}
-                className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-val-red)]/50 text-[var(--color-text-primary)] hover:text-[var(--color-val-red)] rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
+                className="hidden md:flex px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-val-red)]/50 text-[var(--color-text-primary)] hover:text-[var(--color-val-red)] rounded-xl text-xs font-bold uppercase tracking-wider transition-all items-center gap-1.5 cursor-pointer shadow-sm group"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
