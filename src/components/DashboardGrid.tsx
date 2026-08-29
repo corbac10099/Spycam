@@ -62,8 +62,7 @@ const ITEM_LABELS: Record<string, { label: string; icon?: string; desc: string }
   matches: { label: "Parties", icon: "🎮", desc: "Nombre total de parties" },
 };
 
-// ---- Collision Resolution ----
-// Check if two items overlap (0-based coordinates)
+// Check if two items overlap in 2D
 function itemsOverlap(a: GridItemConfig, b: GridItemConfig): boolean {
   const aRight = a.x + a.colSpan;
   const aBottom = a.y + a.rowSpan;
@@ -72,36 +71,30 @@ function itemsOverlap(a: GridItemConfig, b: GridItemConfig): boolean {
   return a.x < bRight && aRight > b.x && a.y < bBottom && aBottom > b.y;
 }
 
-// Push colliding items down to resolve overlaps
+// Push colliding items downward to resolve all overlaps
 function resolveCollisions(items: GridItemConfig[], movedId: string, cols: number): GridItemConfig[] {
-  const result = [...items];
+  const result = items.map((i) => ({ ...i }));
   const moved = result.find((i) => i.id === movedId);
-  if (!moved) return result;
+  if (!moved || !moved.visible) return result;
 
-  // Push any overlapping item downward until no overlaps remain (max 50 iterations)
-  for (let iter = 0; iter < 50; iter++) {
+  for (let iter = 0; iter < 40; iter++) {
     let hadCollision = false;
     for (const other of result) {
       if (other.id === movedId || !other.visible) continue;
-      if (!moved.visible) continue;
       if (itemsOverlap(moved, other)) {
-        // Push the OTHER item down below the moved item
         other.y = moved.y + moved.rowSpan;
-        // Clamp x
         if (other.x + other.colSpan > cols) {
           other.x = Math.max(0, cols - other.colSpan);
         }
         hadCollision = true;
       }
     }
-    // After pushing others, also resolve any cascading overlaps between non-moved items
     for (let i = 0; i < result.length; i++) {
       if (!result[i].visible) continue;
       for (let j = i + 1; j < result.length; j++) {
         if (!result[j].visible) continue;
         if (result[i].id === movedId || result[j].id === movedId) continue;
         if (itemsOverlap(result[i], result[j])) {
-          // Push the one that's higher down
           const upper = result[i].y <= result[j].y ? result[i] : result[j];
           const lower = result[i].y <= result[j].y ? result[j] : result[i];
           lower.y = upper.y + upper.rowSpan;
@@ -123,7 +116,7 @@ export default function DashboardGrid({
   hiddenStatsByPrivacy = [],
   userStorageKey = "default",
 }: DashboardGridProps) {
-  const storageKey = `spycam_grid_layout_v5_${userStorageKey}`;
+  const storageKey = `spycam_grid_layout_v6_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const [gridCols, setGridCols] = useState<number>(DEFAULT_COLS);
@@ -134,27 +127,32 @@ export default function DashboardGrid({
   const [resizeHint, setResizeHint] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [saveToast, setSaveToast] = useState<boolean>(false);
-  const [containerWidth, setContainerWidth] = useState<number>(900);
+  const [usableWidth, setUsableWidth] = useState<number>(900);
 
-  // Track container width to compute square cell size
+  // Measure usable width inside grid container accurately
   useEffect(() => {
     if (!gridContainerRef.current) return;
     const updateWidth = () => {
       if (gridContainerRef.current) {
-        setContainerWidth(gridContainerRef.current.clientWidth);
+        // Inner width excluding padding (16px on left and right when editing)
+        const totalW = gridContainerRef.current.clientWidth;
+        const pad = isEditing ? 32 : 0;
+        setUsableWidth(Math.max(200, totalW - pad));
       }
     };
     updateWidth();
     const observer = new ResizeObserver(() => updateWidth());
     observer.observe(gridContainerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [isEditing]);
 
-  // Square cell size: width of one column = height of one row
+  // Square cell size: 1 column unit = 1 row unit
   const cellSize = useMemo(() => {
     const totalGaps = (gridCols - 1) * GRID_GAP;
-    return Math.max(30, (containerWidth - totalGaps) / gridCols);
-  }, [containerWidth, gridCols]);
+    return Math.max(15, (usableWidth - totalGaps) / gridCols);
+  }, [usableWidth, gridCols]);
+
+  const step = useMemo(() => cellSize + GRID_GAP, [cellSize]);
 
   // Load layout from localStorage
   useEffect(() => {
@@ -199,6 +197,26 @@ export default function DashboardGrid({
     setDrawerOpen(false);
   };
 
+  // Proportional scaling when changing gridCols density
+  const handleColumnsChange = (newCols: number) => {
+    const clampedCols = Math.max(4, Math.min(48, newCols));
+    const prevCols = gridCols;
+    if (clampedCols === prevCols) return;
+
+    const scale = clampedCols / prevCols;
+    setGridCols(clampedCols);
+
+    const scaledLayout = layout.map((item) => ({
+      ...item,
+      x: Math.min(clampedCols - 1, Math.round(item.x * scale)),
+      y: Math.round(item.y * scale),
+      colSpan: Math.max(1, Math.min(clampedCols, Math.round(item.colSpan * scale))),
+      rowSpan: Math.max(1, Math.round(item.rowSpan * scale)),
+    }));
+
+    saveState(scaledLayout, clampedCols);
+  };
+
   // Toggle item visibility
   const toggleVisibility = (id: string, makeVisible?: boolean) => {
     const updated = layout.map((item) => {
@@ -210,7 +228,7 @@ export default function DashboardGrid({
     saveState(updated);
   };
 
-  // Free Drag & Drop with collision resolution
+  // Drag & Drop with collision resolution
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData("text/plain", id);
     e.dataTransfer.effectAllowed = "move";
@@ -223,19 +241,17 @@ export default function DashboardGrid({
     if (!draggedId || !gridContainerRef.current) return;
 
     const rect = gridContainerRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const step = cellSize + GRID_GAP;
+    const pad = isEditing ? 16 : 0;
+    const mouseX = e.clientX - rect.left - pad;
+    const mouseY = e.clientY - rect.top - pad;
 
     const draggedItem = layout.find((i) => i.id === draggedId);
     if (!draggedItem) return;
 
     const spanW = Math.min(draggedItem.colSpan, gridCols);
-    const spanH = draggedItem.rowSpan;
 
-    const targetX = Math.max(0, Math.min(gridCols - spanW, Math.floor(mouseX / step)));
-    const targetY = Math.max(0, Math.floor(mouseY / step));
+    const targetX = Math.max(0, Math.min(gridCols - spanW, Math.round(mouseX / step)));
+    const targetY = Math.max(0, Math.round(mouseY / step));
 
     if (draggedItem.x !== targetX || draggedItem.y !== targetY || !draggedItem.visible) {
       setLayout((prev) => {
@@ -258,7 +274,7 @@ export default function DashboardGrid({
     saveState(layout);
   };
 
-  // Interactive Edge Resizing with collision resolution
+  // Interactive Edge Resizing
   const handleResizeStart = (
     e: React.MouseEvent,
     itemId: string,
@@ -272,9 +288,8 @@ export default function DashboardGrid({
 
     const startX = e.clientX;
     const startY = e.clientY;
-    const step = cellSize + GRID_GAP;
 
-    const minCol = itemId === "chart" ? 3 : 2;
+    const minCol = 1;
     const minRow = 1;
     const currentItem = layout.find((i) => i.id === itemId);
     const startPosX = currentItem?.x ?? 0;
@@ -286,7 +301,7 @@ export default function DashboardGrid({
         const maxCols = gridCols - startPosX;
         const targetColSpan = Math.max(minCol, Math.min(maxCols, currentColSpan + colDelta));
 
-        setResizeHint(`${targetColSpan} × ${currentRowSpan}`);
+        setResizeHint(`${targetColSpan} cols × ${currentRowSpan} lignes`);
         setLayout((prev) => {
           const updated = prev.map((item) =>
             item.id === itemId ? { ...item, colSpan: targetColSpan } : item
@@ -296,9 +311,9 @@ export default function DashboardGrid({
       } else {
         const deltaY = moveEvent.clientY - startY;
         const rowDelta = Math.round(deltaY / step);
-        const targetRowSpan = Math.max(minRow, Math.min(10, currentRowSpan + rowDelta));
+        const targetRowSpan = Math.max(minRow, Math.min(20, currentRowSpan + rowDelta));
 
-        setResizeHint(`${currentColSpan} × ${targetRowSpan}`);
+        setResizeHint(`${currentColSpan} cols × ${targetRowSpan} lignes`);
         setLayout((prev) => {
           const updated = prev.map((item) =>
             item.id === itemId ? { ...item, rowSpan: targetRowSpan } : item
@@ -343,7 +358,7 @@ export default function DashboardGrid({
     return layout.filter((item) => !item.visible);
   }, [layout]);
 
-  // Compute actual number of rows needed (no more, no less)
+  // Compute total rows needed (tight bounds)
   const totalRows = useMemo(() => {
     let maxRow = 0;
     activeItems.forEach((item) => {
@@ -352,9 +367,8 @@ export default function DashboardGrid({
     return Math.max(1, maxRow);
   }, [activeItems]);
 
-  // Total number of dot rows/cols for the SVG overlay
-  const dotCols = gridCols + 1;
-  const dotRows = totalRows + 1;
+  // Exact pixel height of the grid content
+  const gridPixelHeight = totalRows * cellSize + Math.max(0, totalRows - 1) * GRID_GAP;
 
   // Render individual widget content
   const renderItemContent = (id: string) => {
@@ -448,10 +462,6 @@ export default function DashboardGrid({
     }
   };
 
-  // Grid total pixel dimensions
-  const gridPixelWidth = containerWidth;
-  const gridPixelHeight = totalRows * cellSize + Math.max(0, totalRows - 1) * GRID_GAP;
-
   return (
     <div className="w-full flex flex-col relative">
       {/* Top Header / Mode Edition Bar */}
@@ -470,7 +480,7 @@ export default function DashboardGrid({
                   </span>
                 </div>
 
-                {/* Density Input: Columns only, rows auto-calculated */}
+                {/* Density Input */}
                 <div className="flex items-center gap-2 bg-[var(--color-surface)]/80 border border-[var(--color-border)] px-2.5 py-1 rounded-xl backdrop-blur-md">
                   <div className="flex items-center gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-secondary)]">
@@ -481,16 +491,12 @@ export default function DashboardGrid({
                       min={4}
                       max={48}
                       value={gridCols}
-                      onChange={(e) => {
-                        const val = Math.max(4, Math.min(48, Number(e.target.value) || 12));
-                        setGridCols(val);
-                        saveState(layout, val);
-                      }}
+                      onChange={(e) => handleColumnsChange(Number(e.target.value) || 12)}
                       className="w-11 bg-black/60 border border-white/15 text-white rounded-lg px-1.5 py-0.5 text-center text-xs font-mono font-black focus:border-[var(--color-val-red)] focus:outline-none"
                     />
                   </div>
                   <span className="text-[10px] text-[var(--color-text-secondary)] opacity-60">
-                    {Math.round(cellSize)}px/case
+                    {Math.round(cellSize)}px/point
                   </span>
                 </div>
               </div>
@@ -589,54 +595,50 @@ export default function DashboardGrid({
         </div>
       )}
 
-      {/* Main Grid Container */}
+      {/* Main Grid Container with exact padding boundary */}
       <div
         ref={gridContainerRef}
         onDragOver={handleGridDragOver}
         onDrop={handleDrop}
-        style={{ height: isEditing ? `${gridPixelHeight + 40}px` : "auto" }}
         className={`w-full transition-all duration-300 relative ${
-          isEditing ? "p-3 sm:p-4 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/20" : ""
+          isEditing ? "p-4 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/25" : ""
         }`}
       >
-        {/* SVG dots matrix: perfectly square grid (stepX === stepY) */}
-        {isEditing && (
-          <svg
-            width={gridPixelWidth}
-            height={gridPixelHeight}
-            className="absolute top-3 sm:top-4 left-3 sm:left-4 pointer-events-none z-0"
-            style={{ overflow: "visible" }}
-          >
-            {Array.from({ length: dotRows }).map((_, r) =>
-              Array.from({ length: dotCols }).map((_, c) => {
-                const step = cellSize + GRID_GAP;
-                const cx = c * step;
-                const cy = r * step;
-                return (
-                  <circle
-                    key={`${r}-${c}`}
-                    cx={cx}
-                    cy={cy}
-                    r="1.6"
-                    fill="rgba(255, 70, 85, 0.4)"
-                  />
-                );
-              })
-            )}
-          </svg>
-        )}
-
-        {/* Positioned items using absolute positioning for true 2D freedom */}
+        {/* Inner Grid Area (exact usable bounds) */}
         <div
           style={{
             position: "relative",
             width: "100%",
             height: isEditing ? `${gridPixelHeight}px` : "auto",
           }}
-          className="z-10"
         >
+          {/* SVG dots matrix: strictly bounded inside usableWidth and gridPixelHeight */}
+          {isEditing && (
+            <svg
+              width={usableWidth}
+              height={gridPixelHeight}
+              className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
+            >
+              {Array.from({ length: totalRows + 1 }).map((_, r) =>
+                Array.from({ length: gridCols + 1 }).map((_, c) => {
+                  const cx = Math.min(usableWidth - 2, Math.max(2, c * step));
+                  const cy = Math.min(gridPixelHeight - 2, Math.max(2, r * step));
+                  return (
+                    <circle
+                      key={`${r}-${c}`}
+                      cx={cx}
+                      cy={cy}
+                      r="1.6"
+                      fill="rgba(255, 70, 85, 0.4)"
+                    />
+                  );
+                })
+              )}
+            </svg>
+          )}
+
           {!isEditing ? (
-            // Normal mode: use CSS Grid for clean responsive layout
+            // Normal Mode: responsive CSS Grid
             <div
               style={{
                 display: "grid",
@@ -665,11 +667,10 @@ export default function DashboardGrid({
               })}
             </div>
           ) : (
-            // Edit mode: absolute positioning for full drag freedom
+            // Edit Mode: absolute positioning for fluid dragging
             activeItems.map((item) => {
               const isDragged = draggedId === item.id;
               const isResizing = resizingItemId === item.id;
-              const step = cellSize + GRID_GAP;
               const actualColSpan = Math.min(item.colSpan, gridCols);
               const left = item.x * step;
               const top = item.y * step;
@@ -688,20 +689,19 @@ export default function DashboardGrid({
                     top: `${top}px`,
                     width: `${w}px`,
                     height: `${h}px`,
-                    transition: isDragged ? "none" : "left 0.25s ease, top 0.25s ease, width 0.2s ease, height 0.2s ease",
+                    transition: isDragged ? "none" : "left 0.2s ease, top 0.2s ease, width 0.15s ease, height 0.15s ease",
                   }}
                   className={`group/item select-none flex flex-col min-h-0 overflow-hidden ${
                     isDragged ? "opacity-30 scale-95 ring-2 ring-[var(--color-val-red)]/50 rounded-2xl" : "opacity-100"
                   } ${
                     isResizing ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl" : ""
-                  } cursor-grab active:cursor-grabbing hover:shadow-xl`}
+                  } cursor-grab active:cursor-grabbing hover:shadow-xl z-10`}
                 >
                   <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden">
                     {renderItemContent(item.id)}
                   </div>
 
-                  {/* Edit overlays */}
-                  {/* Size Badge */}
+                  {/* Size & Coordinates Indicator */}
                   <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/85 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center gap-1 border border-white/15 select-none pointer-events-none shadow-md">
                     <span className="text-[10px] text-[var(--color-val-red)]">⋮⋮</span>
                     <span className="text-[9px] font-black uppercase tracking-wider text-white">
@@ -709,7 +709,7 @@ export default function DashboardGrid({
                     </span>
                   </div>
 
-                  {/* Remove Button */}
+                  {/* Red "-" Remove Button */}
                   <button
                     type="button"
                     onClick={(e) => {
