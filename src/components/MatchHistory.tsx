@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { tr } from "@/lib/i18n";
+import { sounds } from "@/lib/soundEffects";
 
 export interface MatchHistoryProps {
   matches: any[];
@@ -123,7 +124,11 @@ export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPl
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id as any)}
+            onMouseEnter={() => sounds.playHover()}
+            onClick={() => {
+              sounds.playTabSwitch();
+              setTab(t.id as any);
+            }}
             className={`pb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold transition-all relative cursor-pointer ${
               tab === t.id ? "text-[var(--color-val-red)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             }`}
@@ -336,7 +341,11 @@ function MatchHistoryComponent({ matches, searchPlayer, visibleCount, onLoadMore
         return (
           <div key={match.matchId} className="flex flex-col gap-2">
             <div
-              onClick={() => setExpandedMatchId(isExpanded ? null : match.matchId)}
+              onMouseEnter={() => sounds.playHover()}
+              onClick={() => {
+                sounds.playClick();
+                setExpandedMatchId(isExpanded ? null : match.matchId);
+              }}
               className={`glass-panel rounded-2xl p-4 flex items-center gap-3 sm:gap-4 transition-all duration-300 border-l-4 cursor-pointer select-none ${
                 match.won ? "border-l-emerald-500 hover:border-l-emerald-400" : "border-l-red-500 hover:border-l-red-400"
               } ${isExpanded ? "bg-[var(--color-surface-hover)] shadow-lg" : "hover:bg-[var(--color-surface-hover)]"}`}
@@ -408,7 +417,11 @@ function MatchHistoryComponent({ matches, searchPlayer, visibleCount, onLoadMore
       {visibleCount < matches.length && (
         <div className="flex justify-center pt-4">
           <button
-            onClick={onLoadMore}
+            onMouseEnter={() => sounds.playHover()}
+            onClick={() => {
+              sounds.playClick();
+              onLoadMore();
+            }}
             className="bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] text-[var(--color-text-primary)] hover:text-white font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-full transition-all duration-300 border border-[var(--color-border)] shadow-md hover:shadow-[0_0_20px_rgba(255,70,85,0.4)] cursor-pointer"
           >
             {tr("Charger plus (+10)")}

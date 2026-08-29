@@ -3,22 +3,36 @@ import {
   ValorantMatchData,
   WeaponPerformanceStat,
   AgentPerformanceStat,
+  MatchPlayerDuel,
+  MatchTeamPlayer,
 } from "./types";
 
 export const AGENTS_CATALOG: Record<string, { uuid: string; role: string }> = {
   Jett: { uuid: "add6443a-41bd-e414-f6ad-e58d267f4e95", role: "Duelist" },
-  Reyna: { uuid: "a3bfb854-4339-14a8-37aa-94dd04e61a5c", role: "Duelist" },
+  Reyna: { uuid: "a3bfb853-43b2-7238-a4f1-ad90e9e46bcc", role: "Duelist" },
   Raze: { uuid: "f94c3b30-42be-e959-889c-5aa313dba261", role: "Duelist" },
   Omen: { uuid: "8e253930-4c05-31dd-1b6c-968525494517", role: "Controller" },
   Clove: { uuid: "1dbf2edd-4729-0984-3115-daa5eed44993", role: "Controller" },
-  Sova: { uuid: "3207ddbf-4ed4-822c-05a8-aa467a10ae50", role: "Initiator" },
-  Cypher: { uuid: "11742724-4ac4-02d6-8c0b-9f452aa61049", role: "Sentinel" },
+  Sova: { uuid: "320b2a48-4d9b-a075-30f1-1f93a9b638fa", role: "Initiator" },
+  Cypher: { uuid: "117ed9e3-49f3-6512-3ccf-0cada7e3823b", role: "Sentinel" },
   Killjoy: { uuid: "1e58de9c-4950-5125-93e9-a0aee9f98746", role: "Sentinel" },
   Iso: { uuid: "0e38b510-41a8-5780-5e8f-568b2a4f2d6c", role: "Duelist" },
   Viper: { uuid: "707eab51-4836-f488-046a-cda6bf494859", role: "Controller" },
   Chamber: { uuid: "22697a3d-45bf-8dd7-4fec-84a9e28c69d7", role: "Sentinel" },
   Gekko: { uuid: "e370fa57-4757-3604-3648-499e1f642d3f", role: "Initiator" },
   Fade: { uuid: "dade69b4-4f5a-8528-247b-219e5a1facd6", role: "Initiator" },
+  Breach: { uuid: "5f8d3a7f-467b-97f3-062c-13acf203c006", role: "Initiator" },
+  Deadlock: { uuid: "cc8b64c8-4b25-4ff9-6e7f-37b4da43d235", role: "Sentinel" },
+  Phoenix: { uuid: "eb93336a-449b-9c1b-0a54-a891f7921d69", role: "Duelist" },
+  Sage: { uuid: "569fdd95-4d10-43ab-ca70-79becc718b46", role: "Sentinel" },
+  Brimstone: { uuid: "9f0d8ba9-4140-b941-57d3-a7ad57c6b417", role: "Controller" },
+  Skye: { uuid: "6f2a04ca-43e0-be17-7f36-b3908627744d", role: "Initiator" },
+  Yoru: { uuid: "7f94d92c-4234-0a36-9646-3a87eb8b5c89", role: "Duelist" },
+  Astra: { uuid: "41fb69c1-4189-7b37-f117-bcaf1e96f1bf", role: "Controller" },
+  "KAY/O": { uuid: "601dbbe7-43ce-be57-2a40-4abd24953621", role: "Initiator" },
+  Neon: { uuid: "bb2a4828-46eb-8cd1-e765-15848195d751", role: "Duelist" },
+  Harbor: { uuid: "95b78ed7-4637-86d9-7e41-71ba8c293152", role: "Controller" },
+  Vyse: { uuid: "efba5359-4016-a1e5-7626-b1ae76895940", role: "Sentinel" },
 };
 
 export const MAPS = ["Ascent", "Haven", "Bind", "Split", "Sunset", "Lotus", "Abyss"];
@@ -76,6 +90,12 @@ export const OFFICIAL_WEAPONS: WeaponPerformanceStat[] = [
   },
 ];
 
+const BOT_NAMES = [
+  "ViperOne", "TenZ", "Chronicle", "Boaster", "Aspas", "Derke",
+  "ScreaM", "Nats", "Yay", "cned", "Alfajer", "Leo", "Demon1",
+  "Sacy", "ZmjjKK", "Forsaken", "Jinggg", "Suygetsu", "Cryocells", "Keznit"
+];
+
 export function generateMockProfile(gameName = "Player", tagLine = "EU1"): ValorantProfileResponse {
   const matchHistory: ValorantMatchData[] = [];
   const agentNames = Object.keys(AGENTS_CATALOG);
@@ -83,7 +103,7 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
 
   for (let i = 0; i < 20; i++) {
     const agentName = agentNames[i % agentNames.length];
-    const agent = AGENTS_CATALOG[agentName];
+    const agent = AGENTS_CATALOG[agentName] || AGENTS_CATALOG.Jett;
     const map = MAPS[i % MAPS.length];
     const won = Math.random() > 0.42;
     const myTeamScore = won ? 13 : Math.floor(Math.random() * 11) + 2;
@@ -112,15 +132,90 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
 
     const timeline = [];
     for (let r = 1; r <= roundsPlayed; r++) {
-      const winner = Math.random() > 0.5 ? "myTeam" : "enemyTeam";
+      const winner = Math.random() > (won ? 0.4 : 0.6) ? "myTeam" : "enemyTeam";
       timeline.push({
         roundNum: r,
         winner: winner as "myTeam" | "enemyTeam",
-        winCondition: Math.random() > 0.3 ? "Elimination" : "SpikeDefused",
-        myKillsInRound: Math.random() > 0.7 ? Math.floor(Math.random() * 3) + 1 : 0,
+        winCondition: Math.random() > 0.35 ? "Elimination" : (Math.random() > 0.5 ? "SpikeDefused" : "SpikeExploded"),
+        myKillsInRound: Math.random() > 0.65 ? Math.floor(Math.random() * 3) + 1 : 0,
         diedInRound: Math.random() > 0.45,
       });
     }
+
+    // Build realistic 5v5 team data for Scoreboard and Overview
+    const shuffledAgents = [...agentNames].sort(() => 0.5 - Math.random());
+    const myTeamAgents = [agentName, ...shuffledAgents.filter((a) => a !== agentName).slice(0, 4)];
+    const enemyTeamAgents = shuffledAgents.filter((a) => !myTeamAgents.includes(a)).slice(0, 5);
+
+    const myTeam = [
+      {
+        puuid: `puuid-${i}-me`,
+        name: gameName,
+        tag: tagLine,
+        agent: agentName,
+        agentIcon: `https://media.valorant-api.com/agents/${agent.uuid}/displayicon.png`,
+        isMe: true,
+        isPublicProfile: true,
+        acs: myAcs,
+        kills,
+        deaths,
+        assists,
+        econScore: Math.floor(Math.random() * 40) + 60,
+        firstBloods: Math.floor(Math.random() * 4),
+      },
+      ...myTeamAgents.slice(1).map((aName, idx) => {
+        const ag = AGENTS_CATALOG[aName] || AGENTS_CATALOG.Omen;
+        const botK = Math.floor(Math.random() * 18) + 5;
+        const botD = Math.floor(Math.random() * 16) + 7;
+        const botA = Math.floor(Math.random() * 8) + 1;
+        return {
+          puuid: `puuid-${i}-team-${idx}`,
+          name: BOT_NAMES[(i * 5 + idx) % BOT_NAMES.length],
+          tag: "EU1",
+          agent: aName,
+          agentIcon: `https://media.valorant-api.com/agents/${ag.uuid}/displayicon.png`,
+          isMe: false,
+          isPublicProfile: true,
+          acs: Math.floor(Math.random() * 120) + 140,
+          kills: botK,
+          deaths: botD,
+          assists: botA,
+          econScore: Math.floor(Math.random() * 40) + 50,
+          firstBloods: Math.floor(Math.random() * 3),
+        };
+      }),
+    ];
+
+    const enemyTeam = enemyTeamAgents.map((aName, idx) => {
+      const ag = AGENTS_CATALOG[aName] || AGENTS_CATALOG.Reyna;
+      const botK = Math.floor(Math.random() * 20) + 6;
+      const botD = Math.floor(Math.random() * 16) + 6;
+      const botA = Math.floor(Math.random() * 9) + 1;
+      return {
+        puuid: `puuid-${i}-enemy-${idx}`,
+        name: BOT_NAMES[(i * 7 + idx + 10) % BOT_NAMES.length],
+        tag: "EU1",
+        agent: aName,
+        agentIcon: `https://media.valorant-api.com/agents/${ag.uuid}/displayicon.png`,
+        isMe: false,
+        isPublicProfile: true,
+        acs: Math.floor(Math.random() * 140) + 130,
+        kills: botK,
+        deaths: botD,
+        assists: botA,
+        econScore: Math.floor(Math.random() * 40) + 50,
+        firstBloods: Math.floor(Math.random() * 3),
+      };
+    });
+
+    // Build realistic Duels data
+    const duels: MatchPlayerDuel[] = enemyTeam.map((ePlayer) => ({
+      puuid: ePlayer.puuid,
+      name: ePlayer.name,
+      agentIcon: ePlayer.agentIcon,
+      kills: Math.floor(Math.random() * 4) + 1,
+      deaths: Math.floor(Math.random() * 3) + 1,
+    }));
 
     matchHistory.push({
       matchId: `match-${Date.now()}-${i}`,
@@ -145,10 +240,10 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
       roundsPlayed,
       duration,
       date: new Date(Date.now() - i * 3600000 * 4).toISOString(),
-      myTeam: [],
-      enemyTeam: [],
+      myTeam,
+      enemyTeam,
       timeline: timeline as any,
-      duels: [],
+      duels,
     });
   }
 
@@ -162,16 +257,19 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
   }
 
   const agentStats: AgentPerformanceStat[] = Object.entries(agentPlayCount)
-    .map(([name, data]) => ({
-      name,
-      uuid: AGENTS_CATALOG[name]?.uuid || AGENTS_CATALOG.Clove.uuid,
-      role: AGENTS_CATALOG[name]?.role || "Controller",
-      icon: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[name]?.uuid || AGENTS_CATALOG.Clove.uuid}/displayicon.png`,
-      games: data.games,
-      winRate: Math.round((data.wins / data.games) * 100),
-      kd: parseFloat((data.kills / Math.max(data.deaths, 1)).toFixed(2)),
-      hoursPlayed: parseFloat((data.minutes / 60).toFixed(1)),
-    }))
+    .map(([name, data]) => {
+      const ag = AGENTS_CATALOG[name] || AGENTS_CATALOG.Clove;
+      return {
+        name,
+        uuid: ag.uuid,
+        role: ag.role,
+        icon: `https://media.valorant-api.com/agents/${ag.uuid}/displayicon.png`,
+        games: data.games,
+        winRate: Math.round((data.wins / data.games) * 100),
+        kd: parseFloat((data.kills / Math.max(data.deaths, 1)).toFixed(2)),
+        hoursPlayed: parseFloat((data.minutes / 60).toFixed(1)),
+      };
+    })
     .sort((a, b) => b.games - a.games);
 
   const totalKills = matchHistory.reduce((s, m) => s + m.kills, 0);
@@ -206,12 +304,13 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
     firstBloods: 22,
   };
 
+  const mainAg = AGENTS_CATALOG[mainAgentName] || AGENTS_CATALOG.Clove;
   const mainAgentObj = {
     name: mainAgentName,
-    uuid: AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid,
-    role: AGENTS_CATALOG[mainAgentName]?.role || "Controller",
-    icon: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid}/displayicon.png`,
-    fullPortrait: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid}/fullportrait.png`,
+    uuid: mainAg.uuid,
+    role: mainAg.role,
+    icon: `https://media.valorant-api.com/agents/${mainAg.uuid}/displayicon.png`,
+    fullPortrait: `https://media.valorant-api.com/agents/${mainAg.uuid}/fullportrait.png`,
   };
 
   return {

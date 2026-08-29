@@ -82,19 +82,20 @@ export interface MatchPlayerDuel {
 export interface MatchTeamPlayer {
   puuid: string;
   name: string;
-  tag: string;
+  tag?: string;
   agent: string;
   agentIcon: string;
-  rank: string;
-  rankUrl: string;
-  score: number;
+  rank?: string;
+  rankUrl?: string;
+  score?: number;
   acs: number;
   kills: number;
   deaths: number;
   assists: number;
-  econScore: number;
-  firstBloods: number;
+  econScore?: number;
+  firstBloods?: number;
   isMe: boolean;
+  isPublicProfile?: boolean;
 }
 
 export interface ValorantMatchData {
