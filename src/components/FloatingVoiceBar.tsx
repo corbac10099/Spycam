@@ -3,13 +3,14 @@
 import React from "react";
 import { sounds } from "@/lib/soundEffects";
 import { LobbyItem } from "@/app/api/lobbies/route";
+import { IconMic, IconMicOff, IconPhoneOff, IconExpand, IconUsers } from "@/components/icons/SpyIcons";
 
 interface FloatingVoiceBarProps {
   activeLobby: LobbyItem | null;
   isInVoice: boolean;
   isMicMuted: boolean;
   isSpeaking: boolean;
-  voiceVolumeLevel: number;
+  voiceVolumeLevel?: number;
   onToggleMute: () => void;
   onOpenSalon: () => void;
   onLeaveVoice: () => void;
@@ -33,7 +34,7 @@ export default function FloatingVoiceBar({
       <div
         className={`glass-panel rounded-2xl p-2.5 sm:p-3 border transition-all duration-300 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-2xl flex items-center gap-3 ${
           isSpeaking
-            ? "border-emerald-400 ring-2 ring-emerald-400/60 shadow-[0_0_25px_rgba(52,211,153,0.4)] bg-[#0c141d]/95"
+            ? "border-emerald-400 ring-2 ring-emerald-400/60 shadow-[0_0_25px_rgba(52,211,153,0.5)] bg-[#0c141d]/95 animate-voice-speaking"
             : "border-white/15 bg-[#0b0e14]/95 hover:border-white/25"
         }`}
       >
@@ -46,11 +47,11 @@ export default function FloatingVoiceBar({
           <div
             className={`w-9 h-9 rounded-full flex items-center justify-center text-sm border-2 transition-all duration-150 ${
               isSpeaking
-                ? "border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)] scale-105 bg-emerald-950/60 text-emerald-300"
+                ? "border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.9)] scale-105 bg-emerald-950/70 text-emerald-300 animate-voice-speaking"
                 : "border-white/20 bg-white/5 text-white"
             }`}
           >
-            🎙️
+            <IconMic size={16} />
           </div>
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black animate-ping"></span>
         </div>
@@ -68,8 +69,10 @@ export default function FloatingVoiceBar({
             <span className={`text-[10px] font-bold ${isSpeaking ? "text-emerald-300" : isMicMuted ? "text-red-400" : "text-emerald-400"}`}>
               {isSpeaking ? "Vous parlez..." : isMicMuted ? "Micro coupé" : "En vocal"}
             </span>
-            <span className="text-[10px] text-gray-400 font-medium">
-              • 👥 {count}
+            <span className="text-[10px] text-gray-400 font-medium flex items-center gap-0.5">
+              <span>•</span>
+              <IconUsers size={10} className="text-sky-400 inline" />
+              <span>{count}</span>
             </span>
           </div>
         </div>
@@ -88,7 +91,7 @@ export default function FloatingVoiceBar({
                 : "bg-white/5 border-white/10 text-white hover:bg-white/15"
             }`}
           >
-            {isMicMuted ? "🔇" : "🎙️"}
+            {isMicMuted ? <IconMicOff size={14} className="text-red-400" /> : <IconMic size={14} />}
           </button>
 
           <button
@@ -99,7 +102,7 @@ export default function FloatingVoiceBar({
             title="Agrandir et ouvrir le salon"
             className="p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white text-xs font-bold transition-all cursor-pointer"
           >
-            ↗
+            <IconExpand size={13} />
           </button>
 
           {/* Bouton carré rouge pour raccrocher */}
@@ -111,7 +114,7 @@ export default function FloatingVoiceBar({
             title="Raccrocher"
             className="w-8 h-8 rounded-xl bg-red-600 hover:bg-red-500 text-white flex items-center justify-center text-xs shadow-md active:scale-95 transition-all cursor-pointer"
           >
-            🔴
+            <IconPhoneOff size={14} />
           </button>
         </div>
       </div>

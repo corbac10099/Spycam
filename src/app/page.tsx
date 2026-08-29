@@ -1057,7 +1057,7 @@ function HomeContent() {
             setStreamerMode={setStreamerMode}
           />
         ) : lobbiesView ? (
-          <div className="flex-1 flex flex-col items-center px-4 sm:px-8 z-10 w-full max-w-6xl mx-auto">
+          <div className="flex-1 flex flex-col items-center px-2 sm:px-4 md:px-6 z-10 w-full max-w-[1440px] mx-auto min-h-[calc(100vh-130px)]">
             <LobbiesView
               playerData={playerData?.player || playerData}
               isPublic={isPublic}

@@ -5,6 +5,32 @@ import { sounds } from "@/lib/soundEffects";
 import { LobbyItem, LobbyMember, VoiceMember, ChatMessage, getTierName } from "@/app/api/lobbies/route";
 import { VoiceManager, AudioDeviceInfo } from "@/lib/voiceManager";
 import { filterToxicText } from "@/lib/moderation";
+import {
+  IconPhone,
+  IconPhoneOff,
+  IconMic,
+  IconMicOff,
+  IconHeadphones,
+  IconHeadphonesOff,
+  IconUsers,
+  IconCopy,
+  IconCheck,
+  IconEye,
+  IconCrown,
+  IconLock,
+  IconPin,
+  IconSparkles,
+  IconTarget,
+  IconWind,
+  IconSword,
+  IconShield,
+  IconSend,
+  IconPlus,
+  IconChevronDown,
+  IconSettings,
+  IconSearch,
+  IconFilter,
+} from "@/components/icons/SpyIcons";
 
 interface LobbiesViewProps {
   playerData?: any;
@@ -24,12 +50,27 @@ interface LobbiesViewProps {
   voiceManagerRef?: React.MutableRefObject<VoiceManager | null>;
 }
 
+export function renderRoleIcon(role: string, size = 14) {
+  switch (role) {
+    case "Duelliste":
+      return <IconSword size={size} className="text-red-400" />;
+    case "Initiateur":
+      return <IconTarget size={size} className="text-amber-400" />;
+    case "Contrôleur":
+      return <IconWind size={size} className="text-sky-400" />;
+    case "Sentinelle":
+      return <IconShield size={size} className="text-emerald-400" />;
+    default:
+      return <IconSparkles size={size} className="text-purple-400" />;
+  }
+}
+
 const ROLES_LIST = [
-  { id: "Duelliste", label: "Duelliste", icon: "⚔️" },
-  { id: "Initiateur", label: "Initiateur", icon: "🎯" },
-  { id: "Contrôleur", label: "Contrôleur", icon: "💨" },
-  { id: "Sentinelle", label: "Sentinelle", icon: "🛡️" },
-  { id: "Tous Rôles", label: "Tous Rôles", icon: "✨" },
+  { id: "Duelliste", label: "Duelliste" },
+  { id: "Initiateur", label: "Initiateur" },
+  { id: "Contrôleur", label: "Contrôleur" },
+  { id: "Sentinelle", label: "Sentinelle" },
+  { id: "Tous Rôles", label: "Tous Rôles" },
 ];
 
 export default function LobbiesView({
@@ -615,8 +656,8 @@ export default function LobbiesView({
               <div className="absolute top-0 right-0 w-40 h-40 bg-[var(--color-val-red)]/10 rounded-full blur-3xl pointer-events-none group-hover:bg-[var(--color-val-red)]/20 transition-all"></div>
 
               <div className="space-y-4 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/40 flex items-center justify-center text-3xl shadow-lg">
-                  ➕
+                <div className="w-16 h-16 rounded-2xl bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/40 flex items-center justify-center shadow-lg">
+                  <IconPlus size={30} className="text-[var(--color-val-red)]" />
                 </div>
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-val-red)]">
@@ -665,8 +706,8 @@ export default function LobbiesView({
               <div className="absolute top-0 right-0 w-40 h-40 bg-sky-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-sky-500/20 transition-all"></div>
 
               <div className="space-y-4 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-sky-500/15 border border-sky-500/40 flex items-center justify-center text-3xl shadow-lg">
-                  🔍
+                <div className="w-16 h-16 rounded-2xl bg-sky-500/15 border border-sky-500/40 flex items-center justify-center shadow-lg">
+                  <IconSearch size={30} className="text-sky-400" />
                 </div>
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">
@@ -681,7 +722,7 @@ export default function LobbiesView({
                 {/* Available Lobbies Pill */}
                 <div className="p-3.5 rounded-2xl bg-[var(--color-background)]/80 border border-[var(--color-border)] flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">🎮</span>
+                    <IconUsers size={18} className="text-sky-400" />
                     <span className="text-xs font-bold text-white">Salons disponibles maintenant</span>
                   </div>
                   <span className="text-xs font-black text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded-lg border border-sky-500/20">
@@ -723,7 +764,9 @@ export default function LobbiesView({
           {/* Bloqueur si profil privé */}
           {!isPublic && (
             <div className="glass-panel rounded-3xl p-6 border-2 border-[var(--color-val-red)] bg-red-950/30 text-center space-y-4 animate-in shake">
-              <div className="text-4xl">⚠️</div>
+              <div className="flex justify-center">
+                <IconLock size={36} className="text-amber-400" />
+              </div>
               <h3 className="text-lg font-black text-white uppercase">Votre profil est actuellement privé</h3>
               <p className="text-xs text-[var(--color-text-secondary)] max-w-md mx-auto">
                 Pour créer un salon et trouver des coéquipiers, votre profil doit obligatoirement être public afin que vos futurs coéquipiers puissent voir votre rang réel.
@@ -785,13 +828,14 @@ export default function LobbiesView({
                                 isSelected ? prev.filter((r) => r !== role.id) : [...prev, role.id]
                               );
                             }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
                               isSelected
                                 ? "bg-[var(--color-val-red)] text-white border-[var(--color-val-red)]"
                                 : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
                             }`}
                           >
-                            {role.icon} {role.label}
+                            {renderRoleIcon(role.id, 12)}
+                            <span>{role.label}</span>
                           </button>
                         );
                       })}
@@ -828,9 +872,10 @@ export default function LobbiesView({
                   <button
                     type="submit"
                     disabled={checkingMate || !newMateRiotId.trim()}
-                    className="px-4 py-2.5 rounded-xl bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer border border-[var(--color-border)]"
+                    className="px-4 py-2.5 rounded-xl bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer border border-[var(--color-border)] flex items-center gap-1"
                   >
-                    {checkingMate ? "Vérification..." : "➕ Ajouter"}
+                    <IconPlus size={14} />
+                    <span>{checkingMate ? "Vérification..." : "Ajouter"}</span>
                   </button>
                 </form>
 
@@ -853,7 +898,7 @@ export default function LobbiesView({
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {mate.isPrivateRank ? (
                                 <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
-                                  <span>🔒</span>
+                                  <IconLock size={11} />
                                   <span>Rang Privé</span>
                                 </span>
                               ) : (
@@ -890,7 +935,7 @@ export default function LobbiesView({
                                       : "bg-black/20 text-gray-400 border-white/5"
                                   }`}
                                 >
-                                  {role.icon}
+                                  {renderRoleIcon(role.id, 12)}
                                 </button>
                               );
                             })}
@@ -974,7 +1019,7 @@ export default function LobbiesView({
                               : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)]"
                           }`}
                         >
-                          <span>{role.icon}</span>
+                          {renderRoleIcon(role.id, 14)}
                           <span>{role.label}</span>
                         </button>
                       );
@@ -991,8 +1036,8 @@ export default function LobbiesView({
                       onChange={(e) => setCreateMic(e.target.value as any)}
                       className="w-full px-3 py-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-white focus:outline-none"
                     >
-                      <option value="yes">🎙️ Micro Requis</option>
-                      <option value="optional">🔇 Micro Optionnel</option>
+                      <option value="yes">Microphone Requis</option>
+                      <option value="optional">Microphone Optionnel</option>
                     </select>
                   </div>
 
@@ -1027,7 +1072,9 @@ export default function LobbiesView({
               {/* LIVE ESTIMATED LOBBY LEVEL CARD */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-[var(--color-val-red)]/15 via-purple-500/10 to-transparent border border-[var(--color-val-red)]/30 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🏆</span>
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                    <IconCrown size={20} className="text-amber-400" />
+                  </div>
                   <div>
                     <span className="text-[10px] font-black uppercase text-[var(--color-val-red)] tracking-wider">
                       Calcul Automatique du Niveau
@@ -1039,8 +1086,9 @@ export default function LobbiesView({
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs font-bold text-white/80">
-                    {1 + createTeammates.length}/{1 + createTeammates.length + createSlotsNeeded} Joueurs
+                  <span className="text-xs font-bold text-white/80 flex items-center gap-1">
+                    <IconUsers size={14} className="text-sky-400 inline" />
+                    <span>{1 + createTeammates.length}/{1 + createTeammates.length + createSlotsNeeded}</span>
                   </span>
                 </div>
               </div>
@@ -1060,7 +1108,7 @@ export default function LobbiesView({
                   className="px-8 py-3.5 rounded-xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl shadow-[rgba(255,70,85,0.4)] transition-all cursor-pointer flex items-center gap-2"
                 >
                   <span>Publier mon Salon</span>
-                  <span>🚀</span>
+                  <IconSend size={16} />
                 </button>
               </div>
             </div>
@@ -1094,9 +1142,10 @@ export default function LobbiesView({
                 sounds.playClick();
                 setCurrentView("create");
               }}
-              className="px-4 py-2 rounded-xl bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-md"
+              className="px-4 py-2 rounded-xl bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-md flex items-center gap-1.5"
             >
-              ➕ Créer mon Salon
+              <IconPlus size={14} />
+              <span>Créer mon Salon</span>
             </button>
           </div>
 
@@ -1106,20 +1155,20 @@ export default function LobbiesView({
               {/* Filter by Role */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] mr-1">Rôle :</span>
-                {[{ id: "all", label: "Tous", icon: "✨" }, ...ROLES_LIST.slice(0, 4)].map((r) => (
+                {[{ id: "all", label: "Tous" }, ...ROLES_LIST.slice(0, 4)].map((r) => (
                   <button
                     key={r.id}
                     onClick={() => {
                       sounds.playHover();
                       setFilterRole(r.id);
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1.5 ${
                       filterRole === r.id
                         ? "bg-[var(--color-val-red)] text-white border-[var(--color-val-red)] shadow-md"
                         : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
                     }`}
                   >
-                    <span>{r.icon}</span>
+                    {renderRoleIcon(r.id, 12)}
                     <span>{r.label}</span>
                   </button>
                 ))}
@@ -1134,7 +1183,9 @@ export default function LobbiesView({
                   placeholder="Pseudo, rang, mot-clé..."
                   className="w-full px-3 py-1.5 pl-8 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[var(--color-val-red)]"
                 />
-                <span className="absolute left-2.5 top-2 text-gray-500 text-xs">🔍</span>
+                <span className="absolute left-2.5 top-2 text-gray-500">
+                  <IconSearch size={13} />
+                </span>
               </div>
             </div>
           </div>
@@ -1147,16 +1198,17 @@ export default function LobbiesView({
             </div>
           ) : filteredLobbies.length === 0 ? (
             <div className="glass-panel rounded-3xl p-12 text-center border border-[var(--color-border)] space-y-3">
-              <div className="text-4xl">🎮</div>
+              <IconUsers size={36} className="text-gray-500 mx-auto" />
               <h3 className="text-base font-bold text-white uppercase">Aucun salon ne correspond actuellement</h3>
               <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto">
                 Soyez le premier à ouvrir un salon adapté à votre rang !
               </p>
               <button
                 onClick={() => setCurrentView("create")}
-                className="px-5 py-2.5 rounded-xl bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider mt-2 cursor-pointer shadow-lg"
+                className="px-5 py-2.5 rounded-xl bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider mt-2 cursor-pointer shadow-lg inline-flex items-center gap-1.5"
               >
-                Créer un Salon
+                <IconPlus size={14} />
+                <span>Créer un Salon</span>
               </button>
             </div>
           ) : (
@@ -1200,14 +1252,17 @@ export default function LobbiesView({
                       <span className="px-2 py-0.5 rounded-md bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/30 text-[var(--color-val-red)] text-[10px] font-black uppercase">
                         {lobby.mode}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/80 text-[10px] font-semibold">
-                        📍 {lobby.region}
+                      <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/80 text-[10px] font-semibold flex items-center gap-1">
+                        <IconPin size={11} />
+                        <span>{lobby.region}</span>
                       </span>
-                      <span className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${lobby.micRequired === "yes" ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-gray-500/15 border-gray-500/30 text-gray-400"}`}>
-                        {lobby.micRequired === "yes" ? "🎙️ Vocal" : "🔇 Optionnel"}
+                      <span className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold flex items-center gap-1 ${lobby.micRequired === "yes" ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-gray-500/15 border-gray-500/30 text-gray-400"}`}>
+                        {lobby.micRequired === "yes" ? <IconMic size={11} /> : <IconMicOff size={11} />}
+                        <span>{lobby.micRequired === "yes" ? "Vocal" : "Optionnel"}</span>
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[10px] font-bold">
-                        👥 {lobby.currentSlots}/{lobby.maxSlots} Places
+                      <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[10px] font-bold flex items-center gap-1">
+                        <IconUsers size={11} />
+                        <span>{lobby.currentSlots}/{lobby.maxSlots} Places</span>
                       </span>
                     </div>
 
@@ -1220,10 +1275,10 @@ export default function LobbiesView({
                             key={m.id}
                             className="px-2 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[10px] font-bold text-white flex items-center gap-1"
                           >
-                            <span>{m.isLeader ? "👑" : "👤"}</span>
+                            <span>{m.isLeader ? <IconCrown size={11} className="text-amber-400" /> : <IconUsers size={11} className="text-gray-400" />}</span>
                             <span>{m.gameName}</span>
                             {m.isPrivateRank ? (
-                              <span className="text-amber-400 text-[9px]">🔒</span>
+                              <IconLock size={10} className="text-amber-400" />
                             ) : (
                               <span className="text-[9px] text-[var(--color-text-secondary)]">({m.rank})</span>
                             )}
@@ -1273,7 +1328,7 @@ export default function LobbiesView({
       {/* VUE 4 : SALON EN TEMPS RÉEL (STYLE DISCORD AVEC VOCAL ET CHAT ÉPURÉ)        */}
       {/* ========================================================================= */}
       {currentView === "salon" && activeLobby && (
-        <div className="w-full flex flex-col md:flex-row gap-4 min-h-[600px] animate-in fade-in zoom-in-95 duration-300">
+        <div className="w-full flex flex-col md:flex-row gap-4 min-h-[620px] animate-in fade-in zoom-in-95 duration-300">
           {/* ==================== COLONNE GAUCHE (MEMBRES DU SALON - COLLÉE À GAUCHE) ==================== */}
           <div className="w-full md:w-64 lg:w-72 glass-panel rounded-3xl p-4 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl flex-shrink-0">
             <div className="space-y-3">
@@ -1289,7 +1344,10 @@ export default function LobbiesView({
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-[var(--color-text-secondary)] mt-1">
                   <span>Niveau : <strong className="text-white">{activeLobby.lobbyLevel}</strong></span>
-                  <span>👥 {activeLobby.members?.length}/{activeLobby.maxSlots}</span>
+                  <span className="flex items-center gap-1">
+                    <IconUsers size={12} className="text-sky-400" />
+                    <span>{activeLobby.members?.length}/{activeLobby.maxSlots}</span>
+                  </span>
                 </div>
               </div>
 
@@ -1314,7 +1372,7 @@ export default function LobbiesView({
                       key={member.id}
                       className={`p-2.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-2 ${
                         isUserSpeaking
-                          ? "bg-emerald-950/40 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.4)]"
+                          ? "bg-emerald-950/50 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.45)]"
                           : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06]"
                       }`}
                     >
@@ -1325,13 +1383,13 @@ export default function LobbiesView({
                               src={member.avatarUrl}
                               alt={member.gameName}
                               className={`w-8 h-8 rounded-full object-cover border transition-all ${
-                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
+                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400 animate-voice-speaking" : "border-white/20"
                               }`}
                             />
                           ) : (
                             <div
                               className={`w-8 h-8 rounded-full bg-[var(--color-surface)] border flex items-center justify-center text-white font-black text-xs transition-all ${
-                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
+                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400 animate-voice-speaking" : "border-white/20"
                               }`}
                             >
                               {member.gameName[0]?.toUpperCase()}
@@ -1344,7 +1402,7 @@ export default function LobbiesView({
                                 isUserSpeaking ? "bg-emerald-400 text-black animate-pulse" : "bg-emerald-600 text-white"
                               }`}
                             >
-                              {isUserSpeaking ? "🔊" : "🎙️"}
+                              <IconMic size={8} />
                             </span>
                           )}
                         </div>
@@ -1354,12 +1412,15 @@ export default function LobbiesView({
                             <span className={`text-xs font-bold truncate ${isUserSpeaking ? "text-emerald-300" : "text-white"}`}>
                               {member.gameName}
                             </span>
-                            {member.isLeader && <span title="Chef de groupe">👑</span>}
+                            {member.isLeader && <IconCrown size={12} className="text-amber-400 flex-shrink-0" />}
                           </div>
 
                           <div className="flex items-center gap-1">
                             {member.isPrivateRank ? (
-                              <span className="text-[9px] font-bold text-amber-400">🔒 Privé</span>
+                              <span className="text-[9px] font-bold text-amber-400 flex items-center gap-0.5">
+                                <IconLock size={10} />
+                                <span>Privé</span>
+                              </span>
                             ) : (
                               <>
                                 {member.rankUrl && <img src={member.rankUrl} alt={member.rank} className="w-3 h-3 object-contain" />}
@@ -1375,7 +1436,7 @@ export default function LobbiesView({
                         title="Copier Riot ID"
                         className="p-1.5 rounded-lg bg-black/30 hover:bg-[var(--color-val-red)] text-white text-[10px] transition-all cursor-pointer"
                       >
-                        {copiedId === `${member.gameName}#${member.tagLine}` ? "✓" : "📋"}
+                        {copiedId === `${member.gameName}#${member.tagLine}` ? <IconCheck size={12} className="text-emerald-400" /> : <IconCopy size={12} />}
                       </button>
                     </div>
                   );
@@ -1400,8 +1461,8 @@ export default function LobbiesView({
                 /* ÉTAT DÉCONNECTÉ : RECTANGLE AVEC CARRÉ VERT 📞 À DROITE */
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg text-emerald-400">
-                      🎙️
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                      <IconMic size={22} />
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-white uppercase tracking-wider">Canal Vocal du Salon</h4>
@@ -1416,19 +1477,19 @@ export default function LobbiesView({
                   {/* Bouton carré vert téléphone pour décrocher seulement (PAS DE TEXTE) */}
                   <button
                     onClick={handleJoinVoice}
-                    title="Décrocher et rejoindre l'appel vocal"
-                    className="w-11 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center text-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] active:scale-95 transition-all cursor-pointer flex-shrink-0"
+                    title="Rejoindre l'appel vocal"
+                    className="w-11 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-[0_0_18px_rgba(16,185,129,0.5)] active:scale-95 transition-all cursor-pointer flex-shrink-0 group"
                   >
-                    📞
+                    <IconPhone size={20} className="text-black group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
               ) : (
                 /* ÉTAT EN APPEL : RONDS DES PERSONNES QUI PARLENT + CONTRÔLES DISCORD */
-                <div className="space-y-4 animate-in slide-in-from-top-3 duration-300">
+                <div className="space-y-4 animate-voice-join">
                   {/* RONDS DES PERSONNES EN APPEL AVEC CONTOUR VERT FLUO QUAND ELLES PARLENT */}
                   <div className="flex items-center justify-center gap-6 py-2">
                     {/* Mon avatar dans le vocal */}
-                    <div className="flex flex-col items-center gap-1.5">
+                    <div className="flex flex-col items-center gap-1.5 animate-pop-in">
                       <div className="relative">
                         {myAvatar ? (
                           <img
@@ -1436,7 +1497,7 @@ export default function LobbiesView({
                             alt={myName}
                             className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 ${
                               isMyVoiceSpeaking
-                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
                                 : "border-white/20"
                             }`}
                           />
@@ -1444,7 +1505,7 @@ export default function LobbiesView({
                           <div
                             className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 ${
                               isMyVoiceSpeaking
-                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
                                 : "border-white/20"
                             }`}
                           >
@@ -1452,8 +1513,8 @@ export default function LobbiesView({
                           </div>
                         )}
                         {isMicMuted && (
-                          <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-[10px] text-white">
-                            🔇
+                          <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white">
+                            <IconMicOff size={10} />
                           </span>
                         )}
                       </div>
@@ -1470,7 +1531,7 @@ export default function LobbiesView({
                         const isSpeaking = remoteSpeakingMap[remoteKey] || (v.isSpeaking && !v.isMuted);
 
                         return (
-                          <div key={v.memberId} className="flex flex-col items-center gap-1.5 animate-in zoom-in-75">
+                          <div key={v.memberId} className="flex flex-col items-center gap-1.5 animate-pop-in">
                             <div className="relative">
                               {v.avatarUrl ? (
                                 <img
@@ -1478,7 +1539,7 @@ export default function LobbiesView({
                                   alt={v.gameName}
                                   className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 ${
                                     isSpeaking
-                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
                                       : "border-white/20"
                                   }`}
                                 />
@@ -1486,7 +1547,7 @@ export default function LobbiesView({
                                 <div
                                   className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 ${
                                     isSpeaking
-                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
                                       : "border-white/20"
                                   }`}
                                 >
@@ -1494,8 +1555,8 @@ export default function LobbiesView({
                                 </div>
                               )}
                               {v.isMuted && (
-                                <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-[10px] text-white">
-                                  🔇
+                                <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white">
+                                  <IconMicOff size={10} />
                                 </span>
                               )}
                             </div>
@@ -1524,14 +1585,14 @@ export default function LobbiesView({
                           isMicMuted ? "text-red-400 bg-red-500/20" : "text-white"
                         }`}
                       >
-                        {isMicMuted ? "🔇" : "🎙️"}
+                        {isMicMuted ? <IconMicOff size={16} /> : <IconMic size={16} />}
                       </button>
                       <button
                         onClick={() => setShowDeviceModal(true)}
                         title="Sélectionner le périphérique micro"
-                        className="px-1 text-[10px] text-gray-400 hover:text-white cursor-pointer"
+                        className="px-1 text-gray-400 hover:text-white cursor-pointer"
                       >
-                        ▾
+                        <IconChevronDown size={11} />
                       </button>
                     </div>
 
@@ -1549,14 +1610,14 @@ export default function LobbiesView({
                           isDeafened ? "text-amber-400 bg-amber-500/20" : "text-white"
                         }`}
                       >
-                        {isDeafened ? "🔕" : "🎧"}
+                        {isDeafened ? <IconHeadphonesOff size={16} /> : <IconHeadphones size={16} />}
                       </button>
                       <button
                         onClick={() => setShowDeviceModal(true)}
                         title="Sélectionner le périphérique de sortie"
-                        className="px-1 text-[10px] text-gray-400 hover:text-white cursor-pointer"
+                        className="px-1 text-gray-400 hover:text-white cursor-pointer"
                       >
-                        ▾
+                        <IconChevronDown size={11} />
                       </button>
                     </div>
 
@@ -1564,18 +1625,18 @@ export default function LobbiesView({
                     <button
                       onClick={() => setShowDeviceModal(true)}
                       title="Paramètres périphériques audio"
-                      className="p-2.5 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-white text-xs transition-all cursor-pointer"
+                      className="p-2.5 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-white transition-all cursor-pointer"
                     >
-                      ⚙️
+                      <IconSettings size={16} />
                     </button>
 
                     {/* Bouton carré rouge téléphone pour raccrocher seulement (PAS DE TEXTE) */}
                     <button
                       onClick={handleLeaveVoice}
                       title="Raccrocher l'appel"
-                      className="w-10 h-10 rounded-xl bg-red-600 hover:bg-red-500 text-white flex items-center justify-center text-lg shadow-[0_0_15px_rgba(239,68,68,0.4)] active:scale-95 transition-all cursor-pointer flex-shrink-0 ml-1"
+                      className="w-10 h-10 rounded-xl bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.5)] active:scale-95 transition-all cursor-pointer flex-shrink-0 ml-1"
                     >
-                      🔴
+                      <IconPhoneOff size={18} />
                     </button>
                   </div>
                 </div>
@@ -1596,7 +1657,7 @@ export default function LobbiesView({
 
                     if (isSystem) {
                       return (
-                        <div key={msg.id} className="text-center my-1.5">
+                        <div key={msg.id} className="text-center my-1.5 animate-in fade-in">
                           <span className="text-[10px] font-bold text-gray-400 bg-white/[0.04] px-3 py-0.5 rounded-full border border-white/5 inline-block">
                             {msg.content}
                           </span>
@@ -1607,7 +1668,7 @@ export default function LobbiesView({
                     return (
                       <div
                         key={msg.id}
-                        className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                        className={`flex flex-col ${isMe ? "items-end" : "items-start"} animate-in fade-in slide-in-from-bottom-1 duration-200`}
                       >
                         <div className="flex items-center gap-1.5 mb-1 px-1">
                           <span className="text-[10px] font-black text-white">{msg.senderName}</span>
@@ -1642,9 +1703,10 @@ export default function LobbiesView({
                 <button
                   type="submit"
                   disabled={!chatMessage.trim()}
-                  className="px-5 py-2.5 rounded-2xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer shadow-md"
+                  className="px-5 py-2.5 rounded-2xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer shadow-md flex items-center gap-1.5"
                 >
-                  Envoyer
+                  <span>Envoyer</span>
+                  <IconSend size={13} />
                 </button>
               </form>
             </div>
@@ -1656,7 +1718,7 @@ export default function LobbiesView({
               <div className="w-full max-w-md glass-panel rounded-3xl p-6 border border-white/15 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">⚙️</span>
+                    <IconSettings size={18} className="text-white" />
                     <h3 className="text-sm font-black text-white uppercase tracking-wider">
                       Paramètres Périphériques Audio
                     </h3>
@@ -1673,7 +1735,7 @@ export default function LobbiesView({
                   {/* Microphone Input */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
-                      <span>🎙️</span>
+                      <IconMic size={14} className="text-emerald-400" />
                       <span>Microphone (Entrée)</span>
                     </label>
                     <select
@@ -1693,7 +1755,7 @@ export default function LobbiesView({
                   {/* Speaker Output */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
-                      <span>🎧</span>
+                      <IconHeadphones size={14} className="text-sky-400" />
                       <span>Casque / Haut-parleurs (Sortie)</span>
                     </label>
                     <select
