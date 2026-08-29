@@ -178,7 +178,7 @@ export function HomeContent({
   const profileTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [profileUnderlineStyle, setProfileUnderlineStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
-  useLayoutEffect(() => {
+  const updateProfileUnderline = useCallback(() => {
     if (!profileTabsContainerRef.current) return;
     const btn = profileTabRefs.current[activeTab];
     const container = profileTabsContainerRef.current;
@@ -188,12 +188,20 @@ export function HomeContent({
     }
     const containerRect = container.getBoundingClientRect();
     const btnRect = btn.getBoundingClientRect();
-    setProfileUnderlineStyle({
-      left: btnRect.left - containerRect.left,
-      width: btnRect.width,
-      opacity: 1,
-    });
-  }, [activeTab, playerData]);
+    if (btnRect.width > 0) {
+      setProfileUnderlineStyle({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+        opacity: 1,
+      });
+    }
+  }, [activeTab]);
+
+  useLayoutEffect(() => {
+    updateProfileUnderline();
+    const t = setTimeout(updateProfileUnderline, 50);
+    return () => clearTimeout(t);
+  }, [activeTab, playerData, updateProfileUnderline]);
   
   // Persistent Global Voice & Lobby State across all page views
   const [activeVoiceLobby, setActiveVoiceLobby] = useState<LobbyItem | null>(null);
@@ -450,6 +458,40 @@ export function HomeContent({
   const [gameMode, setGameMode] = useState("all");
   const [selectedSeason, setSelectedSeason] = useState("all");
   const [visibleMatchesCount, setVisibleMatchesCount] = useState(10);
+
+  // Game Mode Tabs Sliding Red Capsule State (All, Competitive, Unrated, Others)
+  const gameModeContainerRef = useRef<HTMLDivElement>(null);
+  const gameModeBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [gameModePillStyle, setGameModePillStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  const updateGameModePill = useCallback(() => {
+    if (!gameModeContainerRef.current) return;
+    const btn = gameModeBtnRefs.current[gameMode];
+    const container = gameModeContainerRef.current;
+    if (!btn || !container) {
+      setGameModePillStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    if (btnRect.width > 0) {
+      setGameModePillStyle({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+        opacity: 1,
+      });
+    }
+  }, [gameMode]);
+
+  useLayoutEffect(() => {
+    updateGameModePill();
+    const t1 = setTimeout(updateGameModePill, 40);
+    const t2 = setTimeout(updateGameModePill, 120);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [gameMode, playerData, updateGameModePill]);
 
   const availableSeasons = useMemo(() => {
     if (!playerData?.player?.matchHistory) return [];
@@ -1489,28 +1531,49 @@ export function HomeContent({
                             ))}
                           </select>
 
-                          <div className="flex items-center gap-1">
+                          {/* Mode Filter Capsule with Sliding Pill (All, Competitive, Unrated, Others) */}
+                          <div
+                            ref={gameModeContainerRef}
+                            className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md"
+                          >
+                            {/* Animated Sliding Red Pill */}
+                            <div
+                              className="absolute top-1 bottom-1 rounded-xl bg-[var(--color-val-red)] shadow-[0_0_18px_rgba(255,70,85,0.6)] pointer-events-none z-0"
+                              style={{
+                                transform: `translateX(${gameModePillStyle.left}px)`,
+                                width: `${gameModePillStyle.width}px`,
+                                opacity: gameModePillStyle.opacity,
+                                transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+                              }}
+                            />
+
                             {[
-                              { id: "all", label: "Tout" },
-                              { id: "competitive", label: "Classé" },
-                              { id: "unrated", label: "Non classé" },
-                              { id: "other", label: "Autres" },
-                            ].map((mode) => (
-                              <button
-                                key={mode.id}
-                                onClick={() => {
-                                  setGameMode(mode.id);
-                                  setVisibleMatchesCount(10);
-                                }}
-                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                  gameMode === mode.id
-                                    ? "bg-[var(--color-val-red)] text-white shadow-[0_0_10px_rgba(255,70,85,0.3)]"
-                                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-                                }`}
-                              >
-                                {mode.label}
-                              </button>
-                            ))}
+                              { id: "all", label: "All" },
+                              { id: "competitive", label: "Competitive" },
+                              { id: "unrated", label: "Unrated" },
+                              { id: "other", label: "Others" },
+                            ].map((mode) => {
+                              const isActive = gameMode === mode.id;
+                              return (
+                                <button
+                                  key={mode.id}
+                                  ref={(el) => {
+                                    gameModeBtnRefs.current[mode.id] = el;
+                                  }}
+                                  onClick={() => {
+                                    sounds.playTabSwitch();
+                                    setGameMode(mode.id);
+                                    setVisibleMatchesCount(10);
+                                  }}
+                                  onMouseEnter={() => sounds.playHover()}
+                                  className={`relative z-10 px-3 py-1 rounded-xl text-xs font-bold transition-colors duration-200 cursor-pointer select-none active:scale-95 whitespace-nowrap ${
+                                    isActive ? "text-white" : "text-neutral-400 hover:text-white"
+                                  }`}
+                                >
+                                  {mode.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>

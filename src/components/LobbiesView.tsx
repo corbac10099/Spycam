@@ -204,7 +204,7 @@ export default function LobbiesView({
   const modeBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [modePillStyle, setModePillStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
-  useLayoutEffect(() => {
+  const updateModePill = useCallback(() => {
     if (!modeContainerRef.current) return;
     const btn = modeBtnRefs.current[filterMode];
     const container = modeContainerRef.current;
@@ -214,12 +214,24 @@ export default function LobbiesView({
     }
     const containerRect = container.getBoundingClientRect();
     const btnRect = btn.getBoundingClientRect();
-    setModePillStyle({
-      left: btnRect.left - containerRect.left,
-      width: btnRect.width,
-      opacity: 1,
-    });
-  }, [filterMode, currentView]);
+    if (btnRect.width > 0) {
+      setModePillStyle({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+        opacity: 1,
+      });
+    }
+  }, [filterMode]);
+
+  useLayoutEffect(() => {
+    updateModePill();
+    const t1 = setTimeout(updateModePill, 40);
+    const t2 = setTimeout(updateModePill, 120);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [filterMode, currentView, updateModePill]);
 
   // ==================== SALON REAL-TIME STATE ====================
   const [chatMessage, setChatMessage] = useState<string>("");
