@@ -8,6 +8,12 @@ export interface VoiceManagerCallbacks {
   onError?: (error: string) => void;
 }
 
+export interface AudioDeviceInfo {
+  deviceId: string;
+  label: string;
+  kind: "audioinput" | "audiooutput";
+}
+
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -25,8 +31,13 @@ export class VoiceManager {
   private animFrameId: number | null = null;
   private isSpeaking: boolean = false;
   private isMuted: boolean = false;
+  private isDeafened: boolean = false;
   private callbacks: VoiceManagerCallbacks;
   private recognition: any = null;
+
+  // Selected Devices
+  private currentInputDeviceId: string = "default";
+  private currentOutputDeviceId: string = "default";
 
   // WebRTC Peer Connections: peerId -> RTCPeerConnection
   private peers: Map<string, RTCPeerConnection> = new Map();
@@ -45,19 +56,66 @@ export class VoiceManager {
     this.callbacks = callbacks;
   }
 
-  public async start(): Promise<boolean> {
+  public static async getAvailableAudioDevices(): Promise<{
+    inputs: AudioDeviceInfo[];
+    outputs: AudioDeviceInfo[];
+  }> {
+    if (typeof window === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+      return { inputs: [], outputs: [] };
+    }
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs: AudioDeviceInfo[] = [];
+      const outputs: AudioDeviceInfo[] = [];
+
+      let inputCount = 1;
+      let outputCount = 1;
+
+      for (const d of devices) {
+        if (d.kind === "audioinput") {
+          inputs.push({
+            deviceId: d.deviceId,
+            label: d.label || `Microphone ${inputCount++}`,
+            kind: "audioinput",
+          });
+        } else if (d.kind === "audiooutput") {
+          outputs.push({
+            deviceId: d.deviceId,
+            label: d.label || `Haut-parleurs / Casque ${outputCount++}`,
+            kind: "audiooutput",
+          });
+        }
+      }
+
+      return { inputs, outputs };
+    } catch {
+      return { inputs: [], outputs: [] };
+    }
+  }
+
+  public async start(inputDeviceId?: string, outputDeviceId?: string): Promise<boolean> {
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       this.callbacks.onError?.("Votre navigateur ne prend pas en charge l'accès au micro.");
       return false;
     }
 
+    if (inputDeviceId) this.currentInputDeviceId = inputDeviceId;
+    if (outputDeviceId) this.currentOutputDeviceId = outputDeviceId;
+
     try {
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+
+      if (this.currentInputDeviceId && this.currentInputDeviceId !== "default") {
+        audioConstraints.deviceId = { exact: this.currentInputDeviceId };
+      }
+
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        audio: audioConstraints,
       });
 
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -82,10 +140,67 @@ export class VoiceManager {
       this.callbacks.onError?.(
         err.name === "NotAllowedError"
           ? "Accès au microphone refusé. Autorisez le micro dans votre navigateur."
-          : "Impossible d'accéder au microphone."
+          : "Impossible d'accéder au microphone sélectionné."
       );
       return false;
     }
+  }
+
+  public async setInputDevice(deviceId: string): Promise<boolean> {
+    this.currentInputDeviceId = deviceId;
+    if (!this.stream) return false;
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: deviceId !== "default" ? { exact: deviceId } : undefined,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      const oldTracks = this.stream.getAudioTracks();
+      const newTrack = newStream.getAudioTracks()[0];
+
+      // Update active tracks in existing peer connections
+      this.peers.forEach((pc) => {
+        const senders = pc.getSenders();
+        const audioSender = senders.find((s) => s.track && s.track.kind === "audio");
+        if (audioSender && newTrack) {
+          audioSender.replaceTrack(newTrack);
+        }
+      });
+
+      oldTracks.forEach((t) => t.stop());
+      this.stream = newStream;
+      newTrack.enabled = !this.isMuted;
+
+      // Reconnect analyzer
+      if (this.audioCtx && this.analyser) {
+        const source = this.audioCtx.createMediaStreamSource(newStream);
+        source.connect(this.analyser);
+      }
+
+      return true;
+    } catch (err) {
+      console.warn("[VoiceManager] Failed to switch input device:", err);
+      return false;
+    }
+  }
+
+  public async setOutputDevice(sinkId: string): Promise<boolean> {
+    this.currentOutputDeviceId = sinkId;
+    for (const [, audioEl] of this.remoteAudios) {
+      if (typeof (audioEl as any).setSinkId === "function") {
+        try {
+          await (audioEl as any).setSinkId(sinkId);
+        } catch (err) {
+          console.warn("[VoiceManager] setSinkId error:", err);
+        }
+      }
+    }
+    return true;
   }
 
   // Monitor microphone volume for green speaking glow
@@ -147,7 +262,6 @@ export class VoiceManager {
       if (remoteId === this.myPeerId) continue;
 
       if (!this.peers.has(remoteId)) {
-        // If my peerId is alphabetically smaller, initiate WebRTC offer (avoids glare)
         const shouldInitiate = this.myPeerId < remoteId;
         this.createPeerConnection(remoteId, shouldInitiate);
       }
@@ -160,20 +274,17 @@ export class VoiceManager {
     const pc = new RTCPeerConnection(ICE_SERVERS);
     this.peers.set(remotePeerId, pc);
 
-    // Add local microphone tracks to peer connection
     if (this.stream) {
       this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream!));
     }
 
-    // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.sendSignal(remotePeerId, "ice", event.candidate);
       }
     };
 
-    // When remote voice arrives: play audio through speakers
-    pc.ontrack = (event) => {
+    pc.ontrack = async (event) => {
       const remoteStream = event.streams[0];
       let audioEl = this.remoteAudios.get(remotePeerId);
       if (!audioEl) {
@@ -184,9 +295,15 @@ export class VoiceManager {
         this.remoteAudios.set(remotePeerId, audioEl);
       }
       audioEl.srcObject = remoteStream;
-      audioEl.play().catch(() => {});
+      audioEl.muted = this.isDeafened;
 
-      // Set up volume monitor on remote voice stream
+      if (this.currentOutputDeviceId && typeof (audioEl as any).setSinkId === "function") {
+        try {
+          await (audioEl as any).setSinkId(this.currentOutputDeviceId);
+        } catch {}
+      }
+
+      audioEl.play().catch(() => {});
       this.monitorRemoteStream(remotePeerId, remoteStream);
     };
 
@@ -206,7 +323,6 @@ export class VoiceManager {
     }
   }
 
-  // Monitor remote voice to trigger speaking glow on other players' cards
   private monitorRemoteStream(peerId: string, stream: MediaStream) {
     if (!this.audioCtx) return;
     try {
@@ -239,7 +355,6 @@ export class VoiceManager {
     } catch {}
   }
 
-  // Send WebRTC signaling packet (offer / answer / ice) via API
   private async sendSignal(toId: string, type: "offer" | "answer" | "ice", data: any) {
     try {
       await fetch(`/api/lobbies/${this.lobbyId}`, {
@@ -256,7 +371,6 @@ export class VoiceManager {
     } catch {}
   }
 
-  // Poll incoming WebRTC signals
   private startSignalingLoop() {
     this.signalInterval = setInterval(async () => {
       try {
@@ -365,6 +479,13 @@ export class VoiceManager {
       this.isSpeaking = false;
       this.callbacks.onSpeakingChange(false, 0);
     }
+  }
+
+  public setDeafened(deafened: boolean) {
+    this.isDeafened = deafened;
+    this.remoteAudios.forEach((audio) => {
+      audio.muted = deafened;
+    });
   }
 
   public stop() {

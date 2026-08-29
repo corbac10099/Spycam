@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { sounds } from "@/lib/soundEffects";
 import { LobbyItem, LobbyMember, VoiceMember, ChatMessage, getTierName } from "@/app/api/lobbies/route";
-import { VoiceManager } from "@/lib/voiceManager";
+import { VoiceManager, AudioDeviceInfo } from "@/lib/voiceManager";
 import { filterToxicText } from "@/lib/moderation";
 
 interface LobbiesViewProps {
@@ -128,6 +128,37 @@ export default function LobbiesView({
   const [remoteSpeakingMap, setRemoteSpeakingMap] = useState<Record<string, boolean>>({});
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
+  // Audio Devices State (Microphone & Casque / Haut-parleurs)
+  const [audioInputs, setAudioInputs] = useState<AudioDeviceInfo[]>([]);
+  const [audioOutputs, setAudioOutputs] = useState<AudioDeviceInfo[]>([]);
+  const [selectedInputId, setSelectedInputId] = useState<string>("default");
+  const [selectedOutputId, setSelectedOutputId] = useState<string>("default");
+  const [showDeviceModal, setShowDeviceModal] = useState<boolean>(false);
+
+  const loadAudioDevices = useCallback(async () => {
+    const { inputs, outputs } = await VoiceManager.getAvailableAudioDevices();
+    setAudioInputs(inputs);
+    setAudioOutputs(outputs);
+  }, []);
+
+  useEffect(() => {
+    loadAudioDevices();
+  }, [loadAudioDevices]);
+
+  const handleSwitchInputDevice = async (deviceId: string) => {
+    setSelectedInputId(deviceId);
+    if (voiceManagerRef.current) {
+      await voiceManagerRef.current.setInputDevice(deviceId);
+    }
+  };
+
+  const handleSwitchOutputDevice = async (sinkId: string) => {
+    setSelectedOutputId(sinkId);
+    if (voiceManagerRef.current) {
+      await voiceManagerRef.current.setOutputDevice(sinkId);
+    }
+  };
+
   // Fetch Lobbies list
   const fetchLobbies = async () => {
     try {
@@ -234,7 +265,7 @@ export default function LobbiesView({
       },
     });
 
-    const success = await vm.start();
+    const success = await vm.start(selectedInputId, selectedOutputId);
     if (success) {
       voiceManagerRef.current = vm;
       setIsInVoice(true);
@@ -1239,220 +1270,247 @@ export default function LobbiesView({
       )}
 
       {/* ========================================================================= */}
-      {/* VUE 4 : SALON EN TEMPS RÉEL (SPLIT VIEW COUPÉE EN DEUX)                   */}
+      {/* VUE 4 : SALON EN TEMPS RÉEL (STYLE DISCORD AVEC VOCAL ET CHAT ÉPURÉ)        */}
       {/* ========================================================================= */}
       {currentView === "salon" && activeLobby && (
-        <div className="space-y-4 animate-in zoom-in-95 duration-300">
-          {/* Top Bar Salon */}
-          <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-[var(--color-border)] flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/40 flex items-center justify-center text-lg">
-                👥
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base sm:text-lg font-black text-white uppercase">
-                    Salon de {activeLobby.leaderName}
+        <div className="w-full flex flex-col md:flex-row gap-4 min-h-[600px] animate-in fade-in zoom-in-95 duration-300">
+          {/* ==================== COLONNE GAUCHE (MEMBRES DU SALON - COLLÉE À GAUCHE) ==================== */}
+          <div className="w-full md:w-64 lg:w-72 glass-panel rounded-3xl p-4 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl flex-shrink-0">
+            <div className="space-y-3">
+              {/* Header Salon */}
+              <div className="border-b border-white/10 pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-black text-white uppercase truncate">
+                    {activeLobby.leaderName}
                   </h2>
-                  <span className="px-2 py-0.5 rounded-md bg-[var(--color-val-red)] text-white text-[10px] font-black uppercase">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--color-val-red)] text-white text-[9px] font-black uppercase flex-shrink-0">
                     {activeLobby.mode}
                   </span>
                 </div>
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  Niveau estimé : <strong className="text-white">{activeLobby.lobbyLevel}</strong> • {activeLobby.members?.length}/{activeLobby.maxSlots} Joueurs
-                </p>
+                <div className="flex items-center justify-between text-[11px] text-[var(--color-text-secondary)] mt-1">
+                  <span>Niveau : <strong className="text-white">{activeLobby.lobbyLevel}</strong></span>
+                  <span>👥 {activeLobby.members?.length}/{activeLobby.maxSlots}</span>
+                </div>
+              </div>
+
+              {/* Members List */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] tracking-wider">
+                  Membres ({activeLobby.members?.length}/{activeLobby.maxSlots})
+                </span>
+
+                {activeLobby.members?.map((member) => {
+                  const isMe = member.gameName.toLowerCase() === myName.toLowerCase() && member.tagLine.toLowerCase() === myTag.toLowerCase();
+                  const voiceInfo = activeLobby.voiceMembers?.find(
+                    (v) => v.gameName.toLowerCase() === member.gameName.toLowerCase() && v.tagLine.toLowerCase() === member.tagLine.toLowerCase()
+                  );
+                  const isUserInVoice = !!voiceInfo || (isMe && isInVoice);
+                  const remoteKey = `${member.gameName}_${member.tagLine}`;
+                  const isRemoteSpeaking = remoteSpeakingMap[remoteKey] || (voiceInfo?.isSpeaking && !voiceInfo?.isMuted);
+                  const isUserSpeaking = (isMe && isMyVoiceSpeaking) || isRemoteSpeaking;
+
+                  return (
+                    <div
+                      key={member.id}
+                      className={`p-2.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-2 ${
+                        isUserSpeaking
+                          ? "bg-emerald-950/40 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.4)]"
+                          : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative flex-shrink-0">
+                          {member.avatarUrl ? (
+                            <img
+                              src={member.avatarUrl}
+                              alt={member.gameName}
+                              className={`w-8 h-8 rounded-full object-cover border transition-all ${
+                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
+                              }`}
+                            />
+                          ) : (
+                            <div
+                              className={`w-8 h-8 rounded-full bg-[var(--color-surface)] border flex items-center justify-center text-white font-black text-xs transition-all ${
+                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
+                              }`}
+                            >
+                              {member.gameName[0]?.toUpperCase()}
+                            </div>
+                          )}
+
+                          {isUserInVoice && (
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] border border-black ${
+                                isUserSpeaking ? "bg-emerald-400 text-black animate-pulse" : "bg-emerald-600 text-white"
+                              }`}
+                            >
+                              {isUserSpeaking ? "🔊" : "🎙️"}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className={`text-xs font-bold truncate ${isUserSpeaking ? "text-emerald-300" : "text-white"}`}>
+                              {member.gameName}
+                            </span>
+                            {member.isLeader && <span title="Chef de groupe">👑</span>}
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {member.isPrivateRank ? (
+                              <span className="text-[9px] font-bold text-amber-400">🔒 Privé</span>
+                            ) : (
+                              <>
+                                {member.rankUrl && <img src={member.rankUrl} alt={member.rank} className="w-3 h-3 object-contain" />}
+                                <span className="text-[9px] text-[var(--color-text-secondary)] uppercase">{member.rank}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleCopyRiotId(`${member.gameName}#${member.tagLine}`)}
+                        title="Copier Riot ID"
+                        className="p-1.5 rounded-lg bg-black/30 hover:bg-[var(--color-val-red)] text-white text-[10px] transition-all cursor-pointer"
+                      >
+                        {copiedId === `${member.gameName}#${member.tagLine}` ? "✓" : "📋"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
+            {/* Bottom: Quitter le salon */}
             <button
               onClick={handleLeaveSalon}
-              className="px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500 border border-red-500/30 hover:border-red-500 text-red-200 hover:text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+              className="w-full py-2.5 rounded-2xl bg-red-500/10 hover:bg-red-500 border border-red-500/20 hover:border-red-500 text-red-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
             >
               Quitter le salon ✕
             </button>
           </div>
 
-          {/* SPLIT VIEW (50% GAUCHE MEMBRES & VOCAL / 50% DROITE CHAT SÉCURISÉ) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[550px]">
-            {/* ==================== GAUCHE : MEMBRES DU GROUPE & VOCAL (5 cols) ==================== */}
-            <div className="lg:col-span-5 glass-panel rounded-3xl p-5 sm:p-6 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-                  <span className="text-xs font-black uppercase text-[var(--color-text-secondary)] tracking-wider">
-                    Membres du Groupe ({activeLobby.members?.length}/{activeLobby.maxSlots})
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                      🟢 En ligne
-                    </span>
-                  </div>
-                </div>
-
-                {/* Members list with animated speaking contour */}
-                <div className="space-y-3">
-                  {activeLobby.members?.map((member) => {
-                    const isMe = member.gameName.toLowerCase() === myName.toLowerCase() && member.tagLine.toLowerCase() === myTag.toLowerCase();
-                    const voiceInfo = activeLobby.voiceMembers?.find(
-                      (v) => v.gameName.toLowerCase() === member.gameName.toLowerCase() && v.tagLine.toLowerCase() === member.tagLine.toLowerCase()
-                    );
-                    const isUserInVoice = !!voiceInfo || (isMe && isInVoice);
-                    const remoteKey = `${member.gameName}_${member.tagLine}`;
-                    const isRemoteSpeaking = remoteSpeakingMap[remoteKey] || (voiceInfo?.isSpeaking && !voiceInfo?.isMuted);
-                    const isUserSpeaking = (isMe && isMyVoiceSpeaking) || isRemoteSpeaking;
-
-                    return (
-                      <div
-                        key={member.id}
-                        className={`p-3.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-3 shadow-md ${
-                          isUserSpeaking
-                            ? "bg-emerald-950/40 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.5)] scale-[1.02]"
-                            : "bg-[var(--color-background)]/80 border-[var(--color-border)]"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="relative">
-                            {member.avatarUrl ? (
-                              <img
-                                src={member.avatarUrl}
-                                alt={member.gameName}
-                                className={`w-10 h-10 rounded-xl object-cover border flex-shrink-0 transition-all ${
-                                  isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
-                                }`}
-                              />
-                            ) : (
-                              <div
-                                className={`w-10 h-10 rounded-xl bg-[var(--color-surface)] border flex items-center justify-center text-white font-black text-sm flex-shrink-0 transition-all ${
-                                  isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
-                                }`}
-                              >
-                                {member.gameName[0]?.toUpperCase()}
-                              </div>
-                            )}
-
-                            {isUserInVoice && (
-                              <span
-                                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] border border-black ${
-                                  isUserSpeaking ? "bg-emerald-400 text-black animate-bounce" : "bg-emerald-600 text-white"
-                                }`}
-                                title={isUserSpeaking ? "En train de parler" : "Connecté en vocal"}
-                              >
-                                {isUserSpeaking ? "🔊" : "🎙️"}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-xs font-black truncate ${isUserSpeaking ? "text-emerald-300" : "text-white"}`}>
-                                {member.gameName}
-                              </span>
-                              <span className="text-[10px] text-[var(--color-text-secondary)]">#{member.tagLine}</span>
-                              {member.isLeader && <span title="Chef de groupe">👑</span>}
-                            </div>
-
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              {member.isPrivateRank ? (
-                                <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                  🔒 Rang Privé
-                                </span>
-                              ) : (
-                                <>
-                                  {member.rankUrl && <img src={member.rankUrl} alt={member.rank} className="w-3.5 h-3.5 object-contain" />}
-                                  <span className="text-[10px] font-bold text-[var(--color-val-light)] uppercase">{member.rank}</span>
-                                </>
-                              )}
-
-                              {isUserSpeaking && (
-                                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider animate-pulse ml-1">
-                                  • Parle
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Actions for member */}
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleCopyRiotId(`${member.gameName}#${member.tagLine}`)}
-                            title="Copier le Riot ID"
-                            className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-val-red)] border border-[var(--color-border)] text-white text-xs transition-all cursor-pointer"
-                          >
-                            {copiedId === `${member.gameName}#${member.tagLine}` ? "✓" : "📋"}
-                          </button>
-                          {onSelectPlayer && (
-                            <button
-                              onClick={() => onSelectPlayer(`${member.gameName}#${member.tagLine}`)}
-                              title="Voir profil Spycam"
-                              className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white text-xs transition-all cursor-pointer"
-                            >
-                              👁️
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Empty Slot placeholders */}
-                  {Array.from({ length: Math.max(0, activeLobby.maxSlots - (activeLobby.members?.length || 0)) }).map((_, i) => (
-                    <div
-                      key={`empty_${i}`}
-                      className="p-3.5 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center gap-2 text-[var(--color-text-secondary)] text-xs font-bold uppercase tracking-wider opacity-60"
-                    >
-                      <span>➕</span>
-                      <span>En attente d&apos;un joueur...</span>
+          {/* ==================== COLONNE DROITE (VOCAL DISCORD-STYLE + CHAT) ==================== */}
+          <div className="flex-1 glass-panel rounded-3xl p-4 sm:p-5 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
+            {/* TOP CALL BAR (STYLE DISCORD) */}
+            <div className="rounded-2xl bg-[#0b0e14]/90 border border-white/10 p-3 sm:p-4 shadow-lg transition-all">
+              {!isInVoice ? (
+                /* ÉTAT DÉCONNECTÉ : RECTANGLE AVEC CARRÉ VERT 📞 À DROITE */
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg text-emerald-400">
+                      🎙️
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* VOCAL CONTROL SYSTEM (DÉCROCHER / RACCROCHER & COMMANDES) */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0f1923] via-[#15202b] to-[#0f1923] border border-[var(--color-border)] space-y-3 shadow-2xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full ${isInVoice ? "bg-emerald-400 animate-pulse" : "bg-gray-500"}`}></span>
-                    <span className="text-xs font-black text-white uppercase tracking-wider">Canal Vocal Sécurisé</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Canal Vocal du Salon</h4>
+                      <p className="text-[10px] text-[var(--color-text-secondary)]">
+                        {activeLobby.voiceMembers && activeLobby.voiceMembers.length > 0
+                          ? `${activeLobby.voiceMembers.length} joueur(s) en vocal`
+                          : "Aucun joueur en vocal actuellement"}
+                      </p>
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${isInVoice ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-gray-400 bg-gray-500/10 border-gray-500/20"}`}>
-                    {isInVoice ? `En Ligne (${activeLobby.voiceMembers?.length || 1})` : "Déconnecté"}
-                  </span>
-                </div>
 
-                {voiceError && (
-                  <div className="p-2 rounded-lg bg-red-500/20 border border-red-500 text-red-200 text-[10px] font-bold">
-                    {voiceError}
-                  </div>
-                )}
-
-                {/* SI NON CONNECTÉ AU VOCAL : BOUTON DÉCROCHER 📞 */}
-                {!isInVoice ? (
+                  {/* Bouton carré vert téléphone pour décrocher seulement (PAS DE TEXTE) */}
                   <button
                     onClick={handleJoinVoice}
-                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[rgba(16,185,129,0.35)] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    title="Décrocher et rejoindre l'appel vocal"
+                    className="w-11 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center text-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] active:scale-95 transition-all cursor-pointer flex-shrink-0"
                   >
-                    <span className="text-base">📞</span>
-                    <span>Décrocher • Rejoindre le Vocal</span>
+                    📞
                   </button>
-                ) : (
-                  /* SI CONNECTÉ AU VOCAL : EQUALIZER & COMMANDES & RACCROCHER 🔴 */
-                  <div className="space-y-3">
-                    {/* Live Voice Visualizer */}
-                    <div className="flex items-center justify-center gap-1.5 h-6 py-1 bg-black/30 rounded-xl px-2">
-                      {[30, 75, 40, 95, 60, 100, 50, 85, 30, 70, 45, 90, 35].map((h, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            height: isMicMuted ? "4px" : `${Math.max(4, Math.min(100, h * (isMyVoiceSpeaking ? Math.max(0.6, voiceVolumeLevel * 2.5) : 0.15)))}%`,
-                          }}
-                          className={`w-1 rounded-full transition-all duration-100 ${
-                            isMyVoiceSpeaking ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-gray-600"
-                          }`}
-                        ></div>
-                      ))}
+                </div>
+              ) : (
+                /* ÉTAT EN APPEL : RONDS DES PERSONNES QUI PARLENT + CONTRÔLES DISCORD */
+                <div className="space-y-4 animate-in slide-in-from-top-3 duration-300">
+                  {/* RONDS DES PERSONNES EN APPEL AVEC CONTOUR VERT FLUO QUAND ELLES PARLENT */}
+                  <div className="flex items-center justify-center gap-6 py-2">
+                    {/* Mon avatar dans le vocal */}
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className="relative">
+                        {myAvatar ? (
+                          <img
+                            src={myAvatar}
+                            alt={myName}
+                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 ${
+                              isMyVoiceSpeaking
+                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                : "border-white/20"
+                            }`}
+                          />
+                        ) : (
+                          <div
+                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 ${
+                              isMyVoiceSpeaking
+                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                : "border-white/20"
+                            }`}
+                          >
+                            {myName[0]?.toUpperCase()}
+                          </div>
+                        )}
+                        {isMicMuted && (
+                          <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-[10px] text-white">
+                            🔇
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-xs font-bold ${isMyVoiceSpeaking ? "text-emerald-400" : "text-white"}`}>
+                        {myName} (Vous)
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Remote voice members */}
+                    {activeLobby.voiceMembers
+                      ?.filter((v) => !(v.gameName.toLowerCase() === myName.toLowerCase() && v.tagLine.toLowerCase() === myTag.toLowerCase()))
+                      .map((v) => {
+                        const remoteKey = `${v.gameName}_${v.tagLine}`;
+                        const isSpeaking = remoteSpeakingMap[remoteKey] || (v.isSpeaking && !v.isMuted);
+
+                        return (
+                          <div key={v.memberId} className="flex flex-col items-center gap-1.5 animate-in zoom-in-75">
+                            <div className="relative">
+                              {v.avatarUrl ? (
+                                <img
+                                  src={v.avatarUrl}
+                                  alt={v.gameName}
+                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 ${
+                                    isSpeaking
+                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                      : "border-white/20"
+                                  }`}
+                                />
+                              ) : (
+                                <div
+                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 ${
+                                    isSpeaking
+                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-105"
+                                      : "border-white/20"
+                                  }`}
+                                >
+                                  {v.gameName[0]?.toUpperCase()}
+                                </div>
+                              )}
+                              {v.isMuted && (
+                                <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-[10px] text-white">
+                                  🔇
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-xs font-bold ${isSpeaking ? "text-emerald-400" : "text-white"}`}>
+                              {v.gameName}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* DISCORD CALL CONTROL PILL BAR */}
+                  <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/10">
+                    {/* Micro button + dropdown */}
+                    <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
                       <button
                         onClick={() => {
                           sounds.playClick();
@@ -1461,78 +1519,75 @@ export default function LobbiesView({
                           voiceManagerRef.current?.setMute(nextMute);
                           syncVoiceStateToBackend(false, nextMute);
                         }}
-                        className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
-                          isMicMuted
-                            ? "bg-red-500/20 border-red-500 text-red-300 shadow-md"
-                            : "bg-[var(--color-surface)] border-[var(--color-border)] text-white hover:bg-[var(--color-surface-hover)]"
+                        title={isMicMuted ? "Activer le micro" : "Couper le micro"}
+                        className={`p-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isMicMuted ? "text-red-400 bg-red-500/20" : "text-white"
                         }`}
                       >
-                        <span>{isMicMuted ? "🔇" : "🎙️"}</span>
-                        <span>{isMicMuted ? "Micro Coupé" : "Micro Actif"}</span>
+                        {isMicMuted ? "🔇" : "🎙️"}
                       </button>
-
                       <button
-                        onClick={() => {
-                          sounds.playClick();
-                          setIsDeafened(!isDeafened);
-                        }}
-                        className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
-                          isDeafened
-                            ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-md"
-                            : "bg-[var(--color-surface)] border-[var(--color-border)] text-white hover:bg-[var(--color-surface-hover)]"
-                        }`}
+                        onClick={() => setShowDeviceModal(true)}
+                        title="Sélectionner le périphérique micro"
+                        className="px-1 text-[10px] text-gray-400 hover:text-white cursor-pointer"
                       >
-                        <span>{isDeafened ? "🔕" : "🎧"}</span>
-                        <span>{isDeafened ? "Casque Coupé" : "Écoute"}</span>
+                        ▾
                       </button>
                     </div>
 
-                    {/* BOUTON RACCROCHER 🔴 */}
+                    {/* Casque / Deafen button + dropdown */}
+                    <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
+                      <button
+                        onClick={() => {
+                          sounds.playClick();
+                          const nextDeafen = !isDeafened;
+                          setIsDeafened(nextDeafen);
+                          voiceManagerRef.current?.setDeafened(nextDeafen);
+                        }}
+                        title={isDeafened ? "Réactiver le casque" : "Couper le casque"}
+                        className={`p-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isDeafened ? "text-amber-400 bg-amber-500/20" : "text-white"
+                        }`}
+                      >
+                        {isDeafened ? "🔕" : "🎧"}
+                      </button>
+                      <button
+                        onClick={() => setShowDeviceModal(true)}
+                        title="Sélectionner le périphérique de sortie"
+                        className="px-1 text-[10px] text-gray-400 hover:text-white cursor-pointer"
+                      >
+                        ▾
+                      </button>
+                    </div>
+
+                    {/* Paramètres audio */}
+                    <button
+                      onClick={() => setShowDeviceModal(true)}
+                      title="Paramètres périphériques audio"
+                      className="p-2.5 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-white text-xs transition-all cursor-pointer"
+                    >
+                      ⚙️
+                    </button>
+
+                    {/* Bouton carré rouge téléphone pour raccrocher seulement (PAS DE TEXTE) */}
                     <button
                       onClick={handleLeaveVoice}
-                      className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-[rgba(239,68,68,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                      title="Raccrocher l'appel"
+                      className="w-10 h-10 rounded-xl bg-red-600 hover:bg-red-500 text-white flex items-center justify-center text-lg shadow-[0_0_15px_rgba(239,68,68,0.4)] active:scale-95 transition-all cursor-pointer flex-shrink-0 ml-1"
                     >
-                      <span>🔴</span>
-                      <span>Raccrocher • Quitter le Vocal</span>
+                      🔴
                     </button>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* ==================== DROITE : CHAT TEXTUEL MODÉRÉ & JOURNAL (7 cols) ==================== */}
-            <div className="lg:col-span-7 glass-panel rounded-3xl p-5 sm:p-6 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
-              <div className="space-y-2 border-b border-[var(--color-border)] pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">💬</span>
-                    <span className="text-xs font-black uppercase text-white tracking-wider">
-                      Discussion du Salon
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold flex items-center gap-1">
-                    <span>🛡️</span>
-                    <span>Filtre Anti-Toxicité Actif</span>
-                  </span>
-                </div>
-
-                <div className="text-[10px] text-[var(--color-text-secondary)] opacity-80 flex items-center justify-between">
-                  <span>Les insultes sont masquées automatiquement • Logs conservés 7j</span>
-                  <span>🔒 Chiffré</span>
-                </div>
-              </div>
-
-              {moderationWarning && (
-                <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-bold text-center animate-in slide-in-from-top-2">
-                  ⚠️ {moderationWarning}
                 </div>
               )}
+            </div>
 
-              {/* Messages Flow */}
+            {/* CHAT MESSAGES FEED */}
+            <div className="flex-1 flex flex-col justify-between min-h-[350px]">
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[380px] space-y-3 pr-2 custom-scrollbar">
                 {activeLobby.chat?.length === 0 ? (
                   <div className="text-center py-16 text-[var(--color-text-secondary)] text-xs">
-                    Aucun message pour l&apos;instant. Dites bonjour à vos coéquipiers !
+                    Aucun message pour l&apos;instant.
                   </div>
                 ) : (
                   activeLobby.chat?.map((msg) => {
@@ -1541,9 +1596,9 @@ export default function LobbiesView({
 
                     if (isSystem) {
                       return (
-                        <div key={msg.id} className="text-center my-2">
-                          <span className="text-[10px] font-bold text-[var(--color-val-red)] bg-[var(--color-val-red)]/10 px-3 py-1 rounded-full border border-[var(--color-val-red)]/20 inline-block">
-                            📢 {msg.content}
+                        <div key={msg.id} className="text-center my-1.5">
+                          <span className="text-[10px] font-bold text-gray-400 bg-white/[0.04] px-3 py-0.5 rounded-full border border-white/5 inline-block">
+                            {msg.content}
                           </span>
                         </div>
                       );
@@ -1559,17 +1614,12 @@ export default function LobbiesView({
                           <span className="text-[9px] text-[var(--color-text-secondary)]">
                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
-                          {msg.isToxic && (
-                            <span className="text-[8px] bg-red-500/20 text-red-300 px-1 rounded border border-red-500/30">
-                              Modéré
-                            </span>
-                          )}
                         </div>
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] leading-relaxed ${
+                          className={`px-3.5 py-2 rounded-2xl text-xs max-w-[85%] leading-relaxed ${
                             isMe
-                              ? "bg-[var(--color-val-red)] text-white rounded-tr-none shadow-md shadow-[rgba(255,70,85,0.2)]"
-                              : "bg-[var(--color-surface-hover)] text-white rounded-tl-none border border-[var(--color-border)]"
+                              ? "bg-[var(--color-val-red)] text-white rounded-tr-none shadow-md"
+                              : "bg-white/[0.07] text-white rounded-tl-none border border-white/10"
                           }`}
                         >
                           {msg.content}
@@ -1580,25 +1630,98 @@ export default function LobbiesView({
                 )}
               </div>
 
-              {/* Message Input Box */}
-              <form onSubmit={handleSendChat} className="flex gap-2 pt-2 border-t border-[var(--color-border)]">
+              {/* Chat Input */}
+              <form onSubmit={handleSendChat} className="flex gap-2 pt-3 border-t border-white/10">
                 <input
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="Écrire un message au groupe (modéré en direct)..."
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[var(--color-val-red)]"
+                  placeholder={`Envoyer un message à #${activeLobby.leaderName}...`}
+                  className="flex-1 px-4 py-2.5 rounded-2xl bg-white/[0.05] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[var(--color-val-red)]"
                 />
                 <button
                   type="submit"
                   disabled={!chatMessage.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-md"
+                  className="px-5 py-2.5 rounded-2xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer shadow-md"
                 >
                   Envoyer
                 </button>
               </form>
             </div>
           </div>
+
+          {/* MODAL SÉLECTION PÉRIPHÉRIQUES AUDIO (STYLE DISCORD) */}
+          {showDeviceModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="w-full max-w-md glass-panel rounded-3xl p-6 border border-white/15 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚙️</span>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                      Paramètres Périphériques Audio
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowDeviceModal(false)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Microphone Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
+                      <span>🎙️</span>
+                      <span>Microphone (Entrée)</span>
+                    </label>
+                    <select
+                      value={selectedInputId}
+                      onChange={(e) => handleSwitchInputDevice(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#0f1923] border border-white/20 text-xs text-white focus:outline-none focus:border-emerald-400"
+                    >
+                      <option value="default">Microphone par défaut</option>
+                      {audioInputs.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Speaker Output */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
+                      <span>🎧</span>
+                      <span>Casque / Haut-parleurs (Sortie)</span>
+                    </label>
+                    <select
+                      value={selectedOutputId}
+                      onChange={(e) => handleSwitchOutputDevice(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#0f1923] border border-white/20 text-xs text-white focus:outline-none focus:border-emerald-400"
+                    >
+                      <option value="default">Haut-parleurs / Casque par défaut</option>
+                      {audioOutputs.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => setShowDeviceModal(false)}
+                    className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs uppercase cursor-pointer"
+                  >
+                    Valider
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
