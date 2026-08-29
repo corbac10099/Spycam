@@ -22,6 +22,7 @@ import { sounds } from "@/lib/soundEffects";
 import { IconShare } from "@/components/icons/SpyIcons";
 import { UserBadges } from "@/components/UserBadges";
 import LobbiesView from "@/components/LobbiesView";
+import LeaderboardViewComponent from "@/components/LeaderboardViewComponent";
 import HotkeysHelpModal from "@/components/HotkeysHelpModal";
 import { registerServiceWorker } from "@/lib/pushNotifications";
 import FloatingVoiceBar from "@/components/FloatingVoiceBar";
@@ -32,7 +33,13 @@ function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
 }
 
-export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView?: boolean } = {}) {
+export function HomeContent({
+  initialLobbiesView = false,
+  initialLeaderboardView = false,
+}: {
+  initialLobbiesView?: boolean;
+  initialLeaderboardView?: boolean;
+} = {}) {
   const { data: realSession, status: realStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -163,6 +170,7 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
   const [targetNewsId, setTargetNewsId] = useState<string | null>(null);
   const [agentsView, setAgentsView] = useState(false);
   const [lobbiesView, setLobbiesView] = useState(initialLobbiesView);
+  const [leaderboardView, setLeaderboardView] = useState(initialLeaderboardView);
   const [showHotkeysModal, setShowHotkeysModal] = useState(false);
   
   // Persistent Global Voice & Lobby State across all page views
@@ -237,23 +245,30 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
         setAgentsView(false);
         setNewsView(false);
         setLobbiesView(false);
+        setLeaderboardView(false);
         setActiveTab("performance");
+        pushUrl({ tab: "performance", playerId: myRiotId, isOwnProfile: true });
       } else if (key === (shortcutsMap.agents || "2").toLowerCase()) {
         sounds.playTabSwitch();
         setNewsView(false);
         setLobbiesView(false);
+        setLeaderboardView(false);
         setAgentsView(true);
+        pushUrl({ view: "agents", playerId: riotId || myRiotId });
       } else if (key === (shortcutsMap.matches || "3").toLowerCase()) {
         sounds.playTabSwitch();
         setAgentsView(false);
         setNewsView(false);
         setLobbiesView(false);
+        setLeaderboardView(false);
         setActiveTab("matches");
       } else if (key === (shortcutsMap.lobbies || "4").toLowerCase()) {
         sounds.playTabSwitch();
         setAgentsView(false);
         setNewsView(false);
+        setLeaderboardView(false);
         setLobbiesView(true);
+        pushUrl({ view: "lobbies", playerId: riotId || myRiotId });
       } else if (key === (shortcutsMap.search || "/").toLowerCase()) {
         e.preventDefault();
         const searchInput = document.querySelector('input[placeholder*="Rechercher"]') as HTMLInputElement;
@@ -269,7 +284,11 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
         setEcoMode((prev) => !prev);
       } else if (key === (shortcutsMap.leaderboard || "l").toLowerCase()) {
         sounds.playTabSwitch();
-        setShowLeaderboardModal((prev) => !prev);
+        setAgentsView(false);
+        setNewsView(false);
+        setLobbiesView(false);
+        setLeaderboardView((prev) => !prev);
+        pushUrl({ view: "leaderboard", playerId: riotId || myRiotId });
       } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         sounds.playClick();
         setSettingsTab("shortcuts");
@@ -321,7 +340,7 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
       tab?: string;
       playerId?: string | null;
       isOwnProfile?: boolean;
-      view?: "news" | "agents" | "settings" | "lobbies" | null;
+      view?: "news" | "agents" | "settings" | "lobbies" | "leaderboard" | null;
       agentSlug?: string | null;
       settingsTab?: string | null;
     }) => {
@@ -334,7 +353,9 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
 
       let path = "/";
 
-      if (view === "lobbies") {
+      if (view === "leaderboard") {
+        path = "/leaderboard";
+      } else if (view === "lobbies") {
         path = "/salons";
       } else if (view === "news") {
         path = isOwn || !playerId ? "/actualites" : `/${riotIdToSlug(playerId)}/actualites`;
@@ -367,7 +388,8 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
         window.history.pushState(null, "", path);
       }
 
-      const pageTitle = view === "lobbies" ? "Salons LFG & Vocal"
+      const pageTitle = view === "leaderboard" ? "Classement Valorant"
+        : view === "lobbies" ? "Salons LFG & Vocal"
         : view === "news" ? "Actualités & Patchs"
         : view === "agents" ? "Agents & Guides"
         : view === "settings" ? "Profil & Paramètres"
@@ -575,12 +597,16 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
           const segments = pathname.split("/").filter(Boolean);
           let urlRiotId: string | null = null;
           let urlTab: string | null = null;
-          let urlView: "news" | "agents" | "settings" | null = null;
+          let urlView: "news" | "agents" | "settings" | "lobbies" | "leaderboard" | null = null;
           let uAgentSlug: string | null = null;
           let uSettingsTab: string | null = null;
 
           if (segments.length > 0) {
-            if (segments[0] === "actualites") {
+            if (segments[0] === "salons") {
+              urlView = "lobbies";
+            } else if (segments[0] === "leaderboard") {
+              urlView = "leaderboard";
+            } else if (segments[0] === "actualites") {
               urlView = "news";
             } else if (segments[0] === "agents") {
               urlView = "agents";
@@ -596,7 +622,11 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
               }
             } else {
               urlRiotId = slugToRiotId(segments[0]);
-              if (segments[1] === "actualites") {
+              if (segments[1] === "salons") {
+                urlView = "lobbies";
+              } else if (segments[1] === "leaderboard") {
+                urlView = "leaderboard";
+              } else if (segments[1] === "actualites") {
                 urlView = "news";
               } else if (segments[1] === "agents") {
                 urlView = "agents";
@@ -614,7 +644,9 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
             }
           }
 
-          if (urlView === "news") setNewsView(true);
+          if (urlView === "lobbies") setLobbiesView(true);
+          else if (urlView === "leaderboard") setLeaderboardView(true);
+          else if (urlView === "news") setNewsView(true);
           else if (urlView === "agents") setAgentsView(true);
           else if (urlView === "settings") {
             setSettingsOpen(true);
@@ -660,6 +692,8 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
       setNewsView(false);
       setAgentsView(false);
       setSettingsOpen(false);
+      setLobbiesView(false);
+      setLeaderboardView(false);
 
       if (segments.length === 0) {
         if (myRiotId) searchPlayer(myRiotId);
@@ -670,7 +704,11 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
       let urlRiotId: string | null = null;
       let urlTab: string | null = null;
 
-      if (segments[0] === "actualites") {
+      if (segments[0] === "salons") {
+        setLobbiesView(true);
+      } else if (segments[0] === "leaderboard") {
+        setLeaderboardView(true);
+      } else if (segments[0] === "actualites") {
         setNewsView(true);
       } else if (segments[0] === "agents") {
         setAgentsView(true);
@@ -685,7 +723,11 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
         }
       } else {
         urlRiotId = slugToRiotId(segments[0]);
-        if (segments[1] === "actualites") {
+        if (segments[1] === "salons") {
+          setLobbiesView(true);
+        } else if (segments[1] === "leaderboard") {
+          setLeaderboardView(true);
+        } else if (segments[1] === "actualites") {
           setNewsView(true);
         } else if (segments[1] === "agents") {
           setAgentsView(true);
@@ -1018,12 +1060,21 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
           agentsView={agentsView}
           lobbiesView={lobbiesView}
           settingsOpen={settingsOpen}
-          onOpenLeaderboard={() => setShowLeaderboardModal(true)}
-          leaderboardOpen={showLeaderboardModal}
+          onOpenLeaderboard={() => {
+            setLeaderboardView(true);
+            setLobbiesView(false);
+            setNewsView(false);
+            setAgentsView(false);
+            setSettingsOpen(false);
+            const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
+            pushUrl({ view: "leaderboard", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
+          }}
+          leaderboardOpen={leaderboardView}
           onGoHome={() => {
             setNewsView(false);
             setAgentsView(false);
             setLobbiesView(false);
+            setLeaderboardView(false);
             setSettingsOpen(false);
             goHome();
             pushUrl({ tab: "performance", playerId: myRiotId, isOwnProfile: true });
@@ -1032,6 +1083,7 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
             setNewsView(true);
             setAgentsView(false);
             setLobbiesView(false);
+            setLeaderboardView(false);
             setSettingsOpen(false);
             if (newsId) setTargetNewsId(newsId);
             else setTargetNewsId(null);
@@ -1042,6 +1094,7 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
             setAgentsView(true);
             setNewsView(false);
             setLobbiesView(false);
+            setLeaderboardView(false);
             setSettingsOpen(false);
             const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
             pushUrl({ view: "agents", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
@@ -1050,6 +1103,7 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
             setLobbiesView(true);
             setNewsView(false);
             setAgentsView(false);
+            setLeaderboardView(false);
             setSettingsOpen(false);
             const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
             pushUrl({ view: "lobbies", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
@@ -1106,6 +1160,13 @@ export function HomeContent({ initialLobbiesView = false }: { initialLobbiesView
             locale={locale}
             streamerMode={streamerMode}
             setStreamerMode={setStreamerMode}
+          />
+        ) : leaderboardView ? (
+          <LeaderboardViewComponent
+            onSelectPlayer={(id) => {
+              setLeaderboardView(false);
+              searchPlayer(id);
+            }}
           />
         ) : lobbiesView ? (
           <div className="flex-1 flex flex-col items-center px-1 sm:px-3 md:px-6 z-10 w-full max-w-[1750px] mx-auto min-h-[calc(100vh-90px)]">
