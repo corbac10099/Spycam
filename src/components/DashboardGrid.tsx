@@ -71,13 +71,13 @@ function itemsOverlap(a: GridItemConfig, b: GridItemConfig): boolean {
   return a.x < bRight && aRight > b.x && a.y < bBottom && aBottom > b.y;
 }
 
-// Push colliding items downward to resolve all overlaps
+// Gentle collision resolution on drop (only pushes when there is an actual overlap)
 function resolveCollisions(items: GridItemConfig[], movedId: string, cols: number): GridItemConfig[] {
   const result = items.map((i) => ({ ...i }));
   const moved = result.find((i) => i.id === movedId);
   if (!moved || !moved.visible) return result;
 
-  for (let iter = 0; iter < 40; iter++) {
+  for (let iter = 0; iter < 30; iter++) {
     let hadCollision = false;
     for (const other of result) {
       if (other.id === movedId || !other.visible) continue;
@@ -116,13 +116,22 @@ export default function DashboardGrid({
   hiddenStatsByPrivacy = [],
   userStorageKey = "default",
 }: DashboardGridProps) {
-  const storageKey = `spycam_grid_layout_v6_${userStorageKey}`;
+  const storageKey = `spycam_grid_layout_v7_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const [gridCols, setGridCols] = useState<number>(DEFAULT_COLS);
   const [layout, setLayout] = useState<GridItemConfig[]>(DEFAULT_LAYOUT);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  
+  // Custom Smooth Mouse Dragging State
+  const [draggingItem, setDraggingItem] = useState<{
+    id: string;
+    deltaX: number;
+    deltaY: number;
+    targetX: number;
+    targetY: number;
+  } | null>(null);
+
   const [resizingItemId, setResizingItemId] = useState<string | null>(null);
   const [resizeHint, setResizeHint] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
@@ -134,7 +143,6 @@ export default function DashboardGrid({
     if (!gridContainerRef.current) return;
     const updateWidth = () => {
       if (gridContainerRef.current) {
-        // Inner width excluding padding (16px on left and right when editing)
         const totalW = gridContainerRef.current.clientWidth;
         const pad = isEditing ? 32 : 0;
         setUsableWidth(Math.max(200, totalW - pad));
@@ -228,50 +236,65 @@ export default function DashboardGrid({
     saveState(updated);
   };
 
-  // Drag & Drop with collision resolution
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData("text/plain", id);
-    e.dataTransfer.effectAllowed = "move";
-    setDraggedId(id);
-  };
-
-  const handleGridDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (!draggedId || !gridContainerRef.current) return;
-
-    const rect = gridContainerRef.current.getBoundingClientRect();
-    const pad = isEditing ? 16 : 0;
-    const mouseX = e.clientX - rect.left - pad;
-    const mouseY = e.clientY - rect.top - pad;
-
-    const draggedItem = layout.find((i) => i.id === draggedId);
-    if (!draggedItem) return;
-
-    const spanW = Math.min(draggedItem.colSpan, gridCols);
-
-    const targetX = Math.max(0, Math.min(gridCols - spanW, Math.round(mouseX / step)));
-    const targetY = Math.max(0, Math.round(mouseY / step));
-
-    if (draggedItem.x !== targetX || draggedItem.y !== targetY || !draggedItem.visible) {
-      setLayout((prev) => {
-        const updated = prev.map((item) =>
-          item.id === draggedId ? { ...item, x: targetX, y: targetY, visible: true } : item
-        );
-        return resolveCollisions(updated, draggedId, gridCols);
-      });
+  // Custom 60fps Mouse Dragging (Pins directly to cursor, zero lag)
+  const handleCardMouseDown = (e: React.MouseEvent, item: GridItemConfig) => {
+    if (!isEditing || resizingItemId) return;
+    if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest(".resize-handle")) {
+      return;
     }
-  };
 
-  const handleDragEnd = () => {
-    setDraggedId(null);
-    saveState(layout);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setDraggedId(null);
-    saveState(layout);
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startX = item.x;
+    const startY = item.y;
+    const spanW = Math.min(item.colSpan, gridCols);
+
+    setDraggingItem({
+      id: item.id,
+      deltaX: 0,
+      deltaY: 0,
+      targetX: startX,
+      targetY: startY,
+    });
+
+    let currentTargetX = startX;
+    let currentTargetY = startY;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startMouseX;
+      const deltaY = moveEvent.clientY - startMouseY;
+
+      currentTargetX = Math.max(0, Math.min(gridCols - spanW, Math.round(startX + deltaX / step)));
+      currentTargetY = Math.max(0, Math.round(startY + deltaY / step));
+
+      setDraggingItem({
+        id: item.id,
+        deltaX,
+        deltaY,
+        targetX: currentTargetX,
+        targetY: currentTargetY,
+      });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+
+      setDraggingItem(null);
+
+      setLayout((prev) => {
+        const updated = prev.map((it) =>
+          it.id === item.id ? { ...it, x: currentTargetX, y: currentTargetY, visible: true } : it
+        );
+        const resolved = resolveCollisions(updated, item.id, gridCols);
+        saveState(resolved);
+        return resolved;
+      });
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   // Interactive Edge Resizing
@@ -294,32 +317,29 @@ export default function DashboardGrid({
     const currentItem = layout.find((i) => i.id === itemId);
     const startPosX = currentItem?.x ?? 0;
 
+    let finalColSpan = currentColSpan;
+    let finalRowSpan = currentRowSpan;
+
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (direction === "horizontal") {
         const deltaX = moveEvent.clientX - startX;
         const colDelta = Math.round(deltaX / step);
         const maxCols = gridCols - startPosX;
-        const targetColSpan = Math.max(minCol, Math.min(maxCols, currentColSpan + colDelta));
+        finalColSpan = Math.max(minCol, Math.min(maxCols, currentColSpan + colDelta));
 
-        setResizeHint(`${targetColSpan} cols × ${currentRowSpan} lignes`);
-        setLayout((prev) => {
-          const updated = prev.map((item) =>
-            item.id === itemId ? { ...item, colSpan: targetColSpan } : item
-          );
-          return resolveCollisions(updated, itemId, gridCols);
-        });
+        setResizeHint(`${finalColSpan} cols × ${currentRowSpan} lignes`);
+        setLayout((prev) =>
+          prev.map((item) => (item.id === itemId ? { ...item, colSpan: finalColSpan } : item))
+        );
       } else {
         const deltaY = moveEvent.clientY - startY;
         const rowDelta = Math.round(deltaY / step);
-        const targetRowSpan = Math.max(minRow, Math.min(20, currentRowSpan + rowDelta));
+        finalRowSpan = Math.max(minRow, Math.min(25, currentRowSpan + rowDelta));
 
-        setResizeHint(`${currentColSpan} cols × ${targetRowSpan} lignes`);
-        setLayout((prev) => {
-          const updated = prev.map((item) =>
-            item.id === itemId ? { ...item, rowSpan: targetRowSpan } : item
-          );
-          return resolveCollisions(updated, itemId, gridCols);
-        });
+        setResizeHint(`${currentColSpan} cols × ${finalRowSpan} lignes`);
+        setLayout((prev) =>
+          prev.map((item) => (item.id === itemId ? { ...item, rowSpan: finalRowSpan } : item))
+        );
       }
     };
 
@@ -328,9 +348,11 @@ export default function DashboardGrid({
       window.removeEventListener("mouseup", onMouseUp);
       setResizingItemId(null);
       setResizeHint(null);
-      setLayout((current) => {
-        saveState(current);
-        return current;
+
+      setLayout((prev) => {
+        const resolved = resolveCollisions(prev, itemId, gridCols);
+        saveState(resolved);
+        return resolved;
       });
     };
 
@@ -358,14 +380,20 @@ export default function DashboardGrid({
     return layout.filter((item) => !item.visible);
   }, [layout]);
 
-  // Compute total rows needed (tight bounds)
+  // Compute total rows needed
   const totalRows = useMemo(() => {
     let maxRow = 0;
     activeItems.forEach((item) => {
       maxRow = Math.max(maxRow, (item.y || 0) + (item.rowSpan || 1));
     });
+    if (draggingItem) {
+      const draggedConfig = layout.find((i) => i.id === draggingItem.id);
+      if (draggedConfig) {
+        maxRow = Math.max(maxRow, draggingItem.targetY + draggedConfig.rowSpan);
+      }
+    }
     return Math.max(1, maxRow);
-  }, [activeItems]);
+  }, [activeItems, draggingItem, layout]);
 
   // Exact pixel height of the grid content
   const gridPixelHeight = totalRows * cellSize + Math.max(0, totalRows - 1) * GRID_GAP;
@@ -463,7 +491,7 @@ export default function DashboardGrid({
   };
 
   return (
-    <div className="w-full flex flex-col relative">
+    <div className="w-full flex flex-col relative select-none">
       {/* Top Header / Mode Edition Bar */}
       {canEdit && (
         <div className="w-full flex items-center justify-between gap-3 mb-4 pb-2 border-b border-[var(--color-border)]/60 flex-wrap">
@@ -598,13 +626,11 @@ export default function DashboardGrid({
       {/* Main Grid Container with exact padding boundary */}
       <div
         ref={gridContainerRef}
-        onDragOver={handleGridDragOver}
-        onDrop={handleDrop}
         className={`w-full transition-all duration-300 relative ${
           isEditing ? "p-4 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/25" : ""
         }`}
       >
-        {/* Inner Grid Area (exact usable bounds) */}
+        {/* Inner Grid Area */}
         <div
           style={{
             position: "relative",
@@ -637,6 +663,20 @@ export default function DashboardGrid({
             </svg>
           )}
 
+          {/* Snapped Ghost Placeholder while dragging */}
+          {isEditing && draggingItem && (
+            <div
+              style={{
+                position: "absolute",
+                left: `${draggingItem.targetX * step}px`,
+                top: `${draggingItem.targetY * step}px`,
+                width: `${(layout.find((i) => i.id === draggingItem.id)?.colSpan || 1) * cellSize + ((layout.find((i) => i.id === draggingItem.id)?.colSpan || 1) - 1) * GRID_GAP}px`,
+                height: `${(layout.find((i) => i.id === draggingItem.id)?.rowSpan || 1) * cellSize + ((layout.find((i) => i.id === draggingItem.id)?.rowSpan || 1) - 1) * GRID_GAP}px`,
+              }}
+              className="rounded-2xl border-2 border-dashed border-[var(--color-val-red)]/70 bg-[var(--color-val-red)]/10 z-10 pointer-events-none transition-all duration-100 ease-out"
+            />
+          )}
+
           {!isEditing ? (
             // Normal Mode: responsive CSS Grid
             <div
@@ -667,9 +707,9 @@ export default function DashboardGrid({
               })}
             </div>
           ) : (
-            // Edit Mode: absolute positioning for fluid dragging
+            // Edit Mode: absolute positioning with 60fps smooth mouse drag
             activeItems.map((item) => {
-              const isDragged = draggedId === item.id;
+              const isBeingDragged = draggingItem?.id === item.id;
               const isResizing = resizingItemId === item.id;
               const actualColSpan = Math.min(item.colSpan, gridCols);
               const left = item.x * step;
@@ -677,27 +717,33 @@ export default function DashboardGrid({
               const w = actualColSpan * cellSize + (actualColSpan - 1) * GRID_GAP;
               const h = item.rowSpan * cellSize + (item.rowSpan - 1) * GRID_GAP;
 
+              const transform = isBeingDragged
+                ? `translate3d(${draggingItem.deltaX}px, ${draggingItem.deltaY}px, 0)`
+                : "none";
+
               return (
                 <div
                   key={item.id}
-                  draggable={!resizingItemId}
-                  onDragStart={(e) => handleDragStart(e, item.id)}
-                  onDragEnd={handleDragEnd}
+                  onMouseDown={(e) => handleCardMouseDown(e, item)}
                   style={{
                     position: "absolute",
                     left: `${left}px`,
                     top: `${top}px`,
                     width: `${w}px`,
                     height: `${h}px`,
-                    transition: isDragged ? "none" : "left 0.2s ease, top 0.2s ease, width 0.15s ease, height 0.15s ease",
+                    transform,
+                    zIndex: isBeingDragged ? 50 : isResizing ? 40 : 20,
+                    transition: isBeingDragged ? "none" : "left 0.2s ease, top 0.2s ease, width 0.15s ease, height 0.15s ease",
                   }}
                   className={`group/item select-none flex flex-col min-h-0 overflow-hidden ${
-                    isDragged ? "opacity-30 scale-95 ring-2 ring-[var(--color-val-red)]/50 rounded-2xl" : "opacity-100"
-                  } ${
-                    isResizing ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl" : ""
-                  } cursor-grab active:cursor-grabbing hover:shadow-xl z-10`}
+                    isBeingDragged
+                      ? "opacity-90 scale-105 shadow-[0_15px_35px_rgba(0,0,0,0.8)] ring-2 ring-[var(--color-val-red)] rounded-2xl cursor-grabbing"
+                      : isResizing
+                      ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl"
+                      : "cursor-grab hover:shadow-xl"
+                  }`}
                 >
-                  <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden">
+                  <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden pointer-events-none">
                     {renderItemContent(item.id)}
                   </div>
 
@@ -725,7 +771,7 @@ export default function DashboardGrid({
                   {/* Right resize handle */}
                   <div
                     onMouseDown={(e) => handleResizeStart(e, item.id, actualColSpan, item.rowSpan, "horizontal")}
-                    className="absolute -right-2.5 top-1/2 -translate-y-1/2 z-30 w-4 h-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ew-resize shadow-lg transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
+                    className="resize-handle absolute -right-2.5 top-1/2 -translate-y-1/2 z-30 w-4 h-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ew-resize shadow-lg transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
                   >
                     <div className="w-1 h-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
                   </div>
@@ -733,7 +779,7 @@ export default function DashboardGrid({
                   {/* Bottom resize handle */}
                   <div
                     onMouseDown={(e) => handleResizeStart(e, item.id, actualColSpan, item.rowSpan, "vertical")}
-                    className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-30 h-4 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-lg transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
+                    className="resize-handle absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-30 h-4 w-12 bg-[#0f1923]/95 hover:bg-[var(--color-val-red)] border border-white/30 hover:border-white rounded-full flex items-center justify-center cursor-ns-resize shadow-lg transition-all hover:scale-110 opacity-0 group-hover/item:opacity-100 group/handle"
                   >
                     <div className="h-1 w-6 bg-white/70 rounded-full group-hover/handle:bg-white"></div>
                   </div>
@@ -757,7 +803,7 @@ export default function DashboardGrid({
                 Widgets Retirés ({hiddenDrawerItems.length})
               </span>
               <span className="text-xs text-[var(--color-text-secondary)]">
-                — Glissez ou cliquez &quot;+&quot;
+                — Cliquez sur &quot;+&quot; pour remettre dans la grille
               </span>
             </div>
             <button
@@ -775,10 +821,7 @@ export default function DashboardGrid({
               return (
                 <div
                   key={hiddenItem.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, hiddenItem.id)}
-                  onDragEnd={handleDragEnd}
-                  className="glass-panel p-3 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all flex items-center justify-between gap-2 group cursor-grab active:cursor-grabbing bg-black/40 hover:bg-emerald-500/5"
+                  className="glass-panel p-3 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all flex items-center justify-between gap-2 group bg-black/40 hover:bg-emerald-500/5"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-base">{meta.icon}</span>
