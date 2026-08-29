@@ -74,7 +74,8 @@ export default function LobbiesView({
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const [isDeafened, setIsDeafened] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const prevChatLengthRef = useRef<number>(0);
 
   // Fetch Lobbies list
   const fetchLobbies = async () => {
@@ -113,12 +114,18 @@ export default function LobbiesView({
     return () => clearInterval(interval);
   }, [currentView, activeLobby]);
 
-  // Scroll to bottom on new message
+  // Scroll ONLY the internal chat container when a new message arrives (never scroll the main window)
   useEffect(() => {
-    if (currentView === "salon") {
-      chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (currentView === "salon" && activeLobby?.chat) {
+      const currentLen = activeLobby.chat.length;
+      if (currentLen > prevChatLengthRef.current) {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }
+      prevChatLengthRef.current = currentLen;
     }
-  }, [activeLobby?.chat, currentView]);
+  }, [activeLobby?.chat?.length, currentView]);
 
   // Calculate live lobby estimated level during creation
   const calculateEstimatedLevel = () => {
@@ -1241,7 +1248,7 @@ export default function LobbiesView({
               </div>
 
               {/* Messages Flow */}
-              <div className="flex-1 overflow-y-auto max-h-[380px] space-y-3 pr-2 custom-scrollbar">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[380px] space-y-3 pr-2 custom-scrollbar">
                 {activeLobby.chat?.length === 0 ? (
                   <div className="text-center py-16 text-[var(--color-text-secondary)] text-xs">
                     Aucun message pour l&apos;instant. Dites bonjour à vos coéquipiers !
@@ -1285,7 +1292,6 @@ export default function LobbiesView({
                     );
                   })
                 )}
-                <div ref={chatBottomRef} />
               </div>
 
               {/* Message Input Box */}
