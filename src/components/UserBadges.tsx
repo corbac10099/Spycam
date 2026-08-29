@@ -141,7 +141,9 @@ export function UserBadges({
   if (parsedList.length === 0) return null;
 
   return (
-    <div className={`inline-flex items-center gap-1.5 flex-wrap ${className}`}>
+    <div
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.6)] ${className}`}
+    >
       {parsedList.map((badgeId, idx) => {
         const key = badgeId.toLowerCase().trim();
         const def = BADGES_REGISTRY[key] || {
@@ -166,7 +168,7 @@ export function UserBadges({
             onMouseLeave={() => setHoveredBadge(null)}
           >
             <div
-              className={`p-1 rounded-md border flex items-center justify-center transition-all duration-200 hover:scale-110 ${def.bgClass} ${def.borderClass} ${def.glowClass}`}
+              className={`p-1 rounded-full border flex items-center justify-center transition-all duration-200 hover:scale-115 ${def.bgClass} ${def.borderClass} ${def.glowClass}`}
             >
               <IconComponent size={size} className={def.colorClass} />
             </div>
