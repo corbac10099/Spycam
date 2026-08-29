@@ -51,6 +51,7 @@ export default function MobileAppDrawer({
               sounds.playClick();
               onClose();
             }}
+            onMouseEnter={() => sounds.playHover()}
             className="w-7 h-7 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] hover:text-white flex items-center justify-center font-bold text-xs cursor-pointer border border-[var(--color-border)]"
           >
             ✕
@@ -62,6 +63,7 @@ export default function MobileAppDrawer({
           {/* Settings */}
           <button
             type="button"
+            onMouseEnter={() => sounds.playHover()}
             onClick={() => {
               sounds.playTabSwitch();
               onClose();
@@ -79,6 +81,7 @@ export default function MobileAppDrawer({
           {/* Leaderboard */}
           <button
             type="button"
+            onMouseEnter={() => sounds.playHover()}
             onClick={() => {
               sounds.playTabSwitch();
               onClose();
@@ -97,6 +100,7 @@ export default function MobileAppDrawer({
         {/* Fullscreen Option */}
         <button
           type="button"
+          onMouseEnter={() => sounds.playHover()}
           onClick={() => {
             sounds.playClick();
             onClose();

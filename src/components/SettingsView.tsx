@@ -258,7 +258,11 @@ export default function SettingsView({
       <div className="flex items-center justify-between mb-4 sm:mb-8 gap-3">
         <h2 className="text-xl sm:text-3xl font-black uppercase tracking-widest text-[var(--color-text-primary)]">Paramètres</h2>
         <button
-          onClick={onClose}
+          onClick={() => {
+            sounds.playCancel();
+            onClose();
+          }}
+          onMouseEnter={() => sounds.playHover()}
           className="px-3.5 sm:px-6 py-2 sm:py-2.5 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] cursor-pointer flex items-center gap-1.5 flex-shrink-0"
         >
           <span className="text-sm sm:text-base">←</span>
@@ -278,7 +282,9 @@ export default function SettingsView({
           ].map((tab) => (
             <button
               key={tab.id}
+              onMouseEnter={() => sounds.playHover()}
               onClick={() => {
+                sounds.playTabSwitch();
                 setSettingsTab(tab.id);
                 pushUrl({ view: "settings", settingsTab: tab.id });
               }}
@@ -610,7 +616,11 @@ export default function SettingsView({
                   ].map((t) => (
                     <button
                       key={t.id}
-                      onClick={() => setDraftTheme(t.id)}
+                      onMouseEnter={() => sounds.playHover()}
+                      onClick={() => {
+                        sounds.playClick();
+                        setDraftTheme(t.id);
+                      }}
                       className={`relative rounded-xl p-2 sm:p-3 flex flex-col items-center gap-1.5 sm:gap-2 border-2 transition-all duration-300 cursor-pointer ${
                         draftTheme === t.id
                           ? "border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.3)] scale-105"
@@ -679,7 +689,11 @@ export default function SettingsView({
                     </p>
                   </div>
                   <button
-                    onClick={() => setCatalogOpen(true)}
+                    onClick={() => {
+                      sounds.playClick();
+                      setCatalogOpen(true);
+                    }}
+                    onMouseEnter={() => sounds.playHover()}
                     className="px-3 sm:px-4 py-1.5 sm:py-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-[var(--color-text-primary)]"
                   >
                     <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -695,7 +709,11 @@ export default function SettingsView({
                   {banners.map((b, idx) => (
                     <button
                       key={idx}
-                      onClick={() => setDraftBannerUrl(b.url)}
+                      onMouseEnter={() => sounds.playHover()}
+                      onClick={() => {
+                        sounds.playClick();
+                        setDraftBannerUrl(b.url);
+                      }}
                       className={`relative aspect-[3/1] rounded-xl overflow-hidden border-2 transition-all cursor-pointer bg-[#0a0e13] ${
                         draftBannerUrl === b.url
                           ? "border-[var(--color-val-red)] shadow-[0_0_15px_rgba(255,70,85,0.3)] scale-[1.02]"
@@ -816,7 +834,11 @@ export default function SettingsView({
                           <button
                             key={l.id}
                             type="button"
-                            onClick={() => setDraftLocale(l.id)}
+                            onMouseEnter={() => sounds.playHover()}
+                            onClick={() => {
+                              sounds.playClick();
+                              setDraftLocale(l.id);
+                            }}
                             className={`relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 border-2 transition-all duration-300 flex items-center justify-between text-left group min-h-[64px] sm:min-h-[90px] cursor-pointer ${
                               isSelected
                                 ? "border-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] scale-[1.02] bg-[var(--color-val-red)]/10"
@@ -868,7 +890,11 @@ export default function SettingsView({
                       <div className="flex justify-center pt-2">
                         <button
                           type="button"
-                          onClick={() => setShowAllLanguages(!showAllLanguages)}
+                          onMouseEnter={() => sounds.playHover()}
+                          onClick={() => {
+                            sounds.playClick();
+                            setShowAllLanguages(!showAllLanguages);
+                          }}
                           className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
                         >
                           <span>{showAllLanguages ? "Afficher moins" : `Afficher plus (+${filtered.length - 5})`}</span>
@@ -908,6 +934,7 @@ export default function SettingsView({
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
             <button
               onClick={handleCancel}
+              onMouseEnter={() => sounds.playHover()}
               disabled={loading}
               className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] text-xs sm:text-sm font-bold rounded-xl transition-all border border-[var(--color-border)] disabled:opacity-50 cursor-pointer text-center"
             >
@@ -915,6 +942,7 @@ export default function SettingsView({
             </button>
             <button
               onClick={handleSave}
+              onMouseEnter={() => sounds.playHover()}
               disabled={loading}
               className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--color-val-red)] hover:bg-[#ff5a67] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(255,70,85,0.3)] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer text-center"
             >

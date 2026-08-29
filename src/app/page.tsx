@@ -1084,6 +1084,7 @@ function HomeContent() {
                           {canEditProfile ? (
                             <button
                               type="button"
+                              onMouseEnter={() => sounds.playHover()}
                               onClick={() => {
                                 sounds.playClick();
                                 setShowCardModal(true);
@@ -1096,6 +1097,7 @@ function HomeContent() {
                             </button>
                           ) : (
                             <button
+                              onMouseEnter={() => sounds.playHover()}
                               onClick={() => {
                                 sounds.playClick();
                                 toggleFavorite(p);
@@ -1127,6 +1129,7 @@ function HomeContent() {
                           ].map((tab) => (
                             <button
                               key={tab.id}
+                              onMouseEnter={() => sounds.playHover()}
                               onClick={() => {
                                 sounds.playTabSwitch();
                                 setActiveTab(tab.id);

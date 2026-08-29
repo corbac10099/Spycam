@@ -1,5 +1,7 @@
 "use client";
 
+import { sounds } from "@/lib/soundEffects";
+
 export interface MobileNavProps {
   activeTab: string;
   newsView: boolean;
@@ -33,7 +35,9 @@ export default function MobileNav({
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--color-surface)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-2 py-1.5 flex items-center justify-around shadow-[0_-5px_25px_rgba(0,0,0,0.5)]">
       {/* Home / Perf */}
       <button
+        onMouseEnter={() => sounds.playHover()}
         onClick={() => {
+          sounds.playTabSwitch();
           onGoHome();
           onSelectTab("performance");
         }}
@@ -50,7 +54,9 @@ export default function MobileNav({
 
       {/* Matchs */}
       <button
+        onMouseEnter={() => sounds.playHover()}
         onClick={() => {
+          sounds.playTabSwitch();
           onGoHome();
           onSelectTab("matches");
         }}
@@ -67,7 +73,11 @@ export default function MobileNav({
 
       {/* Wiki Agents */}
       <button
-        onClick={onOpenAgents}
+        onMouseEnter={() => sounds.playHover()}
+        onClick={() => {
+          sounds.playTabSwitch();
+          onOpenAgents();
+        }}
         className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
           agentsView ? "text-[var(--color-val-red)] font-bold scale-105" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
         }`}
@@ -80,7 +90,11 @@ export default function MobileNav({
 
       {/* Actualités */}
       <button
-        onClick={onOpenNews}
+        onMouseEnter={() => sounds.playHover()}
+        onClick={() => {
+          sounds.playTabSwitch();
+          onOpenNews();
+        }}
         className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
           newsView ? "text-[var(--color-val-red)] font-bold scale-105" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
         }`}
@@ -96,7 +110,12 @@ export default function MobileNav({
 
       {/* 4 Carrés Grid Menu Drawer */}
       <button
-        onClick={onOpenMenuDrawer || onToggleSettings}
+        onMouseEnter={() => sounds.playHover()}
+        onClick={() => {
+          sounds.playClick();
+          if (onOpenMenuDrawer) onOpenMenuDrawer();
+          else onToggleSettings();
+        }}
         className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer text-[var(--color-text-secondary)] hover:text-[var(--color-val-red)] active:scale-95"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

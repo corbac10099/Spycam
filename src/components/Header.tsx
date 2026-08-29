@@ -150,7 +150,11 @@ export default function Header({
           {/* Home button (Desktop only) */}
           {myRiotId && (
             <button
-              onClick={onGoHome}
+              onClick={() => {
+                sounds.playTabSwitch();
+                onGoHome();
+              }}
+              onMouseEnter={() => sounds.playHover()}
               title="Retour à mon profil"
               className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
                 !newsView && !agentsView && !settingsOpen
@@ -167,7 +171,11 @@ export default function Header({
 
           {/* News button (Desktop only) */}
           <button
-            onClick={() => onOpenNews()}
+            onClick={() => {
+              sounds.playTabSwitch();
+              onOpenNews();
+            }}
+            onMouseEnter={() => sounds.playHover()}
             title="Actualités"
             className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
               newsView && !agentsView
@@ -185,7 +193,11 @@ export default function Header({
 
           {/* Agents Wiki button (Desktop only) */}
           <button
-            onClick={onOpenAgents}
+            onClick={() => {
+              sounds.playTabSwitch();
+              onOpenAgents();
+            }}
+            onMouseEnter={() => sounds.playHover()}
             title="Wiki Agents"
             className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
               agentsView
@@ -248,7 +260,9 @@ export default function Header({
                       {recentSearches.map((query) => (
                         <div
                           key={query}
+                          onMouseEnter={() => sounds.playHover()}
                           onClick={() => {
+                            sounds.playClick();
                             setRiotId(query);
                             setIsFocused(false);
                             onSelectFavorite(query);
@@ -341,6 +355,7 @@ export default function Header({
                 sounds.playTabSwitch();
                 onOpenLeaderboard();
               }}
+              onMouseEnter={() => sounds.playHover()}
               title="Classement Régional Riot"
               className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border text-xs font-bold cursor-pointer ${
                 leaderboardOpen
@@ -364,6 +379,7 @@ export default function Header({
               sounds.playClick();
               signOut({ callbackUrl: "/login" });
             }}
+            onMouseEnter={() => sounds.playHover()}
             className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-3 py-1.5 rounded-full items-center text-xs gap-1.5 border border-[var(--color-border)] cursor-pointer"
             title="Déconnexion"
           >
@@ -380,6 +396,7 @@ export default function Header({
               sounds.playTabSwitch();
               onToggleSettings();
             }}
+            onMouseEnter={() => sounds.playHover()}
             title="Paramètres"
             className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-colors items-center justify-center border cursor-pointer ${
               settingsOpen
@@ -402,7 +419,11 @@ export default function Header({
             {favorites.map((fav) => (
               <div
                 key={fav.riotId}
-                onClick={() => onSelectFavorite(fav.riotId)}
+                onMouseEnter={() => sounds.playHover()}
+                onClick={() => {
+                  sounds.playClick();
+                  onSelectFavorite(fav.riotId);
+                }}
                 className={`group flex items-center gap-1.5 px-3 py-1 rounded-full transition-all duration-200 text-xs font-bold border flex-shrink-0 cursor-pointer ${
                   activeGameName === fav.gameName
                     ? "bg-[var(--color-val-red)]/15 border-[var(--color-val-red)]/50 text-[var(--color-val-red)] shadow-[0_0_12px_rgba(255,70,85,0.25)]"
