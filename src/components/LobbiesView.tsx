@@ -84,6 +84,7 @@ export default function LobbiesView({
   const [isDeafened, setIsDeafened] = useState<boolean>(false);
   const [isMyVoiceSpeaking, setIsMyVoiceSpeaking] = useState<boolean>(false);
   const [voiceVolumeLevel, setVoiceVolumeLevel] = useState<number>(0);
+  const [remoteSpeakingMap, setRemoteSpeakingMap] = useState<Record<string, boolean>>({});
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const voiceManagerRef = useRef<VoiceManager | null>(null);
 
@@ -160,14 +161,18 @@ export default function LobbiesView({
 
   // Décrocher 📞 (Rejoindre le canal vocal)
   const handleJoinVoice = async () => {
+    if (!activeLobby) return;
     setVoiceError(null);
     sounds.playTabSwitch();
 
-    const vm = new VoiceManager({
+    const vm = new VoiceManager(activeLobby.id, `${myName}_${myTag}`, {
       onSpeakingChange: (speaking, vol) => {
         setIsMyVoiceSpeaking(speaking);
         setVoiceVolumeLevel(vol);
         syncVoiceStateToBackend(speaking, isMicMuted);
+      },
+      onRemoteSpeakingChange: (peerId, isSpeaking) => {
+        setRemoteSpeakingMap((prev) => ({ ...prev, [peerId]: isSpeaking }));
       },
       onTranscript: async (transcriptText) => {
         if (!activeLobby) return;
@@ -1251,7 +1256,9 @@ export default function LobbiesView({
                       (v) => v.gameName.toLowerCase() === member.gameName.toLowerCase() && v.tagLine.toLowerCase() === member.tagLine.toLowerCase()
                     );
                     const isUserInVoice = !!voiceInfo || (isMe && isInVoice);
-                    const isUserSpeaking = (isMe && isMyVoiceSpeaking) || (voiceInfo?.isSpeaking && !voiceInfo?.isMuted);
+                    const remoteKey = `${member.gameName}_${member.tagLine}`;
+                    const isRemoteSpeaking = remoteSpeakingMap[remoteKey] || (voiceInfo?.isSpeaking && !voiceInfo?.isMuted);
+                    const isUserSpeaking = (isMe && isMyVoiceSpeaking) || isRemoteSpeaking;
 
                     return (
                       <div

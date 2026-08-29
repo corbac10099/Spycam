@@ -2,6 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { LobbyMember, ChatMessage, VoiceMember, VoiceTranscriptLog } from '../route';
 import { filterToxicText } from '@/lib/moderation';
 
+export interface WebRTCSignal {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: 'offer' | 'answer' | 'ice';
+  data: any;
+  timestamp: number;
+}
+
+// In-memory WebRTC signals storage per lobby
+declare global {
+  // eslint-disable-next-line no-var
+  var _spycam_voice_signals: Record<string, WebRTCSignal[]> | undefined;
+}
+
+if (!global._spycam_voice_signals) {
+  global._spycam_voice_signals = {};
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const lobby = (global._spycam_lobbies || []).find((l) => l.id === id);
@@ -10,7 +29,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ success: false, error: 'Salon introuvable ou expiré' }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, lobby });
+  const { searchParams } = new URL(req.url);
+  const forPeer = searchParams.get('forPeer');
+
+  let signals: WebRTCSignal[] = [];
+  if (forPeer && global._spycam_voice_signals && global._spycam_voice_signals[id]) {
+    // Return signals intended for this peer and filter them out
+    signals = global._spycam_voice_signals[id].filter((s) => s.toId === forPeer);
+    global._spycam_voice_signals[id] = global._spycam_voice_signals[id].filter((s) => s.toId !== forPeer);
+  }
+
+  return NextResponse.json({ success: true, lobby, signals });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,8 +53,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const lobby = global._spycam_lobbies![lobbyIndex];
+    if (!global._spycam_voice_signals) global._spycam_voice_signals = {};
+    if (!global._spycam_voice_signals[id]) global._spycam_voice_signals[id] = [];
 
-    // ACTION 1 : JOIN LOBBY
+    // ACTION: WebRTC Signaling (Send offer / answer / ICE candidate)
+    if (body.action === 'voice-signal') {
+      const { fromId, toId, type, data } = body;
+      if (fromId && toId && type && data) {
+        const signal: WebRTCSignal = {
+          id: `sig_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          fromId,
+          toId,
+          type,
+          data,
+          timestamp: Date.now(),
+        };
+
+        global._spycam_voice_signals[id].push(signal);
+        // Clean signals older than 30 seconds
+        const thirtySecAgo = Date.now() - 30000;
+        global._spycam_voice_signals[id] = global._spycam_voice_signals[id].filter((s) => s.timestamp > thirtySecAgo);
+
+        return NextResponse.json({ success: true, signalId: signal.id });
+      }
+      return NextResponse.json({ success: false, error: 'Données de signalement incomplètes' }, { status: 400 });
+    }
+
+    // ACTION: JOIN LOBBY
     if (body.action === 'join') {
       const { gameName, tagLine, rank, rankUrl, rankTier = 12, isPrivateRank = false, roles = ['Tous Rôles'], avatarUrl } = body;
 
@@ -73,14 +127,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, lobby, member: newMember });
     }
 
-    // ACTION 2 : SEND MODERATED CHAT MESSAGE
+    // ACTION: SEND MODERATED CHAT MESSAGE
     if (body.action === 'chat') {
       const { senderName, senderTag, senderAvatar, content } = body;
       if (!content || !content.trim()) {
         return NextResponse.json({ success: false, error: 'Message vide' }, { status: 400 });
       }
 
-      // Run auto-moderation filter on text
       const modResult = filterToxicText(content.trim());
 
       const msg: ChatMessage = {
@@ -101,7 +154,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, message: msg, chat: lobby.chat, isToxic: modResult.isToxic });
     }
 
-    // ACTION 3 : VOICE JOIN (Décrocher 📞)
+    // ACTION: VOICE JOIN (Décrocher 📞)
     if (body.action === 'voice-join') {
       const { memberId, gameName, tagLine, avatarUrl, rank, isPrivateRank } = body;
       if (!lobby.voiceMembers) lobby.voiceMembers = [];
@@ -112,7 +165,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       if (existingIndex === -1) {
         const newVoiceMember: VoiceMember = {
-          memberId: memberId || `v_${Date.now()}`,
+          memberId: memberId || `v_${gameName}_${tagLine}`,
           gameName: gameName || 'Joueur',
           tagLine: tagLine || 'EUW',
           avatarUrl,
@@ -124,7 +177,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         };
         lobby.voiceMembers.push(newVoiceMember);
 
-        // System notification in chat
         lobby.chat.push({
           id: `msg_${Date.now()}`,
           senderName: 'Système',
@@ -137,7 +189,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, voiceMembers: lobby.voiceMembers });
     }
 
-    // ACTION 4 : VOICE LEAVE (Raccrocher 🔴)
+    // ACTION: VOICE LEAVE (Raccrocher 🔴)
     if (body.action === 'voice-leave') {
       const { gameName, tagLine } = body;
       if (lobby.voiceMembers) {
@@ -157,7 +209,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, voiceMembers: lobby.voiceMembers || [] });
     }
 
-    // ACTION 5 : VOICE STATE (Speaking / Mute sync)
+    // ACTION: VOICE STATE
     if (body.action === 'voice-state') {
       const { gameName, tagLine, isSpeaking, isMuted } = body;
       if (lobby.voiceMembers) {
@@ -172,7 +224,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true, voiceMembers: lobby.voiceMembers || [] });
     }
 
-    // ACTION 6 : VOICE TRANSCRIPT AUDIT LOG
+    // ACTION: VOICE TRANSCRIPT AUDIT LOG
     if (body.action === 'voice-transcript') {
       const { senderName, senderTag, content } = body;
       if (content && content.trim()) {
@@ -189,7 +241,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (!lobby.voiceTranscripts) lobby.voiceTranscripts = [];
         lobby.voiceTranscripts.push(logEntry);
 
-        // Keep last 150 voice logs
         if (lobby.voiceTranscripts.length > 150) {
           lobby.voiceTranscripts = lobby.voiceTranscripts.slice(-150);
         }
@@ -197,7 +248,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: true });
     }
 
-    // ACTION 7 : LEAVE LOBBY
+    // ACTION: LEAVE LOBBY
     if (body.action === 'leave') {
       const { gameName, tagLine } = body;
       lobby.members = lobby.members.filter(
