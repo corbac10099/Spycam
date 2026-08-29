@@ -844,6 +844,22 @@ function HomeContent() {
     const ep = searchParams?.get("error");
     if (ep) setError(ep === "missing_credentials" ? "Client ID RSO manquant." : ep === "token_exchange_failed" ? "Échec token Riot." : "Erreur connexion.");
     if (searchParams?.get("loggedIn") === "true") fetchMyData();
+
+    // Support direct URL navigation: ?view=lobbies, ?view=agents, ?view=news
+    const viewParam = searchParams?.get("view");
+    if (viewParam === "lobbies") {
+      setLobbiesView(true);
+      setNewsView(false);
+      setAgentsView(false);
+    } else if (viewParam === "agents") {
+      setAgentsView(true);
+      setNewsView(false);
+      setLobbiesView(false);
+    } else if (viewParam === "news") {
+      setNewsView(true);
+      setAgentsView(false);
+      setLobbiesView(false);
+    }
   }, [searchParams]);
 
   const fetchMyData = async () => {

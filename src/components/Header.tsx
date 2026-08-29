@@ -42,7 +42,7 @@ export interface HeaderProps {
   playerStats?: any;
 }
 
-type NavId = "profile" | "news" | "agents" | "lobbies";
+type NavId = "profile" | "news" | "agents" | "lobbies" | "leaderboard";
 
 export default function Header({
   session,
@@ -80,21 +80,24 @@ export default function Header({
     news: null,
     agents: null,
     lobbies: null,
+    leaderboard: null,
   });
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
   // Derive active nav id from props
   const activeNavId: NavId | null = settingsOpen
     ? null
-    : lobbiesView
-      ? "lobbies"
-      : agentsView
-        ? "agents"
-        : newsView
-          ? "news"
-          : myRiotId
-            ? "profile"
-            : null;
+    : leaderboardOpen
+      ? "leaderboard"
+      : lobbiesView
+        ? "lobbies"
+        : agentsView
+          ? "agents"
+          : newsView
+            ? "news"
+            : myRiotId
+              ? "profile"
+              : null;
 
   // Measure active button and position the sliding pill
   useLayoutEffect(() => {
@@ -115,7 +118,7 @@ export default function Header({
       width: btnRect.width,
       opacity: 1,
     });
-  }, [activeNavId, myRiotId]);
+  }, [activeNavId, myRiotId, leaderboardOpen]);
 
   // ─── Recent Searches ───────────────────────────────────────────────
   useEffect(() => {
@@ -187,7 +190,7 @@ export default function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ─── Nav Items Config ──────────────────────────────────────────────
+  // ─── Nav Items Config (includes Leaderboard now) ───────────────────
   const navItems: { id: NavId; label: string; icon: React.ReactNode; onClick: () => void; show: boolean }[] = [
     {
       id: "profile",
@@ -217,15 +220,23 @@ export default function Header({
       onClick: () => onOpenLobbies?.(),
       show: !!onOpenLobbies,
     },
+    {
+      id: "leaderboard",
+      label: "Classement",
+      icon: <IconTrophy size={15} />,
+      onClick: () => onOpenLeaderboard?.(),
+      show: !!onOpenLeaderboard,
+    },
   ];
 
   return (
     <header className="w-full z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md sticky top-0 mb-6 sm:mb-8 flex flex-col shadow-lg">
-      {/* Top Navbar — 3 column grid layout */}
-      <div className="relative flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 w-full">
+      {/* Top Navbar */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 w-full gap-3">
 
-        {/* ═══ LEFT: Logo ═══ */}
-        <div className="flex items-center gap-2 sm:gap-3 relative z-10 flex-shrink-0">
+        {/* ═══ LEFT: Logo + Sliding Nav Pill ═══ */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Logo */}
           <div
             onClick={onGoHome}
             className="flex items-center gap-2.5 cursor-pointer select-none transition-all hover:scale-105 active:scale-95 group"
@@ -238,17 +249,15 @@ export default function Header({
                 className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,70,85,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(255,70,85,0.9)] transition-all"
               />
             </div>
-            <span className="font-black text-base sm:text-lg text-[var(--color-text-primary)] tracking-widest hidden md:inline-block">
+            <span className="font-black text-base sm:text-lg text-[var(--color-text-primary)] tracking-widest hidden lg:inline-block">
               SPYCAM
             </span>
           </div>
-        </div>
 
-        {/* ═══ CENTER-LEFT: Navigation Pill Container with Sliding Indicator ═══ */}
-        <div className="hidden md:flex items-center relative z-10 ml-4 xl:ml-6">
+          {/* Navigation Pill with Sliding Indicator */}
           <div
             ref={navContainerRef}
-            className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md"
+            className="hidden md:flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md relative"
           >
             {/* Animated Sliding Red Pill Background */}
             <div
@@ -275,7 +284,7 @@ export default function Header({
                       item.onClick();
                     }}
                     onMouseEnter={() => sounds.playHover()}
-                    className={`relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-colors duration-200 active:scale-95 ${
+                    className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-colors duration-200 active:scale-95 whitespace-nowrap ${
                       isActive
                         ? "text-white"
                         : "text-neutral-400 hover:text-white"
@@ -289,9 +298,9 @@ export default function Header({
           </div>
         </div>
 
-        {/* ═══ CENTER: Search Bar — absolutely centered ═══ */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4 sm:px-6">
-          <div ref={searchContainerRef} className="relative w-full max-w-sm sm:max-w-md pointer-events-auto">
+        {/* ═══ CENTER: Search Bar ═══ */}
+        <div className="flex-1 flex items-center justify-center max-w-md mx-auto">
+          <div ref={searchContainerRef} className="relative w-full">
             <form onSubmit={handleSubmit} className="relative w-full">
               <input
                 ref={inputRef}
@@ -412,13 +421,13 @@ export default function Header({
           </div>
         </div>
 
-        {/* ═══ RIGHT: Segmented Glass Capsules ═══ */}
-        <div className="flex items-center gap-2 sm:gap-2.5 relative z-10 flex-shrink-0">
+        {/* ═══ RIGHT: Clock+Notifs capsule + Paramètres button + Logout ═══ */}
+        <div className="flex items-center gap-2 flex-shrink-0">
 
-          {/* ── Capsule 1: LiveClock + Notifications ── */}
-          <div className="hidden md:flex items-center gap-0 p-0.5 rounded-full bg-black/25 border border-white/10 backdrop-blur-md">
+          {/* ── Capsule: Clock + Notifications ── */}
+          <div className="hidden md:flex items-center p-0.5 rounded-full bg-black/25 border border-white/10 backdrop-blur-md">
             <LiveClock />
-            <div className="w-px h-5 bg-white/10 mx-0.5" />
+            <div className="w-px h-5 bg-white/10" />
             <NotificationsDropdown
               onNavigateToNews={onOpenNews}
               onNavigateToAgents={onOpenAgents}
@@ -426,73 +435,37 @@ export default function Header({
             />
           </div>
 
-          {/* ── Capsule 2: Leaderboard ── */}
-          {onOpenLeaderboard && (
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playTabSwitch();
-                onOpenLeaderboard();
-              }}
-              onMouseEnter={() => sounds.playHover()}
-              title="Classement Régional Riot"
-              className={`hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all border text-xs font-bold cursor-pointer active:scale-95 ${
-                leaderboardOpen
-                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                  : "bg-black/25 hover:bg-white/[0.07] border-white/10 text-white/80 hover:text-white backdrop-blur-md"
-              }`}
-            >
-              <IconTrophy size={15} />
-              <span className="hidden lg:inline">Classement</span>
-            </button>
-          )}
+          {/* ── Paramètres button (with text) ── */}
+          <button
+            onClick={() => {
+              sounds.playTabSwitch();
+              onToggleSettings();
+            }}
+            onMouseEnter={() => sounds.playHover()}
+            title="Paramètres & Raccourcis"
+            className={`hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all border text-xs font-bold cursor-pointer active:scale-95 ${
+              settingsOpen
+                ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
+                : "bg-black/25 hover:bg-white/[0.07] border-white/10 text-white/80 hover:text-white backdrop-blur-md"
+            }`}
+          >
+            <IconSettings size={15} className={settingsOpen ? "animate-spin-slow" : ""} />
+            <span>Paramètres</span>
+          </button>
 
-          {/* ── Capsule 3: User + Logout + Settings ── */}
-          <div className="hidden md:flex items-center gap-0 p-0.5 rounded-full bg-black/25 border border-white/10 backdrop-blur-md">
-            {/* User Name */}
-            {session?.user && (
-              <span className="text-[11px] font-bold text-white/70 px-2.5 max-w-[100px] truncate select-none">
-                {(session.user as any).firstName || session.user.name || session.user.email}
-              </span>
-            )}
-
-            {/* Separator */}
-            {session?.user && <div className="w-px h-5 bg-white/10" />}
-
-            {/* Logout */}
-            <button
-              onClick={() => {
-                sounds.playClick();
-                signOut({ callbackUrl: "/login" });
-              }}
-              onMouseEnter={() => sounds.playHover()}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-white/70 hover:text-red-400 transition-all cursor-pointer active:scale-95 rounded-full hover:bg-red-500/10"
-              title="Déconnexion"
-            >
-              <IconLogOut size={14} />
-              <span className="text-[11px] font-bold hidden lg:inline">Quitter</span>
-            </button>
-
-            {/* Separator */}
-            <div className="w-px h-5 bg-white/10" />
-
-            {/* Settings */}
-            <button
-              onClick={() => {
-                sounds.playTabSwitch();
-                onToggleSettings();
-              }}
-              onMouseEnter={() => sounds.playHover()}
-              title="Paramètres & Raccourcis"
-              className={`w-8 h-8 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
-                settingsOpen
-                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_12px_rgba(255,70,85,0.5)]"
-                  : "text-white/70 hover:text-white hover:bg-white/[0.07]"
-              }`}
-            >
-              <IconSettings size={16} className={settingsOpen ? "animate-spin-slow" : ""} />
-            </button>
-          </div>
+          {/* ── Logout button ── */}
+          <button
+            onClick={() => {
+              sounds.playClick();
+              signOut({ callbackUrl: "/login" });
+            }}
+            onMouseEnter={() => sounds.playHover()}
+            className="hidden md:flex items-center gap-1 px-3 py-2 rounded-full bg-black/25 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/70 hover:text-red-400 transition-all cursor-pointer active:scale-95 backdrop-blur-md text-xs font-bold"
+            title="Déconnexion"
+          >
+            <IconLogOut size={14} />
+            <span className="hidden lg:inline">Quitter</span>
+          </button>
 
           {/* ── Mobile fallback buttons ── */}
           <div className="flex md:hidden items-center gap-1.5">
