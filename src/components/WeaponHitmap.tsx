@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { sounds } from "@/lib/soundEffects";
+import { IconCrosshair } from "./icons/SpyIcons";
 
 export interface WeaponStat {
   id: string;
@@ -263,7 +265,11 @@ export default function WeaponHitmap({ matchHistory, stats }: WeaponHitmapProps)
         {/* Bottom Button: Voir toutes les armes */}
         <button
           type="button"
-          onClick={() => setShowAllModal(true)}
+          onClick={() => {
+            sounds.playWeaponModal();
+            setShowAllModal(true);
+          }}
+          onMouseEnter={() => sounds.playHover()}
           className="w-full mt-2.5 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-xs sm:text-sm font-bold text-gray-200 hover:text-white transition-all duration-150 cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-sm"
         >
           <span>Voir toutes les armes</span>
@@ -274,7 +280,10 @@ export default function WeaponHitmap({ matchHistory, stats }: WeaponHitmapProps)
       {showAllModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setShowAllModal(false)}
+          onClick={() => {
+            sounds.playCancel();
+            setShowAllModal(false);
+          }}
         >
           <div
             className="w-full max-w-lg bg-[#0c141d] border border-white/15 rounded-3xl p-5 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
@@ -283,14 +292,17 @@ export default function WeaponHitmap({ matchHistory, stats }: WeaponHitmapProps)
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🎯</span>
+                <IconCrosshair size={18} className="text-[var(--color-val-red)]" />
                 <h3 className="text-base font-black text-white uppercase tracking-wider">
                   Toutes les armes
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAllModal(false)}
+                onClick={() => {
+                  sounds.playCancel();
+                  setShowAllModal(false);
+                }}
                 className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
               >
                 ✕

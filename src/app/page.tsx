@@ -930,6 +930,8 @@ function HomeContent() {
             setSettingsTab={setSettingsTab}
             pushUrl={pushUrl}
             locale={locale}
+            streamerMode={streamerMode}
+            setStreamerMode={setStreamerMode}
           />
         ) : newsView && !agentsView ? (
           <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} targetNewsId={targetNewsId} />

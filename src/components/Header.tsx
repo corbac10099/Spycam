@@ -208,7 +208,11 @@ export default function Header({
                 type="text"
                 placeholder="Rechercher (Pseudo#Tag)"
                 value={riotId}
-                onChange={(e) => setRiotId(e.target.value)}
+                onChange={(e) => {
+                  sounds.playTyping();
+                  setRiotId(e.target.value);
+                }}
+                onKeyDown={() => sounds.playTyping()}
                 onFocus={() => setIsFocused(true)}
                 className={`w-full bg-[var(--color-text-primary)] text-[var(--color-background)] font-medium px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm outline-none transition-all duration-300 pr-16 ${
                   isFocused ? "shadow-[0_0_25px_rgba(255,255,255,0.3)] ring-2 ring-[var(--color-val-red)]" : ""

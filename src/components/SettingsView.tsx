@@ -48,6 +48,8 @@ export interface SettingsViewProps {
   setSettingsTab: (tab: string) => void;
   pushUrl: (opts: any) => void;
   locale: Locale;
+  streamerMode?: boolean;
+  setStreamerMode?: (val: boolean) => void;
 }
 
 export default function SettingsView({
@@ -71,11 +73,13 @@ export default function SettingsView({
   enforcePublicStats,
   setEnforcePublicStats,
   p,
-  canEditProfile,
+  canEditProfile = true,
   settingsTab,
   setSettingsTab,
   pushUrl,
   locale,
+  streamerMode = false,
+  setStreamerMode,
 }: SettingsViewProps) {
   const statOptions = [
     { id: "chart", label: "Graphique de Progression", icon: <IconChart size={16} />, desc: "Courbe d'évolution" },
@@ -113,15 +117,22 @@ export default function SettingsView({
   const [draftVideoLoopDelay, setDraftVideoLoopDelay] = useState(videoLoopDelay ?? 500);
   const [draftStreamerMode, setDraftStreamerMode] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("spycam_streamer_mode") === "true";
+      const stored = localStorage.getItem("spycam_streamer_mode");
+      if (stored !== null) return stored === "true";
     }
-    return false;
+    return streamerMode;
   });
   const [draftSoundEnabled, setDraftSoundEnabled] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("spycam_sound_enabled") !== "false";
     }
     return true;
+  });
+  const [draftSoundVolume, setDraftSoundVolume] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      return sounds.getVolume();
+    }
+    return 0.08;
   });
   const [draftHiddenStats, setDraftHiddenStats] = useState<string[]>(hiddenStats || []);
   const [draftEnforcePublicStats, setDraftEnforcePublicStats] = useState(enforcePublicStats || false);
@@ -178,6 +189,15 @@ export default function SettingsView({
   const handleSave = async () => {
     setLoading(true);
     try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("spycam_streamer_mode", String(draftStreamerMode));
+        localStorage.setItem("spycam_sound_enabled", String(draftSoundEnabled));
+        localStorage.setItem("spycam_sound_volume", String(draftSoundVolume));
+        sounds.setEnabled(draftSoundEnabled);
+        sounds.setVolume(draftSoundVolume);
+        if (setStreamerMode) setStreamerMode(draftStreamerMode);
+      }
+
       const guestId = typeof window !== "undefined" ? sessionStorage.getItem("spycam_guest_id") : null;
       const res = await fetch("/api/user/settings", {
         method: "PUT",
@@ -200,6 +220,7 @@ export default function SettingsView({
         }),
       });
       if (res.ok) {
+        sounds.playLockIn();
         setSmartRating(draftSmartRating);
         setTheme(draftTheme === "custom" ? `custom:bg=${draftCustomBg},accent=${draftCustomAccent}` : draftTheme);
         setBannerUrl(draftBannerUrl);
@@ -220,6 +241,7 @@ export default function SettingsView({
   };
 
   const handleCancel = () => {
+    sounds.playCancel();
     onClose();
   };
 
@@ -322,31 +344,56 @@ export default function SettingsView({
                   </button>
                 </div>
 
-                {/* Sound Effects Toggle */}
-                <div className="flex items-center justify-between pt-4 sm:pt-6 border-t border-[var(--color-border)]">
-                  <div>
-                    <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Effets sonores d&apos;interface</h3>
-                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
-                      Joue des retours sonores légers et interactifs lors de la navigation et des sauvegardes
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const newVal = !draftSoundEnabled;
-                      setDraftSoundEnabled(newVal);
-                      sounds.setEnabled(newVal);
-                      if (newVal) sounds.playClick();
-                    }}
-                    className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
-                      draftSoundEnabled ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                        draftSoundEnabled ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
+                {/* Sound Effects Toggle & Volume Slider */}
+                <div className="flex flex-col gap-3 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Effets sonores d&apos;interface</h3>
+                      <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
+                        Joue des retours sonores légers et interactifs lors de la navigation et des sauvegardes
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newVal = !draftSoundEnabled;
+                        setDraftSoundEnabled(newVal);
+                        sounds.setEnabled(newVal);
+                        if (newVal) sounds.playClick();
+                      }}
+                      className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
+                        draftSoundEnabled ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
                       }`}
-                    ></span>
-                  </button>
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                          draftSoundEnabled ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
+                        }`}
+                      ></span>
+                    </button>
+                  </div>
+
+                  {draftSoundEnabled && (
+                    <div className="flex flex-col gap-2 pl-1 sm:pl-2 animate-in fade-in duration-200 mt-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-[var(--color-text-secondary)]">Volume des bruitages</span>
+                        <span className="text-[var(--color-val-red)] font-mono">{Math.round(draftSoundVolume * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={draftSoundVolume}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setDraftSoundVolume(val);
+                          sounds.setVolume(val);
+                          sounds.playClick();
+                        }}
+                        className="w-full accent-[var(--color-val-red)] cursor-pointer"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
@@ -463,14 +510,22 @@ export default function SettingsView({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setDraftHiddenStats([])}
+                      onMouseEnter={() => sounds.playHover()}
+                      onClick={() => {
+                        sounds.playBreeze();
+                        setDraftHiddenStats([]);
+                      }}
                       className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-emerald-400 border border-[var(--color-border)] cursor-pointer"
                     >
                       Tout rendre visible
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDraftHiddenStats(statOptions.map((s) => s.id))}
+                      onMouseEnter={() => sounds.playHover()}
+                      onClick={() => {
+                        sounds.playBreeze();
+                        setDraftHiddenStats(statOptions.map((s) => s.id));
+                      }}
                       className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-red-400 border border-[var(--color-border)] cursor-pointer"
                     >
                       Tout masquer
@@ -492,8 +547,9 @@ export default function SettingsView({
                     return (
                       <div
                         key={stat.id}
+                        onMouseEnter={() => sounds.playHover()}
                         onClick={() => {
-                          sounds.playClick();
+                          sounds.playBreeze();
                           if (isVisibleToOthers) {
                             setDraftHiddenStats([...draftHiddenStats, stat.id]);
                           } else {

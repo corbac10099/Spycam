@@ -436,6 +436,7 @@ export default function DashboardGrid({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
 
+      sounds.playDropWidget();
       setDraggingItem(null);
 
       setLayout((prev) => {
