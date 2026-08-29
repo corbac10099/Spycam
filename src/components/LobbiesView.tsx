@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { sounds } from "@/lib/soundEffects";
-import { LobbyItem, LobbyMember, ChatMessage, getTierName } from "@/app/api/lobbies/route";
+import { LobbyItem, LobbyMember, VoiceMember, ChatMessage, getTierName } from "@/app/api/lobbies/route";
+import { VoiceManager } from "@/lib/voiceManager";
+import { filterToxicText } from "@/lib/moderation";
 
 interface LobbiesViewProps {
   playerData?: any;
@@ -71,11 +73,19 @@ export default function LobbiesView({
 
   // ==================== SALON REAL-TIME STATE ====================
   const [chatMessage, setChatMessage] = useState<string>("");
-  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
-  const [isDeafened, setIsDeafened] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [moderationWarning, setModerationWarning] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const prevChatLengthRef = useRef<number>(0);
+
+  // ==================== VOICE WEBRTC STATE ====================
+  const [isInVoice, setIsInVoice] = useState<boolean>(false);
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
+  const [isDeafened, setIsDeafened] = useState<boolean>(false);
+  const [isMyVoiceSpeaking, setIsMyVoiceSpeaking] = useState<boolean>(false);
+  const [voiceVolumeLevel, setVoiceVolumeLevel] = useState<number>(0);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const voiceManagerRef = useRef<VoiceManager | null>(null);
 
   // Fetch Lobbies list
   const fetchLobbies = async () => {
@@ -114,7 +124,7 @@ export default function LobbiesView({
     return () => clearInterval(interval);
   }, [currentView, activeLobby]);
 
-  // Scroll ONLY the internal chat container when a new message arrives (never scroll the main window)
+  // Scroll ONLY the internal chat container when a new message arrives (never window)
   useEffect(() => {
     if (currentView === "salon" && activeLobby?.chat) {
       const currentLen = activeLobby.chat.length;
@@ -126,6 +136,127 @@ export default function LobbiesView({
       prevChatLengthRef.current = currentLen;
     }
   }, [activeLobby?.chat?.length, currentView]);
+
+  // Voice State Sync to Backend
+  const syncVoiceStateToBackend = useCallback(
+    async (speaking: boolean, muted: boolean) => {
+      if (!activeLobby) return;
+      try {
+        await fetch(`/api/lobbies/${activeLobby.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "voice-state",
+            gameName: myName,
+            tagLine: myTag,
+            isSpeaking: speaking,
+            isMuted: muted,
+          }),
+        });
+      } catch {}
+    },
+    [activeLobby, myName, myTag]
+  );
+
+  // Décrocher 📞 (Rejoindre le canal vocal)
+  const handleJoinVoice = async () => {
+    setVoiceError(null);
+    sounds.playTabSwitch();
+
+    const vm = new VoiceManager({
+      onSpeakingChange: (speaking, vol) => {
+        setIsMyVoiceSpeaking(speaking);
+        setVoiceVolumeLevel(vol);
+        syncVoiceStateToBackend(speaking, isMicMuted);
+      },
+      onTranscript: async (transcriptText) => {
+        if (!activeLobby) return;
+        try {
+          await fetch(`/api/lobbies/${activeLobby.id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "voice-transcript",
+              senderName: myName,
+              senderTag: myTag,
+              content: transcriptText,
+            }),
+          });
+        } catch {}
+      },
+      onError: (err) => {
+        setVoiceError(err);
+      },
+    });
+
+    const success = await vm.start();
+    if (success) {
+      voiceManagerRef.current = vm;
+      setIsInVoice(true);
+      setIsMicMuted(false);
+      sounds.playClick();
+
+      if (activeLobby) {
+        try {
+          const res = await fetch(`/api/lobbies/${activeLobby.id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "voice-join",
+              memberId: `v_${myName}_${myTag}`,
+              gameName: myName,
+              tagLine: myTag,
+              avatarUrl: myAvatar,
+              rank: myRank,
+              isPrivateRank: !isPublic,
+            }),
+          });
+          const data = await res.json();
+          if (data.success && data.voiceMembers) {
+            setActiveLobby((prev) => (prev ? { ...prev, voiceMembers: data.voiceMembers } : null));
+          }
+        } catch {}
+      }
+    }
+  };
+
+  // Raccrocher 🔴 (Quitter le canal vocal)
+  const handleLeaveVoice = async () => {
+    sounds.playClick();
+    if (voiceManagerRef.current) {
+      voiceManagerRef.current.stop();
+      voiceManagerRef.current = null;
+    }
+    setIsInVoice(false);
+    setIsMyVoiceSpeaking(false);
+
+    if (activeLobby) {
+      try {
+        const res = await fetch(`/api/lobbies/${activeLobby.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "voice-leave",
+            gameName: myName,
+            tagLine: myTag,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.voiceMembers) {
+          setActiveLobby((prev) => (prev ? { ...prev, voiceMembers: data.voiceMembers } : null));
+        }
+      } catch {}
+    }
+  };
+
+  // Clean voice on unmount or leaving salon
+  useEffect(() => {
+    return () => {
+      if (voiceManagerRef.current) {
+        voiceManagerRef.current.stop();
+      }
+    };
+  }, []);
 
   // Calculate live lobby estimated level during creation
   const calculateEstimatedLevel = () => {
@@ -177,7 +308,6 @@ export default function LobbiesView({
         };
         setCreateTeammates((prev) => [...prev, mate]);
       } else {
-        // Private profile
         const privateMate: LobbyMember = {
           id: `mate_${Date.now()}`,
           gameName: gName,
@@ -192,7 +322,6 @@ export default function LobbiesView({
       }
       setNewMateRiotId("");
     } catch {
-      // Fallback private
       const hashIndex = newMateRiotId.lastIndexOf("#");
       const gName = hashIndex !== -1 ? newMateRiotId.substring(0, hashIndex) : newMateRiotId;
       const tLine = hashIndex !== -1 ? newMateRiotId.substring(hashIndex + 1) : "EUW";
@@ -288,12 +417,19 @@ export default function LobbiesView({
     }
   };
 
-  // Send Chat Message
+  // Send Moderated Chat Message
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatMessage.trim() || !activeLobby) return;
 
-    const text = chatMessage.trim();
+    const rawText = chatMessage.trim();
+    const mod = filterToxicText(rawText);
+
+    if (mod.isToxic) {
+      setModerationWarning("Certains termes ont été automatiquement masqués pour respecter les règles de bienséance.");
+      setTimeout(() => setModerationWarning(null), 4000);
+    }
+
     setChatMessage("");
 
     try {
@@ -306,7 +442,7 @@ export default function LobbiesView({
           senderName: myName,
           senderTag: myTag,
           senderAvatar: myAvatar,
-          content: text,
+          content: rawText,
         }),
       });
       const data = await res.json();
@@ -321,6 +457,9 @@ export default function LobbiesView({
   // Leave Active Salon
   const handleLeaveSalon = async () => {
     if (!activeLobby) return;
+    if (isInVoice) {
+      await handleLeaveVoice();
+    }
     try {
       sounds.playClick();
       await fetch(`/api/lobbies/${activeLobby.id}`, {
@@ -376,14 +515,14 @@ export default function LobbiesView({
           <div className="glass-panel rounded-3xl p-6 sm:p-10 border border-[var(--color-border)] relative overflow-hidden text-center space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/30 text-[var(--color-val-red)] text-xs font-black uppercase tracking-wider">
               <span className="w-2 h-2 rounded-full bg-[var(--color-val-red)] animate-ping"></span>
-              <span>LFG • Salons Valorant</span>
+              <span>LFG • Salons Valorant Sécurisés</span>
               <span className="text-[var(--color-text-secondary)] font-normal">• {lobbies.length} Salons Actifs</span>
             </div>
             <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
               Trouvez votre <span className="text-[var(--color-val-red)]">Escouade</span>
             </h1>
             <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
-              Créez votre salon avec votre rang et vos coéquipiers, ou rejoignez des joueurs correspondant à votre niveau de jeu !
+              Créez votre salon avec votre rang et vos coéquipiers, ou rejoignez des joueurs avec chat textuel modéré et canal vocal en direct !
             </p>
           </div>
 
@@ -702,7 +841,6 @@ export default function LobbiesView({
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Missing slots */}
                   <div className="space-y-1.5">
                     <span className="text-xs font-bold text-[var(--color-text-secondary)]">Nombre de personnes recherchées</span>
                     <div className="grid grid-cols-4 gap-2">
@@ -723,7 +861,6 @@ export default function LobbiesView({
                     </div>
                   </div>
 
-                  {/* Mode de jeu */}
                   <div className="space-y-1.5">
                     <span className="text-xs font-bold text-[var(--color-text-secondary)]">Mode de Jeu</span>
                     <select
@@ -1090,79 +1227,125 @@ export default function LobbiesView({
             </button>
           </div>
 
-          {/* SPLIT VIEW (50% GAUCHE MEMBRES / 50% DROITE CHAT & VOCAL) */}
+          {/* SPLIT VIEW (50% GAUCHE MEMBRES & VOCAL / 50% DROITE CHAT SÉCURISÉ) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[550px]">
-            {/* ==================== GAUCHE : MEMBRES DU GROUPE (5 cols) ==================== */}
+            {/* ==================== GAUCHE : MEMBRES DU GROUPE & VOCAL (5 cols) ==================== */}
             <div className="lg:col-span-5 glass-panel rounded-3xl p-5 sm:p-6 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
                   <span className="text-xs font-black uppercase text-[var(--color-text-secondary)] tracking-wider">
                     Membres du Groupe ({activeLobby.members?.length}/{activeLobby.maxSlots})
                   </span>
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                    🟢 En ligne
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      🟢 En ligne
+                    </span>
+                  </div>
                 </div>
 
-                {/* Members list */}
+                {/* Members list with animated speaking contour */}
                 <div className="space-y-3">
-                  {activeLobby.members?.map((member) => (
-                    <div
-                      key={member.id}
-                      className="p-3.5 rounded-2xl bg-[var(--color-background)]/80 border border-[var(--color-border)] flex items-center justify-between gap-3 shadow-md"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {member.avatarUrl ? (
-                          <img src={member.avatarUrl} alt={member.gameName} className="w-10 h-10 rounded-xl object-cover border border-white/20 flex-shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-xl bg-[var(--color-surface)] border border-white/20 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
-                            {member.gameName[0]?.toUpperCase()}
-                          </div>
-                        )}
+                  {activeLobby.members?.map((member) => {
+                    const isMe = member.gameName.toLowerCase() === myName.toLowerCase() && member.tagLine.toLowerCase() === myTag.toLowerCase();
+                    const voiceInfo = activeLobby.voiceMembers?.find(
+                      (v) => v.gameName.toLowerCase() === member.gameName.toLowerCase() && v.tagLine.toLowerCase() === member.tagLine.toLowerCase()
+                    );
+                    const isUserInVoice = !!voiceInfo || (isMe && isInVoice);
+                    const isUserSpeaking = (isMe && isMyVoiceSpeaking) || (voiceInfo?.isSpeaking && !voiceInfo?.isMuted);
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-black text-white truncate">{member.gameName}</span>
-                            <span className="text-[10px] text-[var(--color-text-secondary)]">#{member.tagLine}</span>
-                            {member.isLeader && <span title="Chef de groupe">👑</span>}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {member.isPrivateRank ? (
-                              <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                🔒 Rang Privé
-                              </span>
+                    return (
+                      <div
+                        key={member.id}
+                        className={`p-3.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-3 shadow-md ${
+                          isUserSpeaking
+                            ? "bg-emerald-950/40 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.5)] scale-[1.02]"
+                            : "bg-[var(--color-background)]/80 border-[var(--color-border)]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative">
+                            {member.avatarUrl ? (
+                              <img
+                                src={member.avatarUrl}
+                                alt={member.gameName}
+                                className={`w-10 h-10 rounded-xl object-cover border flex-shrink-0 transition-all ${
+                                  isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
+                                }`}
+                              />
                             ) : (
-                              <>
-                                {member.rankUrl && <img src={member.rankUrl} alt={member.rank} className="w-3.5 h-3.5 object-contain" />}
-                                <span className="text-[10px] font-bold text-[var(--color-val-light)] uppercase">{member.rank}</span>
-                              </>
+                              <div
+                                className={`w-10 h-10 rounded-xl bg-[var(--color-surface)] border flex items-center justify-center text-white font-black text-sm flex-shrink-0 transition-all ${
+                                  isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400" : "border-white/20"
+                                }`}
+                              >
+                                {member.gameName[0]?.toUpperCase()}
+                              </div>
+                            )}
+
+                            {isUserInVoice && (
+                              <span
+                                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] border border-black ${
+                                  isUserSpeaking ? "bg-emerald-400 text-black animate-bounce" : "bg-emerald-600 text-white"
+                                }`}
+                                title={isUserSpeaking ? "En train de parler" : "Connecté en vocal"}
+                              >
+                                {isUserSpeaking ? "🔊" : "🎙️"}
+                              </span>
                             )}
                           </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-xs font-black truncate ${isUserSpeaking ? "text-emerald-300" : "text-white"}`}>
+                                {member.gameName}
+                              </span>
+                              <span className="text-[10px] text-[var(--color-text-secondary)]">#{member.tagLine}</span>
+                              {member.isLeader && <span title="Chef de groupe">👑</span>}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {member.isPrivateRank ? (
+                                <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                  🔒 Rang Privé
+                                </span>
+                              ) : (
+                                <>
+                                  {member.rankUrl && <img src={member.rankUrl} alt={member.rank} className="w-3.5 h-3.5 object-contain" />}
+                                  <span className="text-[10px] font-bold text-[var(--color-val-light)] uppercase">{member.rank}</span>
+                                </>
+                              )}
+
+                              {isUserSpeaking && (
+                                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider animate-pulse ml-1">
+                                  • Parle
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions for member */}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleCopyRiotId(`${member.gameName}#${member.tagLine}`)}
+                            title="Copier le Riot ID"
+                            className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-val-red)] border border-[var(--color-border)] text-white text-xs transition-all cursor-pointer"
+                          >
+                            {copiedId === `${member.gameName}#${member.tagLine}` ? "✓" : "📋"}
+                          </button>
+                          {onSelectPlayer && (
+                            <button
+                              onClick={() => onSelectPlayer(`${member.gameName}#${member.tagLine}`)}
+                              title="Voir profil Spycam"
+                              className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white text-xs transition-all cursor-pointer"
+                            >
+                              👁️
+                            </button>
+                          )}
                         </div>
                       </div>
-
-                      {/* Actions for member */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleCopyRiotId(`${member.gameName}#${member.tagLine}`)}
-                          title="Copier le Riot ID"
-                          className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-val-red)] border border-[var(--color-border)] text-white text-xs transition-all cursor-pointer"
-                        >
-                          {copiedId === `${member.gameName}#${member.tagLine}` ? "✓" : "📋"}
-                        </button>
-                        {onSelectPlayer && (
-                          <button
-                            onClick={() => onSelectPlayer(`${member.gameName}#${member.tagLine}`)}
-                            title="Voir profil Spycam"
-                            className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white text-xs transition-all cursor-pointer"
-                          >
-                            👁️
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Empty Slot placeholders */}
                   {Array.from({ length: Math.max(0, activeLobby.maxSlots - (activeLobby.members?.length || 0)) }).map((_, i) => (
@@ -1177,75 +1360,126 @@ export default function LobbiesView({
                 </div>
               </div>
 
-              {/* VOCAL CONTROL BAR (Bas du panneau gauche) */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#0f1923] to-[#15202b] border border-[var(--color-border)] space-y-2.5 shadow-lg">
+              {/* VOCAL CONTROL SYSTEM (DÉCROCHER / RACCROCHER & COMMANDES) */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0f1923] via-[#15202b] to-[#0f1923] border border-[var(--color-border)] space-y-3 shadow-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span className="text-xs font-black text-white uppercase tracking-wider">Canal Vocal Salon</span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${isInVoice ? "bg-emerald-400 animate-pulse" : "bg-gray-500"}`}></span>
+                    <span className="text-xs font-black text-white uppercase tracking-wider">Canal Vocal Sécurisé</span>
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    Connecté
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${isInVoice ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-gray-400 bg-gray-500/10 border-gray-500/20"}`}>
+                    {isInVoice ? `En Ligne (${activeLobby.voiceMembers?.length || 1})` : "Déconnecté"}
                   </span>
                 </div>
 
-                {/* Voice Visualizer */}
-                <div className="flex items-center justify-center gap-1 h-5 py-1">
-                  {[40, 70, 30, 90, 60, 100, 45, 80, 20, 65].map((h, i) => (
-                    <div
-                      key={i}
-                      style={{ height: `${isMicMuted ? 4 : h}%` }}
-                      className="w-1 bg-[var(--color-val-red)] rounded-full transition-all duration-150"
-                    ></div>
-                  ))}
-                </div>
+                {voiceError && (
+                  <div className="p-2 rounded-lg bg-red-500/20 border border-red-500 text-red-200 text-[10px] font-bold">
+                    {voiceError}
+                  </div>
+                )}
 
-                {/* Controls */}
-                <div className="flex items-center justify-center gap-3 pt-1">
+                {/* SI NON CONNECTÉ AU VOCAL : BOUTON DÉCROCHER 📞 */}
+                {!isInVoice ? (
                   <button
-                    onClick={() => {
-                      sounds.playClick();
-                      setIsMicMuted(!isMicMuted);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                      isMicMuted
-                        ? "bg-red-500/20 border-red-500 text-red-300"
-                        : "bg-[var(--color-surface)] border-[var(--color-border)] text-white hover:bg-[var(--color-surface-hover)]"
-                    }`}
+                    onClick={handleJoinVoice}
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[rgba(16,185,129,0.35)] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                   >
-                    <span>{isMicMuted ? "🔇" : "🎙️"}</span>
-                    <span>{isMicMuted ? "Micro Muet" : "Actif"}</span>
+                    <span className="text-base">📞</span>
+                    <span>Décrocher • Rejoindre le Vocal</span>
                   </button>
+                ) : (
+                  /* SI CONNECTÉ AU VOCAL : EQUALIZER & COMMANDES & RACCROCHER 🔴 */
+                  <div className="space-y-3">
+                    {/* Live Voice Visualizer */}
+                    <div className="flex items-center justify-center gap-1.5 h-6 py-1 bg-black/30 rounded-xl px-2">
+                      {[30, 75, 40, 95, 60, 100, 50, 85, 30, 70, 45, 90, 35].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            height: isMicMuted ? "4px" : `${Math.max(4, Math.min(100, h * (isMyVoiceSpeaking ? Math.max(0.6, voiceVolumeLevel * 2.5) : 0.15)))}%`,
+                          }}
+                          className={`w-1 rounded-full transition-all duration-100 ${
+                            isMyVoiceSpeaking ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-gray-600"
+                          }`}
+                        ></div>
+                      ))}
+                    </div>
 
-                  <button
-                    onClick={() => {
-                      sounds.playClick();
-                      setIsDeafened(!isDeafened);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                      isDeafened
-                        ? "bg-amber-500/20 border-amber-500 text-amber-300"
-                        : "bg-[var(--color-surface)] border-[var(--color-border)] text-white hover:bg-[var(--color-surface-hover)]"
-                    }`}
-                  >
-                    <span>{isDeafened ? "🔕" : "🎧"}</span>
-                    <span>{isDeafened ? "Casque Coupé" : "Écoute"}</span>
-                  </button>
-                </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          sounds.playClick();
+                          const nextMute = !isMicMuted;
+                          setIsMicMuted(nextMute);
+                          voiceManagerRef.current?.setMute(nextMute);
+                          syncVoiceStateToBackend(false, nextMute);
+                        }}
+                        className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
+                          isMicMuted
+                            ? "bg-red-500/20 border-red-500 text-red-300 shadow-md"
+                            : "bg-[var(--color-surface)] border-[var(--color-border)] text-white hover:bg-[var(--color-surface-hover)]"
+                        }`}
+                      >
+                        <span>{isMicMuted ? "🔇" : "🎙️"}</span>
+                        <span>{isMicMuted ? "Micro Coupé" : "Micro Actif"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          sounds.playClick();
+                          setIsDeafened(!isDeafened);
+                        }}
+                        className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
+                          isDeafened
+                            ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-md"
+                            : "bg-[var(--color-surface)] border-[var(--color-border)] text-white hover:bg-[var(--color-surface-hover)]"
+                        }`}
+                      >
+                        <span>{isDeafened ? "🔕" : "🎧"}</span>
+                        <span>{isDeafened ? "Casque Coupé" : "Écoute"}</span>
+                      </button>
+                    </div>
+
+                    {/* BOUTON RACCROCHER 🔴 */}
+                    <button
+                      onClick={handleLeaveVoice}
+                      className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-[rgba(239,68,68,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <span>🔴</span>
+                      <span>Raccrocher • Quitter le Vocal</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* ==================== DROITE : CHAT TEXTUEL DU SALON (7 cols) ==================== */}
+            {/* ==================== DROITE : CHAT TEXTUEL MODÉRÉ & JOURNAL (7 cols) ==================== */}
             <div className="lg:col-span-7 glass-panel rounded-3xl p-5 sm:p-6 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
-              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">💬</span>
-                  <span className="text-xs font-black uppercase text-white tracking-wider">
-                    Discussion du Salon
+              <div className="space-y-2 border-b border-[var(--color-border)] pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">💬</span>
+                    <span className="text-xs font-black uppercase text-white tracking-wider">
+                      Discussion du Salon
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold flex items-center gap-1">
+                    <span>🛡️</span>
+                    <span>Filtre Anti-Toxicité Actif</span>
                   </span>
                 </div>
-                <span className="text-[10px] text-[var(--color-text-secondary)]">En direct</span>
+
+                <div className="text-[10px] text-[var(--color-text-secondary)] opacity-80 flex items-center justify-between">
+                  <span>Les insultes sont masquées automatiquement • Logs conservés 7j</span>
+                  <span>🔒 Chiffré</span>
+                </div>
               </div>
+
+              {moderationWarning && (
+                <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs font-bold text-center animate-in slide-in-from-top-2">
+                  ⚠️ {moderationWarning}
+                </div>
+              )}
 
               {/* Messages Flow */}
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[380px] space-y-3 pr-2 custom-scrollbar">
@@ -1261,7 +1495,7 @@ export default function LobbiesView({
                     if (isSystem) {
                       return (
                         <div key={msg.id} className="text-center my-2">
-                          <span className="text-[10px] font-bold text-[var(--color-val-red)] bg-[var(--color-val-red)]/10 px-3 py-1 rounded-full border border-[var(--color-val-red)]/20">
+                          <span className="text-[10px] font-bold text-[var(--color-val-red)] bg-[var(--color-val-red)]/10 px-3 py-1 rounded-full border border-[var(--color-val-red)]/20 inline-block">
                             📢 {msg.content}
                           </span>
                         </div>
@@ -1278,6 +1512,11 @@ export default function LobbiesView({
                           <span className="text-[9px] text-[var(--color-text-secondary)]">
                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
+                          {msg.isToxic && (
+                            <span className="text-[8px] bg-red-500/20 text-red-300 px-1 rounded border border-red-500/30">
+                              Modéré
+                            </span>
+                          )}
                         </div>
                         <div
                           className={`px-4 py-2.5 rounded-2xl text-xs max-w-[85%] leading-relaxed ${
@@ -1300,7 +1539,7 @@ export default function LobbiesView({
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="Écrire un message au groupe..."
+                  placeholder="Écrire un message au groupe (modéré en direct)..."
                   className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[var(--color-val-red)]"
                 />
                 <button

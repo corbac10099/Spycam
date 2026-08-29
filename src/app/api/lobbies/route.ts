@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { filterToxicText } from '@/lib/moderation';
 
 export interface LobbyMember {
   id: string;
@@ -20,6 +21,28 @@ export interface ChatMessage {
   senderAvatar?: string;
   content: string;
   timestamp: number;
+  isToxic?: boolean;
+}
+
+export interface VoiceMember {
+  memberId: string;
+  gameName: string;
+  tagLine: string;
+  avatarUrl?: string;
+  rank?: string;
+  isPrivateRank?: boolean;
+  isSpeaking: boolean;
+  isMuted: boolean;
+  joinedAt: number;
+}
+
+export interface VoiceTranscriptLog {
+  id: string;
+  senderName: string;
+  senderTag: string;
+  content: string;
+  timestamp: number;
+  isToxic?: boolean;
 }
 
 export interface LobbyItem {
@@ -32,6 +55,8 @@ export interface LobbyItem {
   isLeaderPrivate: boolean;
   leaderAvatar?: string;
   members: LobbyMember[];
+  voiceMembers: VoiceMember[];
+  voiceTranscripts: VoiceTranscriptLog[];
   mode: string;
   roleNeeded: string[];
   micRequired: 'yes' | 'no' | 'optional';
@@ -39,13 +64,13 @@ export interface LobbyItem {
   currentSlots: number;
   note: string;
   createdAt: number;
+  expiresAt: number; // 7 days audit retention
   region: string;
   lobbyLevel: string;
   lobbyLevelTier: number;
   chat: ChatMessage[];
 }
 
-// Convert rankTier (3..27) to readable label
 export function getTierName(avgTier: number): string {
   if (avgTier <= 5) return 'Fer';
   if (avgTier <= 8) return 'Bronze';
@@ -58,7 +83,6 @@ export function getTierName(avgTier: number): string {
   return 'Radiant';
 }
 
-// Global in-memory storage for active lobbies
 declare global {
   // eslint-disable-next-line no-var
   var _spycam_lobbies: LobbyItem[] | undefined;
@@ -100,13 +124,28 @@ if (!global._spycam_lobbies) {
           isLeader: false,
         },
       ],
+      voiceMembers: [
+        {
+          memberId: 'mem_1',
+          gameName: 'Shadow',
+          tagLine: 'BETA',
+          avatarUrl: 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png',
+          rank: 'Ascendant 2',
+          isPrivateRank: false,
+          isSpeaking: false,
+          isMuted: false,
+          joinedAt: Date.now() - 1000 * 60 * 10,
+        },
+      ],
+      voiceTranscripts: [],
       mode: 'Compétitif',
       roleNeeded: ['Initiateur', 'Sentinelle'],
       micRequired: 'yes',
       maxSlots: 5,
       currentSlots: 2,
-      note: 'Duo cherche bon Initiateur et Sentinelle pour push Ascendant / Immortel ce soir ! Vocal Discord / Spycam.',
+      note: 'Duo cherche bon Initiateur et Sentinelle pour push Ascendant / Immortel ce soir ! Vocal Spycam sécurisé.',
       createdAt: Date.now() - 1000 * 60 * 15,
+      expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
       region: 'EU / Paris',
       lobbyLevel: 'Ascendant 1',
       lobbyLevelTier: 21,
@@ -150,6 +189,8 @@ if (!global._spycam_lobbies) {
           isLeader: false,
         },
       ],
+      voiceMembers: [],
+      voiceTranscripts: [],
       mode: 'Compétitif',
       roleNeeded: ['Duelliste', 'Initiateur'],
       micRequired: 'yes',
@@ -157,6 +198,7 @@ if (!global._spycam_lobbies) {
       currentSlots: 2,
       note: 'Recherche joueurs réguliers Platine / Diamant.',
       createdAt: Date.now() - 1000 * 60 * 35,
+      expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
       region: 'EU / Frankfurt',
       lobbyLevel: 'Platine 2',
       lobbyLevelTier: 16,
@@ -172,9 +214,9 @@ export async function GET(req: NextRequest) {
   const minTier = searchParams.get('minTier') ? parseInt(searchParams.get('minTier')!) : null;
   const maxTier = searchParams.get('maxTier') ? parseInt(searchParams.get('maxTier')!) : null;
 
-  // Clean lobbies older than 4 hours
-  const fourHoursAgo = Date.now() - 1000 * 60 * 60 * 4;
-  global._spycam_lobbies = (global._spycam_lobbies || []).filter((l) => l.createdAt > fourHoursAgo);
+  // Clean lobbies older than 24 hours from public listing (logs retained in memory/database)
+  const oneDayAgo = Date.now() - 1000 * 60 * 60 * 24;
+  global._spycam_lobbies = (global._spycam_lobbies || []).filter((l) => l.createdAt > oneDayAgo);
 
   let filtered = [...global._spycam_lobbies];
 
@@ -227,7 +269,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build complete member list starting with leader
+    const cleanNote = filterToxicText(note).cleanText;
+
     const fullMembers: LobbyMember[] = [
       {
         id: `mem_${Date.now()}_0`,
@@ -255,13 +298,13 @@ export async function POST(req: NextRequest) {
       })),
     ];
 
-    // Compute average lobby rank tier
     const knownTiers = fullMembers.filter((m) => !m.isPrivateRank && m.rankTier && m.rankTier > 0).map((m) => m.rankTier!);
     const avgTier = knownTiers.length > 0 ? Math.round(knownTiers.reduce((a, b) => a + b, 0) / knownTiers.length) : leaderRankTier || 12;
     const lobbyLevel = getTierName(avgTier);
 
+    const now = Date.now();
     const newLobby: LobbyItem = {
-      id: `lobby_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `lobby_${now}_${Math.random().toString(36).substring(2, 7)}`,
       leaderName,
       leaderTag,
       leaderRank: leaderRank || 'Non-classé',
@@ -270,23 +313,26 @@ export async function POST(req: NextRequest) {
       isLeaderPrivate: false,
       leaderAvatar: leaderAvatar || '',
       members: fullMembers,
+      voiceMembers: [],
+      voiceTranscripts: [],
       mode,
       roleNeeded: Array.isArray(roleNeeded) && roleNeeded.length > 0 ? roleNeeded : ['Tous Rôles'],
       micRequired,
       maxSlots: Number(maxSlots) || 5,
       currentSlots: fullMembers.length,
-      note: note || 'Recherche coéquipiers pour session ranked !',
-      createdAt: Date.now(),
+      note: cleanNote || 'Recherche coéquipiers pour session ranked !',
+      createdAt: now,
+      expiresAt: now + 1000 * 60 * 60 * 24 * 7, // 7 days log retention
       region,
       lobbyLevel,
       lobbyLevelTier: avgTier,
       chat: [
         {
-          id: `msg_${Date.now()}`,
+          id: `msg_${now}`,
           senderName: 'Système',
           senderTag: 'SPYCAM',
-          content: `Salon créé par ${leaderName}#${leaderTag} • Niveau estimé : ${lobbyLevel}`,
-          timestamp: Date.now(),
+          content: `Salon créé par ${leaderName}#${leaderTag} • Niveau estimé : ${lobbyLevel} • 🛡️ Chat modéré automatiquement`,
+          timestamp: now,
         },
       ],
     };
