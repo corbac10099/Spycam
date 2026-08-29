@@ -13,6 +13,9 @@ import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PerformanceCharts from "@/components/PerformanceCharts";
 import DashboardGrid from "@/components/DashboardGrid";
+import PlayerCardModal from "@/components/PlayerCardModal";
+import LeaderboardModal from "@/components/LeaderboardModal";
+import MobileAppDrawer from "@/components/MobileAppDrawer";
 import { trackPageView } from "@/lib/analytics";
 import LandingPage from "@/components/landing/LandingPage";
 
@@ -267,6 +270,22 @@ function HomeContent() {
   const [videoLoopDelay, setVideoLoopDelay] = useState(500);
   const [hiddenStats, setHiddenStats] = useState<string[]>([]);
   const [enforcePublicStats, setEnforcePublicStats] = useState(false);
+
+  // New Features State
+  const [streamerMode, setStreamerMode] = useState<boolean>(false);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState<boolean>(false);
+  const [showCardModal, setShowCardModal] = useState<boolean>(false);
+  const [showMobileDrawer, setShowMobileDrawer] = useState<boolean>(false);
+
+  const toggleFullscreen = () => {
+    if (typeof document !== "undefined") {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
 
   // Favorites State
   const [favorites, setFavorites] = useState<Array<{ riotId: string; gameName: string; tagLine: string; cardUrl: string }>>([]);
@@ -1266,6 +1285,32 @@ function HomeContent() {
               pushUrl({ tab: activeTab, playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
             }
           }}
+          onOpenMenuDrawer={() => setShowMobileDrawer(true)}
+        />
+
+        {/* Official Riot Leaderboard Modal */}
+        {showLeaderboardModal && (
+          <LeaderboardModal onClose={() => setShowLeaderboardModal(false)} />
+        )}
+
+        {/* Exportable Player Card Modal */}
+        {showCardModal && (
+          <PlayerCardModal playerData={playerData} onClose={() => setShowCardModal(false)} />
+        )}
+
+        {/* Mobile 4-Squares App Drawer */}
+        <MobileAppDrawer
+          isOpen={showMobileDrawer}
+          onClose={() => setShowMobileDrawer(false)}
+          onOpenSettings={() => {
+            setSettingsOpen(true);
+            pushUrl({ view: "settings" });
+          }}
+          onOpenLeaderboard={() => setShowLeaderboardModal(true)}
+          onOpenCardExport={() => setShowCardModal(true)}
+          streamerMode={streamerMode}
+          onToggleStreamerMode={() => setStreamerMode(!streamerMode)}
+          onToggleFullscreen={toggleFullscreen}
         />
       </main>
 

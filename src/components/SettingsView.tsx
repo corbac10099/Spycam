@@ -1,8 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import BannerCatalogModal from "./BannerCatalogModal";
 import { loadLanguagesList, setLanguage, LanguageInfo, Locale } from "@/lib/i18n";
+import {
+  IconCrosshair,
+  IconSkull,
+  IconChart,
+  IconHandshake,
+  IconScale,
+  IconFlame,
+  IconCrown,
+  IconShield,
+  IconSword,
+  IconTrophy,
+  IconGamepad,
+  IconEye,
+  IconLock,
+  IconVolume,
+  IconBadgeVerified,
+} from "./icons/SpyIcons";
+import { sounds } from "@/lib/soundEffects";
 
 export interface SettingsViewProps {
   onClose: () => void;
@@ -60,22 +78,22 @@ export default function SettingsView({
   locale,
 }: SettingsViewProps) {
   const statOptions = [
-    { id: "chart", label: "Graphique de Progression", icon: "📈", desc: "Courbe d'évolution" },
-    { id: "weapons", label: "Top Armes & Précision", icon: "🎯", desc: "Top 3 armes et zones de tir" },
-    { id: "kills", label: "Éliminations", icon: "🎯", desc: "Total des kills" },
-    { id: "deaths", label: "Morts", icon: "💀", desc: "Total des morts" },
-    { id: "assists", label: "Passes décisives", icon: "🤝", desc: "Total des assists" },
-    { id: "kd", label: "Ratio K/D", icon: "⚖️", desc: "Ratio K/D" },
-    { id: "adr", label: "ADR Moyen", icon: "💥", desc: "Dégâts par manche" },
-    { id: "hs", label: "Tirs à la tête %", icon: "🎯", desc: "Headshot %" },
-    { id: "wr", label: "Taux de victoire", icon: "🏆", desc: "Win Rate" },
-    { id: "acs", label: "ACS Moyen", icon: "⚡", desc: "Combat Score" },
-    { id: "fb", label: "Premiers sangs", icon: "🩸", desc: "First bloods" },
-    { id: "ace", label: "ACE", icon: "👑", desc: "Total des ACEs" },
-    { id: "kast", label: "KAST %", icon: "🛡️", desc: "K/A/S/T %" },
-    { id: "dd", label: "Différence de dégâts", icon: "⚔️", desc: "DDΔ / Round" },
-    { id: "wins", label: "Victoires", icon: "✅", desc: "Total victoires" },
-    { id: "matches", label: "Parties jouées", icon: "🎮", desc: "Total parties" },
+    { id: "chart", label: "Graphique de Progression", icon: <IconChart size={16} />, desc: "Courbe d'évolution" },
+    { id: "weapons", label: "Top Armes & Précision", icon: <IconCrosshair size={16} />, desc: "Top 3 armes et zones de tir" },
+    { id: "kills", label: "Éliminations", icon: <IconCrosshair size={16} />, desc: "Total des kills" },
+    { id: "deaths", label: "Morts", icon: <IconSkull size={16} />, desc: "Total des morts" },
+    { id: "assists", label: "Passes décisives", icon: <IconHandshake size={16} />, desc: "Total des assists" },
+    { id: "kd", label: "Ratio K/D", icon: <IconScale size={16} />, desc: "Ratio K/D" },
+    { id: "adr", label: "ADR Moyen", icon: <IconFlame size={16} />, desc: "Dégâts par manche" },
+    { id: "hs", label: "Tirs à la tête %", icon: <IconCrosshair size={16} />, desc: "Headshot %" },
+    { id: "wr", label: "Taux de victoire", icon: <IconTrophy size={16} />, desc: "Win Rate" },
+    { id: "acs", label: "ACS Moyen", icon: <IconFlame size={16} />, desc: "Combat Score" },
+    { id: "fb", label: "Premiers sangs", icon: <IconSword size={16} />, desc: "First bloods" },
+    { id: "ace", label: "ACE", icon: <IconCrown size={16} />, desc: "Total des ACEs" },
+    { id: "kast", label: "KAST %", icon: <IconShield size={16} />, desc: "K/A/S/T %" },
+    { id: "dd", label: "Différence de dégâts", icon: <IconSword size={16} />, desc: "DDΔ / Round" },
+    { id: "wins", label: "Victoires", icon: <IconTrophy size={16} />, desc: "Total victoires" },
+    { id: "matches", label: "Parties jouées", icon: <IconGamepad size={16} />, desc: "Total parties" },
   ];
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -395,7 +413,7 @@ export default function SettingsView({
 
                 {/* Explicative Banner */}
                 <div className="p-3 bg-[var(--color-surface)]/60 rounded-xl border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] mb-4 flex items-center gap-2">
-                  <span>💡</span>
+                  <IconShield size={16} className="text-sky-400 flex-shrink-0" />
                   <span>
                     Les éléments marqués comme <strong>Masqués</strong> seront invisibles pour les visiteurs externes, mais restent toujours affichés sur votre propre compte.
                   </span>
@@ -408,6 +426,7 @@ export default function SettingsView({
                       <div
                         key={stat.id}
                         onClick={() => {
+                          sounds.playClick();
                           if (isVisibleToOthers) {
                             setDraftHiddenStats([...draftHiddenStats, stat.id]);
                           } else {
@@ -421,16 +440,16 @@ export default function SettingsView({
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-lg flex-shrink-0">{stat.icon}</span>
+                          <span className="text-[var(--color-text-secondary)] flex-shrink-0">{stat.icon}</span>
                           <div className="flex flex-col min-w-0">
                             <span className="text-xs sm:text-sm font-bold truncate text-[var(--color-text-primary)]">
                               {stat.label}
                             </span>
                             <span className="text-[10px] font-semibold text-[var(--color-text-secondary)]">
                               {isVisibleToOthers ? (
-                                <span className="text-emerald-400">✓ Visible aux visiteurs</span>
+                                <span className="text-emerald-400">Visible aux visiteurs</span>
                               ) : (
-                                <span className="text-red-400">🔒 Masqué aux autres</span>
+                                <span className="text-red-400">Masqué aux autres</span>
                               )}
                             </span>
                           </div>
@@ -441,7 +460,7 @@ export default function SettingsView({
                             isVisibleToOthers ? "bg-emerald-600 text-white shadow-md" : "bg-red-900/60 text-red-300 border border-red-500/30"
                           }`}
                         >
-                          {isVisibleToOthers ? "✓" : "🔒"}
+                          {isVisibleToOthers ? <IconEye size={12} /> : <IconLock size={12} />}
                         </div>
                       </div>
                     );

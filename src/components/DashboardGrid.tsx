@@ -4,6 +4,22 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import StatCard from "./StatCard";
 import PerformanceCharts from "./PerformanceCharts";
 import WeaponHitmap from "./WeaponHitmap";
+import {
+  IconCrosshair,
+  IconSkull,
+  IconChart,
+  IconHandshake,
+  IconScale,
+  IconFlame,
+  IconCrown,
+  IconShield,
+  IconSword,
+  IconTrophy,
+  IconGamepad,
+  IconAppGrid,
+  IconSettings,
+} from "./icons/SpyIcons";
+import { sounds } from "@/lib/soundEffects";
 
 export interface GridItemConfig {
   id: string;
@@ -47,23 +63,42 @@ const DEFAULT_LAYOUT: GridItemConfig[] = [
   { id: "matches", x: 9, y: 6, colSpan: 3, rowSpan: 1, visible: true },
 ];
 
-const ITEM_LABELS: Record<string, { label: string; icon?: string; desc: string }> = {
-  chart: { label: "Graphique de Progression", icon: "📈", desc: "Courbe d'évolution K/D, ACS et Headshot" },
-  weapons: { label: "Top Armes & Précision", icon: "🎯", desc: "Top 3 armes et silhouette des zones de tir" },
-  kills: { label: "Éliminations", icon: "🎯", desc: "Total des éliminations" },
-  deaths: { label: "Morts", icon: "💀", desc: "Total des morts" },
-  assists: { label: "Passes décisives", icon: "🤝", desc: "Total des assists" },
-  kd: { label: "Ratio K/D", icon: "⚖️", desc: "Ratio Kills / Deaths" },
-  adr: { label: "Dégâts/Tour (ADR)", icon: "💥", desc: "Dégâts moyens par manche" },
-  hs: { label: "Headshot %", icon: "🎯", desc: "Pourcentage de tirs à la tête" },
-  wr: { label: "Win Rate", icon: "🏆", desc: "Pourcentage de victoires" },
-  acs: { label: "ACS Moyen", icon: "⚡", desc: "Combat Score moyen" },
-  fb: { label: "Premiers sangs", icon: "🩸", desc: "First bloods réalisés" },
-  ace: { label: "ACE", icon: "👑", desc: "Nombre de 1v5 / aces" },
-  kast: { label: "KAST", icon: "🛡️", desc: "% manches avec K/A/S/T" },
-  dd: { label: "DDΔ / Round", icon: "⚔️", desc: "Différence de dégâts par manche" },
-  wins: { label: "Victoires", icon: "✅", desc: "Nombre total de victoires" },
-  matches: { label: "Parties", icon: "🎮", desc: "Nombre total de parties" },
+export const ITEM_ICONS: Record<string, React.ReactNode> = {
+  chart: <IconChart size={14} />,
+  weapons: <IconCrosshair size={14} />,
+  kills: <IconCrosshair size={14} />,
+  deaths: <IconSkull size={14} />,
+  assists: <IconHandshake size={14} />,
+  kd: <IconScale size={14} />,
+  adr: <IconFlame size={14} />,
+  hs: <IconCrosshair size={14} />,
+  wr: <IconTrophy size={14} />,
+  acs: <IconFlame size={14} />,
+  fb: <IconSword size={14} />,
+  ace: <IconCrown size={14} />,
+  kast: <IconShield size={14} />,
+  dd: <IconSword size={14} />,
+  wins: <IconTrophy size={14} />,
+  matches: <IconGamepad size={14} />,
+};
+
+const ITEM_LABELS: Record<string, { label: string; desc: string }> = {
+  chart: { label: "Graphique de Progression", desc: "Courbe d'évolution K/D, ACS et Headshot" },
+  weapons: { label: "Top Armes & Précision", desc: "Top 3 armes et zones de tir" },
+  kills: { label: "Éliminations", desc: "Total des éliminations" },
+  deaths: { label: "Morts", desc: "Total des morts" },
+  assists: { label: "Passes décisives", desc: "Total des assists" },
+  kd: { label: "Ratio K/D", desc: "Ratio Kills / Deaths" },
+  adr: { label: "Dégâts/Tour (ADR)", desc: "Dégâts moyens par manche" },
+  hs: { label: "Headshot %", desc: "Pourcentage de tirs à la tête" },
+  wr: { label: "Win Rate", desc: "Pourcentage de victoires" },
+  acs: { label: "ACS Moyen", desc: "Combat Score moyen" },
+  fb: { label: "Premiers sangs", desc: "First bloods réalisés" },
+  ace: { label: "ACE", desc: "Nombre de 1v5 / aces" },
+  kast: { label: "KAST", desc: "% manches avec K/A/S/T" },
+  dd: { label: "DDΔ / Round", desc: "Différence de dégâts par manche" },
+  wins: { label: "Victoires", desc: "Nombre total de victoires" },
+  matches: { label: "Parties", desc: "Nombre total de parties" },
 };
 
 // Check if two items overlap in 2D
@@ -665,14 +700,18 @@ export default function DashboardGrid({
                 {hiddenDrawerItems.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setDrawerOpen(!drawerOpen)}
+                    onClick={() => {
+                      sounds.playClick();
+                      setDrawerOpen(!drawerOpen);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center gap-1.5 cursor-pointer ${
                       drawerOpen
                         ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-md"
                         : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)]"
                     }`}
                   >
-                    <span>🗄️ Tiroir</span>
+                    <IconAppGrid size={14} />
+                    <span>Tiroir</span>
                     <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-black">
                       {hiddenDrawerItems.length}
                     </span>
@@ -681,16 +720,20 @@ export default function DashboardGrid({
 
                 <button
                   type="button"
-                  onClick={handleResetLayout}
+                  onClick={() => {
+                    sounds.playClick();
+                    handleResetLayout();
+                  }}
                   className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
                   title="Réinitialiser l'agencement d'origine"
                 >
-                  ↺ Réinitialiser
+                  Réinitialiser
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
+                    sounds.playLockIn();
                     setIsEditing(false);
                     setDrawerOpen(false);
                     saveState(layout, gridCols, true);
@@ -699,13 +742,16 @@ export default function DashboardGrid({
                   }}
                   className="px-4 py-1.5 bg-[var(--color-val-red)] hover:bg-[#ff5865] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,70,85,0.4)] flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span>✓ Terminer</span>
+                  <span>Terminer</span>
                 </button>
               </>
             ) : (
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  sounds.playTabSwitch();
+                  setIsEditing(true);
+                }}
                 className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-val-red)]/50 text-[var(--color-text-primary)] hover:text-[var(--color-val-red)] rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
               >
                 <svg
@@ -937,14 +983,15 @@ export default function DashboardGrid({
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
             {hiddenDrawerItems.map((hiddenItem) => {
-              const meta = ITEM_LABELS[hiddenItem.id] || { label: hiddenItem.id, icon: "📊", desc: "" };
+              const meta = ITEM_LABELS[hiddenItem.id] || { label: hiddenItem.id, desc: "" };
+              const iconEl = ITEM_ICONS[hiddenItem.id] || <IconChart size={14} />;
               return (
                 <div
                   key={hiddenItem.id}
                   className="glass-panel p-3 rounded-xl border border-[var(--color-border)] hover:border-emerald-500/50 transition-all flex items-center justify-between gap-2 group bg-black/40 hover:bg-emerald-500/5"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-base">{meta.icon}</span>
+                    <span className="text-[var(--color-text-secondary)]">{iconEl}</span>
                     <div className="flex flex-col min-w-0">
                       <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">{meta.label}</span>
                       <span className="text-[9px] text-[var(--color-text-secondary)] opacity-70 truncate">{meta.desc}</span>

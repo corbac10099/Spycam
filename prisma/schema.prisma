@@ -24,6 +24,8 @@ model User {
   hiddenStats     String    @default("[]")
   enforcePublicStats Boolean @default(false)
   dashboardGrid   String?
+  badge           String?   // "verified", "pro", "creator", "vip", "dev", "moderator"
+  showBadge       Boolean   @default(true)
   riotGameName    String?
   riotConnected   Boolean   @default(false)
   riotPuuid       String?
