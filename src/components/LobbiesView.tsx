@@ -77,19 +77,27 @@ export function getPlayerAvatar(name: string = "player", customUrl?: string): st
   return RANDOM_VALORANT_AVATARS[idx];
 }
 
-export function renderRoleIcon(role: string, size = 14) {
-  switch (role) {
-    case "Duelliste":
-      return <IconSword size={size} className="text-red-400" />;
-    case "Initiateur":
-      return <IconTarget size={size} className="text-amber-400" />;
-    case "Contrôleur":
-      return <IconWind size={size} className="text-sky-400" />;
-    case "Sentinelle":
-      return <IconShield size={size} className="text-emerald-400" />;
-    default:
-      return <IconSparkles size={size} className="text-purple-400" />;
+export const VALORANT_ROLE_ICONS: Record<string, string> = {
+  "Duelliste": "https://media.valorant-api.com/agents/roles/dbe8757e-9e92-4ed4-b39f-9dfc589691d4/displayicon.png",
+  "Initiateur": "https://media.valorant-api.com/agents/roles/1b47567f-8f7b-444b-a003-c44b0f86ac45/displayicon.png",
+  "Contrôleur": "https://media.valorant-api.com/agents/roles/4ee40330-ecba-4be2-9e0f-abda10915878/displayicon.png",
+  "Sentinelle": "https://media.valorant-api.com/agents/roles/5fc02f99-4091-4486-a526-9c35bba3ac39/displayicon.png",
+  "Tous Rôles": "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/0/smallicon.png",
+};
+
+export function renderRoleIcon(role: string, size = 16) {
+  const iconUrl = VALORANT_ROLE_ICONS[role];
+  if (iconUrl) {
+    return (
+      <img
+        src={iconUrl}
+        alt={role}
+        style={{ width: `${size}px`, height: `${size}px` }}
+        className="inline-block object-contain drop-shadow-[0_0_6px_rgba(255,255,255,0.4)] flex-shrink-0"
+      />
+    );
   }
+  return <IconSparkles size={size} className="text-purple-400" />;
 }
 
 const ROLES_LIST = [
