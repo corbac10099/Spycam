@@ -12,6 +12,7 @@ import MatchHistory from "@/components/MatchHistory";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PerformanceCharts from "@/components/PerformanceCharts";
+import DashboardGrid from "@/components/DashboardGrid";
 import { trackPageView } from "@/lib/analytics";
 import LandingPage from "@/components/landing/LandingPage";
 
@@ -1113,116 +1114,37 @@ function HomeContent() {
 
                       {/* Performance Tab */}
                       {activeTab === "performance" && s && (
-                        <>
-                          {/* Performance Progression Charts */}
-                          <PerformanceCharts matchHistory={filteredMatches} />
-
-                          {(() => {
-                            let appliedHiddenStats: string[] = [];
-                            if (canEditProfile) {
-                              appliedHiddenStats = hiddenStats;
-                            } else if (playerData?.player?.enforcePublicStats) {
-                              try {
-                                appliedHiddenStats =
-                                  typeof playerData.player.hiddenStats === "string"
-                                    ? JSON.parse(playerData.player.hiddenStats)
-                                    : playerData.player.hiddenStats || [];
-                              } catch {
-                                appliedHiddenStats = [];
-                              }
+                        (() => {
+                          let appliedHiddenStats: string[] = [];
+                          if (canEditProfile) {
+                            appliedHiddenStats = hiddenStats;
+                          } else if (playerData?.player?.enforcePublicStats) {
+                            try {
+                              appliedHiddenStats =
+                                typeof playerData.player.hiddenStats === "string"
+                                  ? JSON.parse(playerData.player.hiddenStats)
+                                  : playerData.player.hiddenStats || [];
+                            } catch {
+                              appliedHiddenStats = [];
                             }
+                          }
 
-                            return (
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3.5 animate-in fade-in duration-500">
-                                {!appliedHiddenStats.includes("kills") && (
-                                  <StatCard label="Éliminations" value={s.kills} smartRating={smartRating} />
-                                )}
-                                {!appliedHiddenStats.includes("deaths") && (
-                                  <StatCard label="Morts" value={s.deaths} smartRating={smartRating} />
-                                )}
-                                {!appliedHiddenStats.includes("assists") && (
-                                  <StatCard label="Passes décisives" value={s.assists} smartRating={smartRating} />
-                                )}
-                                {!appliedHiddenStats.includes("kd") && (
-                                  <StatCard
-                                    label="Ratio K/D"
-                                    value={s.kdRatio.toFixed(2)}
-                                    highlight
-                                    warning={w.kd}
-                                    smartRating={smartRating}
-                                  />
-                                )}
+                          const userKey = session?.user?.email || (isGuestMode ? "guest" : p.puuid || "default");
 
-                                {!appliedHiddenStats.includes("adr") && (
-                                  <StatCard label="Dégâts/Tour (ADR)" value={s.adr} highlight smartRating={smartRating} />
-                                )}
-                                {!appliedHiddenStats.includes("hs") && (
-                                  <StatCard
-                                    label="Headshot %"
-                                    value={s.headshotPct}
-                                    suffix="%"
-                                    warning={w.hs}
-                                    smartRating={smartRating}
-                                  />
-                                )}
-                                {!appliedHiddenStats.includes("wr") && (
-                                  <StatCard
-                                    label="Win Rate"
-                                    value={s.winRate}
-                                    suffix="%"
-                                    warning={w.wr}
-                                    smartRating={smartRating}
-                                  />
-                                )}
-                                {!appliedHiddenStats.includes("acs") && (
-                                  <StatCard
-                                    label="ACS Moyen"
-                                    value={s.acs}
-                                    highlight
-                                    warning={w.acs}
-                                    smartRating={smartRating}
-                                  />
-                                )}
-
-                                {!appliedHiddenStats.includes("fb") && (
-                                  <StatCard label="Premiers sangs" value={s.firstBloods} smartRating={smartRating} />
-                                )}
-                                {!appliedHiddenStats.includes("ace") && (
-                                  <StatCard label="ACE" value={s.aceCount} smartRating={smartRating} />
-                                )}
-                                {!appliedHiddenStats.includes("kast") && (
-                                  <StatCard
-                                    label="KAST"
-                                    value={s.kast}
-                                    suffix="%"
-                                    sub={s.kastPercentile}
-                                    warning={w.kast}
-                                    smartRating={smartRating}
-                                  />
-                                )}
-                                {!appliedHiddenStats.includes("dd") && (
-                                  <StatCard
-                                    label="DDΔ / Round"
-                                    value={s.ddDelta > 0 ? `+${s.ddDelta}` : s.ddDelta}
-                                    warning={w.dd}
-                                    smartRating={smartRating}
-                                  />
-                                )}
-
-                                {!appliedHiddenStats.includes("wins") && (
-                                  <StatCard
-                                    label="Victoires"
-                                    value={Math.round((s.winRate / 100) * s.matchesPlayed)}
-                                    smartRating={smartRating}
-                                  />
-                                )}
-                                {!appliedHiddenStats.includes("matches") && (
-                                  <StatCard label="Parties" value={s.matchesPlayed} smartRating={smartRating} />
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </>
+                          return (
+                            <div className="w-full animate-in fade-in duration-500">
+                              <DashboardGrid
+                                stats={s}
+                                warnings={w}
+                                smartRating={smartRating}
+                                matchHistory={filteredMatches}
+                                canEdit={canEditProfile}
+                                hiddenStatsByPrivacy={appliedHiddenStats}
+                                userStorageKey={userKey}
+                              />
+                            </div>
+                          );
+                        })()
                       )}
 
                       {/* Agents Tab */}

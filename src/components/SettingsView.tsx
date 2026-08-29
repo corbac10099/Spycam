@@ -60,20 +60,21 @@ export default function SettingsView({
   locale,
 }: SettingsViewProps) {
   const statOptions = [
-    { id: "kills", label: "Éliminations" },
-    { id: "deaths", label: "Morts" },
-    { id: "assists", label: "Passes décisives" },
-    { id: "kd", label: "Ratio K/D" },
-    { id: "adr", label: "ADR Moyen" },
-    { id: "hs", label: "Tirs à la tête %" },
-    { id: "wr", label: "Taux de victoire" },
-    { id: "acs", label: "ACS Moyen" },
-    { id: "fb", label: "Premiers sangs" },
-    { id: "ace", label: "ACE" },
-    { id: "kast", label: "KAST %" },
-    { id: "dd", label: "Différence de dégâts" },
-    { id: "wins", label: "Victoires" },
-    { id: "matches", label: "Parties jouées" },
+    { id: "chart", label: "Graphique de Progression", icon: "📈", desc: "Courbe d'évolution" },
+    { id: "kills", label: "Éliminations", icon: "🎯", desc: "Total des kills" },
+    { id: "deaths", label: "Morts", icon: "💀", desc: "Total des morts" },
+    { id: "assists", label: "Passes décisives", icon: "🤝", desc: "Total des assists" },
+    { id: "kd", label: "Ratio K/D", icon: "⚖️", desc: "Ratio K/D" },
+    { id: "adr", label: "ADR Moyen", icon: "💥", desc: "Dégâts par manche" },
+    { id: "hs", label: "Tirs à la tête %", icon: "🎯", desc: "Headshot %" },
+    { id: "wr", label: "Taux de victoire", icon: "🏆", desc: "Win Rate" },
+    { id: "acs", label: "ACS Moyen", icon: "⚡", desc: "Combat Score" },
+    { id: "fb", label: "Premiers sangs", icon: "🩸", desc: "First bloods" },
+    { id: "ace", label: "ACE", icon: "👑", desc: "Total des ACEs" },
+    { id: "kast", label: "KAST %", icon: "🛡️", desc: "K/A/S/T %" },
+    { id: "dd", label: "Différence de dégâts", icon: "⚔️", desc: "DDΔ / Round" },
+    { id: "wins", label: "Victoires", icon: "✅", desc: "Total victoires" },
+    { id: "matches", label: "Parties jouées", icon: "🎮", desc: "Total parties" },
   ];
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -364,38 +365,77 @@ export default function SettingsView({
               </div>
 
               <div className="pt-4 sm:pt-6 border-t border-[var(--color-border)]">
-                <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)] mb-1 sm:mb-2">Visibilité des statistiques</h4>
-                <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mb-3 sm:mb-4">
-                  Décochez les statistiques que vous ne souhaitez pas voir sur votre propre profil.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
-                  {statOptions.map((stat) => (
-                    <label
-                      key={stat.id}
-                      className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-[var(--color-surface-hover)] rounded-lg sm:rounded-xl border border-[var(--color-border)] cursor-pointer hover:border-[var(--color-val-red)] transition-colors"
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <div>
+                    <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)]">Visibilité des statistiques & widgets</h4>
+                    <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5">
+                      Personnalisez les éléments à afficher ou masquer sur votre profil.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDraftHiddenStats([])}
+                      className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-emerald-400 border border-[var(--color-border)] cursor-pointer"
                     >
-                      <input
-                        type="checkbox"
-                        checked={!draftHiddenStats.includes(stat.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setDraftHiddenStats(draftHiddenStats.filter((id) => id !== stat.id));
-                          } else {
-                            setDraftHiddenStats([...draftHiddenStats, stat.id]);
-                          }
-                        }}
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 accent-[var(--color-val-red)] cursor-pointer flex-shrink-0"
-                      />
-                      <span className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">{stat.label}</span>
-                    </label>
-                  ))}
+                      Tout afficher
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDraftHiddenStats(statOptions.map((s) => s.id))}
+                      className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-red-400 border border-[var(--color-border)] cursor-pointer"
+                    >
+                      Tout masquer
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 sm:p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                  {statOptions.map((stat) => {
+                    const isVisible = !draftHiddenStats.includes(stat.id);
+                    return (
+                      <div
+                        key={stat.id}
+                        onClick={() => {
+                          if (isVisible) {
+                            setDraftHiddenStats([...draftHiddenStats, stat.id]);
+                          } else {
+                            setDraftHiddenStats(draftHiddenStats.filter((id) => id !== stat.id));
+                          }
+                        }}
+                        className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isVisible
+                            ? "bg-[var(--color-surface-hover)] border-[var(--color-val-red)]/50 shadow-sm"
+                            : "bg-[var(--color-background)]/60 border-[var(--color-border)] opacity-60 hover:opacity-80"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-lg flex-shrink-0">{stat.icon}</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className={`text-xs sm:text-sm font-bold truncate ${isVisible ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)] line-through"}`}>
+                              {stat.label}
+                            </span>
+                            <span className="text-[9px] text-[var(--color-text-secondary)] truncate">
+                              {stat.desc}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black transition-colors ${
+                          isVisible ? "bg-[var(--color-val-red)] text-white shadow-md" : "bg-gray-700 text-gray-400"
+                        }`}>
+                          {isVisible ? "✓" : "✕"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 sm:p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
                   <div>
                     <h5 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)]">Appliquer le masquage aux visiteurs</h5>
                     <p className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5">
-                      Masque également ces statistiques pour tous les visiteurs de votre profil
+                      Masque également ces statistiques et graphiques pour tous les visiteurs externes de votre profil
                     </p>
                   </div>
                   <button
