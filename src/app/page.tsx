@@ -1116,9 +1116,7 @@ function HomeContent() {
                       {activeTab === "performance" && s && (
                         (() => {
                           let appliedHiddenStats: string[] = [];
-                          if (canEditProfile) {
-                            appliedHiddenStats = hiddenStats;
-                          } else if (playerData?.player?.enforcePublicStats) {
+                          if (!canEditProfile && playerData?.player?.hiddenStats) {
                             try {
                               appliedHiddenStats =
                                 typeof playerData.player.hiddenStats === "string"

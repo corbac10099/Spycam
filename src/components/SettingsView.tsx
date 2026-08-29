@@ -367,9 +367,11 @@ export default function SettingsView({
               <div className="pt-4 sm:pt-6 border-t border-[var(--color-border)]">
                 <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                   <div>
-                    <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)]">Visibilité des statistiques & widgets</h4>
+                    <h4 className="font-bold text-xs sm:text-base text-[var(--color-text-primary)]">
+                      Ce que voient les autres visiteurs
+                    </h4>
                     <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5">
-                      Personnalisez les éléments à afficher ou masquer sur votre profil.
+                      Choisissez précisément les statistiques et graphiques accessibles aux personnes qui consultent votre profil.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -378,7 +380,7 @@ export default function SettingsView({
                       onClick={() => setDraftHiddenStats([])}
                       className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-emerald-400 border border-[var(--color-border)] cursor-pointer"
                     >
-                      Tout afficher
+                      Tout rendre visible
                     </button>
                     <button
                       type="button"
@@ -390,66 +392,59 @@ export default function SettingsView({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                {/* Explicative Banner */}
+                <div className="p-3 bg-[var(--color-surface)]/60 rounded-xl border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] mb-4 flex items-center gap-2">
+                  <span>💡</span>
+                  <span>
+                    Les éléments marqués comme <strong>Masqués</strong> seront invisibles pour les visiteurs externes, mais restent toujours affichés sur votre propre compte.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4">
                   {statOptions.map((stat) => {
-                    const isVisible = !draftHiddenStats.includes(stat.id);
+                    const isVisibleToOthers = !draftHiddenStats.includes(stat.id);
                     return (
                       <div
                         key={stat.id}
                         onClick={() => {
-                          if (isVisible) {
+                          if (isVisibleToOthers) {
                             setDraftHiddenStats([...draftHiddenStats, stat.id]);
                           } else {
                             setDraftHiddenStats(draftHiddenStats.filter((id) => id !== stat.id));
                           }
                         }}
                         className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          isVisible
-                            ? "bg-[var(--color-surface-hover)] border-[var(--color-val-red)]/50 shadow-sm"
-                            : "bg-[var(--color-background)]/60 border-[var(--color-border)] opacity-60 hover:opacity-80"
+                          isVisibleToOthers
+                            ? "bg-emerald-500/5 border-emerald-500/40 hover:border-emerald-500 shadow-sm"
+                            : "bg-red-500/5 border-red-500/25 opacity-70 hover:opacity-100 hover:border-red-500/50"
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-lg flex-shrink-0">{stat.icon}</span>
                           <div className="flex flex-col min-w-0">
-                            <span className={`text-xs sm:text-sm font-bold truncate ${isVisible ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)] line-through"}`}>
+                            <span className="text-xs sm:text-sm font-bold truncate text-[var(--color-text-primary)]">
                               {stat.label}
                             </span>
-                            <span className="text-[9px] text-[var(--color-text-secondary)] truncate">
-                              {stat.desc}
+                            <span className="text-[10px] font-semibold text-[var(--color-text-secondary)]">
+                              {isVisibleToOthers ? (
+                                <span className="text-emerald-400">✓ Visible aux visiteurs</span>
+                              ) : (
+                                <span className="text-red-400">🔒 Masqué aux autres</span>
+                              )}
                             </span>
                           </div>
                         </div>
 
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black transition-colors ${
-                          isVisible ? "bg-[var(--color-val-red)] text-white shadow-md" : "bg-gray-700 text-gray-400"
-                        }`}>
-                          {isVisible ? "✓" : "✕"}
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black transition-colors ${
+                            isVisibleToOthers ? "bg-emerald-600 text-white shadow-md" : "bg-red-900/60 text-red-300 border border-red-500/30"
+                          }`}
+                        >
+                          {isVisibleToOthers ? "✓" : "🔒"}
                         </div>
                       </div>
                     );
                   })}
-                </div>
-
-                <div className="flex items-center justify-between p-3.5 sm:p-4 bg-[var(--color-background)] rounded-xl border border-[var(--color-border)]">
-                  <div>
-                    <h5 className="font-bold text-xs sm:text-sm text-[var(--color-text-primary)]">Appliquer le masquage aux visiteurs</h5>
-                    <p className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mt-0.5">
-                      Masque également ces statistiques et graphiques pour tous les visiteurs externes de votre profil
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setDraftEnforcePublicStats(!draftEnforcePublicStats)}
-                    className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
-                      draftEnforcePublicStats ? "bg-[var(--color-val-red)]" : "bg-gray-600"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-3.5 w-3.5 sm:h-4 sm:w-4 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                        draftEnforcePublicStats ? "translate-x-4.5 sm:translate-x-6" : "translate-x-1"
-                      }`}
-                    ></span>
-                  </button>
                 </div>
               </div>
             </div>
