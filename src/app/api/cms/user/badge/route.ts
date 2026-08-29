@@ -12,6 +12,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "email ou riotId requis" }, { status: 400 });
     }
 
+    const badgeValue = Array.isArray(badge)
+      ? JSON.stringify(badge.filter(Boolean))
+      : typeof badge === "string" && badge.trim()
+      ? badge.trim()
+      : null;
+
     const updated = await (prisma.user as any).updateMany({
       where: {
         OR: [
@@ -20,7 +26,7 @@ export async function POST(request: NextRequest) {
         ],
       },
       data: {
-        badge: badge || null,
+        badge: badgeValue,
         ...(showBadge !== undefined ? { showBadge: Boolean(showBadge) } : {}),
       },
     });

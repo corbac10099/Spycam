@@ -326,7 +326,7 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
       cardLarge,
       cardWide,
       cardWideUrl: cardWide,
-      badge: "verified",
+      badge: null,
       showBadge: true,
       isOwner: true,
       canEdit: true,

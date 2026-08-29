@@ -20,6 +20,7 @@ import {
   IconVolume,
   IconBadgeVerified,
 } from "./icons/SpyIcons";
+import { BADGES_REGISTRY, parseBadges } from "./UserBadges";
 import { sounds } from "@/lib/soundEffects";
 
 export interface SettingsViewProps {
@@ -42,6 +43,10 @@ export interface SettingsViewProps {
   setHiddenStats: (val: string[]) => void;
   enforcePublicStats: boolean;
   setEnforcePublicStats: (val: boolean) => void;
+  hiddenBadges?: string[];
+  setHiddenBadges?: (val: string[]) => void;
+  showBadge?: boolean;
+  setShowBadge?: (val: boolean) => void;
   p?: any;
   canEditProfile?: boolean;
   settingsTab: string;
@@ -72,6 +77,10 @@ export default function SettingsView({
   setHiddenStats,
   enforcePublicStats,
   setEnforcePublicStats,
+  hiddenBadges = [],
+  setHiddenBadges,
+  showBadge = true,
+  setShowBadge,
   p,
   canEditProfile = true,
   settingsTab,
@@ -115,6 +124,25 @@ export default function SettingsView({
   const [draftSmartRating, setDraftSmartRating] = useState(smartRating);
   const [draftVideoLoop, setDraftVideoLoop] = useState(videoLoop ?? true);
   const [draftVideoLoopDelay, setDraftVideoLoopDelay] = useState(videoLoopDelay ?? 500);
+  const [draftShowBadge, setDraftShowBadge] = useState<boolean>(() => {
+    if (showBadge !== undefined) return showBadge;
+    if (p?.showBadge !== undefined) return p.showBadge;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("spycam_show_badge");
+      if (stored !== null) return stored === "true";
+    }
+    return true;
+  });
+  const [draftHiddenBadges, setDraftHiddenBadges] = useState<string[]>(() => {
+    if (hiddenBadges && hiddenBadges.length > 0) return hiddenBadges;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("spycam_hidden_badges");
+        if (stored) return JSON.parse(stored);
+      } catch (_) {}
+    }
+    return [];
+  });
   const [draftStreamerMode, setDraftStreamerMode] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("spycam_streamer_mode");
@@ -217,10 +245,17 @@ export default function SettingsView({
           hiddenStats: JSON.stringify(draftHiddenStats),
           enforcePublicStats: draftEnforcePublicStats,
           language: draftLocale,
+          showBadge: draftShowBadge,
         }),
       });
       if (res.ok) {
         sounds.playLockIn();
+        if (typeof window !== "undefined") {
+          localStorage.setItem("spycam_show_badge", String(draftShowBadge));
+          localStorage.setItem("spycam_hidden_badges", JSON.stringify(draftHiddenBadges));
+        }
+        if (setShowBadge) setShowBadge(draftShowBadge);
+        if (setHiddenBadges) setHiddenBadges(draftHiddenBadges);
         setSmartRating(draftSmartRating);
         setTheme(draftTheme === "custom" ? `custom:bg=${draftCustomBg},accent=${draftCustomAccent}` : draftTheme);
         setBannerUrl(draftBannerUrl);
@@ -442,6 +477,102 @@ export default function SettingsView({
                         onChange={(e) => setDraftVideoLoopDelay(Number(e.target.value))}
                         className="w-full accent-[var(--color-val-red)] cursor-pointer"
                       />
+                    </div>
+                  )}
+                </div>
+
+                {/* Badges de Profil Section */}
+                <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] flex items-center gap-2">
+                        <IconBadgeVerified size={18} className="text-sky-400" />
+                        <span>Badges &amp; Distinctions de Profil</span>
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
+                        Affichez vos badges certifiés, pro, créateur, ou masquez-en certains individuellement
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        sounds.playClick();
+                        setDraftShowBadge(!draftShowBadge);
+                      }}
+                      className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
+                        draftShowBadge ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                          draftShowBadge ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
+                        }`}
+                      ></span>
+                    </button>
+                  </div>
+
+                  {draftShowBadge && (
+                    <div className="space-y-2 pl-1 sm:pl-2 animate-in fade-in duration-200 mt-2">
+                      <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+                        Visibilité par type de badge :
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {Object.values(BADGES_REGISTRY).map((badgeDef) => {
+                          const isHidden = draftHiddenBadges.includes(badgeDef.id);
+                          const isAssigned = p?.badge ? parseBadges(p.badge).map((b: string) => b.toLowerCase()).includes(badgeDef.id) : false;
+                          const IconComp = badgeDef.icon;
+
+                          return (
+                            <div
+                              key={badgeDef.id}
+                              onMouseEnter={() => sounds.playHover()}
+                              onClick={() => {
+                                sounds.playBreeze();
+                                if (isHidden) {
+                                  setDraftHiddenBadges(draftHiddenBadges.filter((id) => id !== badgeDef.id));
+                                } else {
+                                  setDraftHiddenBadges([...draftHiddenBadges, badgeDef.id]);
+                                }
+                              }}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                !isHidden
+                                  ? "bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-text-secondary)]"
+                                  : "bg-red-500/5 border-red-500/25 opacity-60 hover:opacity-100"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`p-1.5 rounded-lg border flex items-center justify-center ${badgeDef.bgClass} ${badgeDef.borderClass}`}>
+                                  <IconComp size={16} className={badgeDef.colorClass} />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">
+                                      {badgeDef.label}
+                                    </span>
+                                    {isAssigned && (
+                                      <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                        Actif
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-[var(--color-text-secondary)] line-clamp-1">
+                                    {badgeDef.description}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div
+                                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex-shrink-0 ${
+                                  !isHidden
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-red-500/15 text-red-400 border border-red-500/30"
+                                }`}
+                              >
+                                {!isHidden ? "Affiché" : "Masqué"}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

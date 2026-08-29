@@ -19,7 +19,8 @@ import MobileAppDrawer from "@/components/MobileAppDrawer";
 import { trackPageView } from "@/lib/analytics";
 import LandingPage from "@/components/landing/LandingPage";
 import { sounds } from "@/lib/soundEffects";
-import { IconShare, IconBadgeVerified, IconBadgePro } from "@/components/icons/SpyIcons";
+import { IconShare } from "@/components/icons/SpyIcons";
+import { UserBadges } from "@/components/UserBadges";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -275,6 +276,16 @@ function HomeContent() {
 
   // New Features State
   const [streamerMode, setStreamerMode] = useState<boolean>(false);
+  const [showBadgeState, setShowBadgeState] = useState<boolean>(true);
+  const [hiddenBadges, setHiddenBadges] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("spycam_hidden_badges");
+        if (stored) return JSON.parse(stored);
+      } catch (_) {}
+    }
+    return [];
+  });
   const [showLeaderboardModal, setShowLeaderboardModal] = useState<boolean>(false);
   const [showCardModal, setShowCardModal] = useState<boolean>(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState<boolean>(false);
@@ -924,6 +935,10 @@ function HomeContent() {
             setHiddenStats={setHiddenStats}
             enforcePublicStats={enforcePublicStats}
             setEnforcePublicStats={setEnforcePublicStats}
+            hiddenBadges={hiddenBadges}
+            setHiddenBadges={setHiddenBadges}
+            showBadge={showBadgeState}
+            setShowBadge={setShowBadgeState}
             p={playerData?.player}
             canEditProfile={canEditProfile}
             settingsTab={settingsTab}
@@ -1046,10 +1061,13 @@ function HomeContent() {
                               {displayTag && (
                                 <span className="text-[10px] sm:text-xs md:text-sm text-[var(--color-text-secondary)] font-medium">{displayTag}</span>
                               )}
-                              {p.badge && p.showBadge && !streamerMode && (
-                                <span title={`Badge certifié : ${p.badge}`} className="text-sky-400 flex items-center">
-                                  {p.badge === "pro" ? <IconBadgePro size={18} /> : <IconBadgeVerified size={18} />}
-                                </span>
+                              {!streamerMode && (
+                                <UserBadges
+                                  badges={p.badge}
+                                  showBadge={canEditProfile ? showBadgeState : p.showBadge}
+                                  size={16}
+                                  hiddenBadges={canEditProfile ? hiddenBadges : []}
+                                />
                               )}
                             </div>
                             {p.mainAgent && (
