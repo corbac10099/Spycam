@@ -11,6 +11,17 @@ class SoundEngine {
       if (stored !== null) {
         this.enabled = stored === "true";
       }
+
+      // Unlock AudioContext on first user interaction
+      const unlockAudio = () => {
+        this.initCtx();
+        window.removeEventListener("click", unlockAudio);
+        window.removeEventListener("keydown", unlockAudio);
+        window.removeEventListener("touchstart", unlockAudio);
+      };
+      window.addEventListener("click", unlockAudio, { once: true });
+      window.addEventListener("keydown", unlockAudio, { once: true });
+      window.addEventListener("touchstart", unlockAudio, { once: true });
     }
   }
 
@@ -22,7 +33,7 @@ class SoundEngine {
       }
     }
     if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
   }
 

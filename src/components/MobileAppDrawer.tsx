@@ -5,20 +5,15 @@ import {
   IconAppGrid,
   IconSettings,
   IconTrophy,
-  IconShare,
-  IconEye,
   IconExpand,
-  IconVolume,
 } from "./icons/SpyIcons";
+import { sounds } from "@/lib/soundEffects";
 
 export interface MobileAppDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenSettings: () => void;
   onOpenLeaderboard: () => void;
-  onOpenCardExport: () => void;
-  streamerMode: boolean;
-  onToggleStreamerMode: () => void;
   onToggleFullscreen: () => void;
 }
 
@@ -27,36 +22,36 @@ export default function MobileAppDrawer({
   onClose,
   onOpenSettings,
   onOpenLeaderboard,
-  onOpenCardExport,
-  streamerMode,
-  onToggleStreamerMode,
   onToggleFullscreen,
 }: MobileAppDrawerProps) {
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex flex-col justify-end bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full bg-[#0c141d] border-t border-white/15 rounded-t-3xl p-5 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom duration-200 max-h-[80vh]"
+        className="w-full bg-[var(--color-surface)]/95 backdrop-blur-2xl border-t border-[var(--color-border)] rounded-t-3xl p-5 shadow-[0_-15px_50px_rgba(0,0,0,0.8)] flex flex-col gap-4 animate-in slide-in-from-bottom duration-200 max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Grab Handle */}
-        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto -mt-2 mb-1" />
+        <div className="w-10 h-1 rounded-full bg-[var(--color-border)] mx-auto -mt-2 mb-1" />
 
-        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+        <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-2">
             <IconAppGrid size={18} className="text-[var(--color-val-red)]" />
-            <h3 className="text-sm font-black text-white uppercase tracking-wider">
+            <h3 className="text-sm font-black text-[var(--color-text-primary)] uppercase tracking-wider">
               Outils & Menu
             </h3>
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="w-7 h-7 rounded-full bg-white/5 text-gray-300 flex items-center justify-center font-bold text-xs cursor-pointer"
+            onClick={() => {
+              sounds.playClick();
+              onClose();
+            }}
+            className="w-7 h-7 rounded-full bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] hover:text-white flex items-center justify-center font-bold text-xs cursor-pointer border border-[var(--color-border)]"
           >
             ✕
           </button>
@@ -68,69 +63,34 @@ export default function MobileAppDrawer({
           <button
             type="button"
             onClick={() => {
+              sounds.playTabSwitch();
               onClose();
               onOpenSettings();
             }}
-            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 flex flex-col items-start gap-1.5 transition-all text-left cursor-pointer"
+            className="p-3.5 rounded-2xl bg-[var(--color-surface-hover)] hover:border-[var(--color-val-red)]/40 border border-[var(--color-border)] flex flex-col items-start gap-1.5 transition-all text-left cursor-pointer"
           >
-            <div className="p-2 rounded-xl bg-white/5 text-sky-400">
+            <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400">
               <IconSettings size={18} />
             </div>
-            <span className="text-xs font-bold text-white">Paramètres</span>
-            <span className="text-[10px] text-gray-400">Profil & Thèmes</span>
+            <span className="text-xs font-bold text-[var(--color-text-primary)]">Paramètres</span>
+            <span className="text-[10px] text-[var(--color-text-secondary)]">Profil, Thèmes & Sons</span>
           </button>
 
           {/* Leaderboard */}
           <button
             type="button"
             onClick={() => {
+              sounds.playTabSwitch();
               onClose();
               onOpenLeaderboard();
             }}
-            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 flex flex-col items-start gap-1.5 transition-all text-left cursor-pointer"
+            className="p-3.5 rounded-2xl bg-[var(--color-surface-hover)] hover:border-[var(--color-val-red)]/40 border border-[var(--color-border)] flex flex-col items-start gap-1.5 transition-all text-left cursor-pointer"
           >
-            <div className="p-2 rounded-xl bg-white/5 text-amber-400">
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
               <IconTrophy size={18} />
             </div>
-            <span className="text-xs font-bold text-white">Classement</span>
-            <span className="text-[10px] text-gray-400">Top Radiants</span>
-          </button>
-
-          {/* Export Player Card */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOpenCardExport();
-            }}
-            className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 flex flex-col items-start gap-1.5 transition-all text-left cursor-pointer"
-          >
-            <div className="p-2 rounded-xl bg-white/5 text-emerald-400">
-              <IconShare size={18} />
-            </div>
-            <span className="text-xs font-bold text-white">Exporter Carte</span>
-            <span className="text-[10px] text-gray-400">Image PNG</span>
-          </button>
-
-          {/* Streamer Mode */}
-          <button
-            type="button"
-            onClick={() => {
-              onToggleStreamerMode();
-            }}
-            className={`p-3 rounded-2xl border flex flex-col items-start gap-1.5 transition-all text-left cursor-pointer ${
-              streamerMode
-                ? "bg-[var(--color-val-red)]/15 border-[var(--color-val-red)] text-white"
-                : "bg-white/5 hover:bg-white/10 border-white/10 text-white"
-            }`}
-          >
-            <div className={`p-2 rounded-xl ${streamerMode ? "bg-[var(--color-val-red)] text-white" : "bg-white/5 text-purple-400"}`}>
-              <IconEye size={18} />
-            </div>
-            <span className="text-xs font-bold text-white">Mode Streamer</span>
-            <span className="text-[10px] text-gray-400">
-              {streamerMode ? "Actif (Pseudo masqué)" : "Inactif"}
-            </span>
+            <span className="text-xs font-bold text-[var(--color-text-primary)]">Classement</span>
+            <span className="text-[10px] text-[var(--color-text-secondary)]">Top Radiants Région</span>
           </button>
         </div>
 
@@ -138,13 +98,14 @@ export default function MobileAppDrawer({
         <button
           type="button"
           onClick={() => {
+            sounds.playClick();
             onClose();
             onToggleFullscreen();
           }}
-          className="w-full py-2.5 px-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-200 flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3 px-4 rounded-2xl bg-[var(--color-surface-hover)] hover:border-[var(--color-val-red)]/40 border border-[var(--color-border)] text-xs font-bold text-[var(--color-text-primary)] flex items-center justify-center gap-2 cursor-pointer transition-colors"
         >
           <IconExpand size={16} />
-          <span>Mode Plein Écran Kiosque</span>
+          <span>Plein Écran</span>
         </button>
       </div>
     </div>

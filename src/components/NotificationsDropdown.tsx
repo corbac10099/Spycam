@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { sounds } from "@/lib/soundEffects";
 
 export interface NotificationItem {
   id: string;
@@ -45,7 +46,7 @@ export default function NotificationsDropdown({
     const items: NotificationItem[] = [
       {
         id: "sys-charts",
-        title: "📈 Nouveauté : Graphiques Lissés",
+        title: "Nouveauté : Graphiques Lissés",
         message: "Les courbes de progression K/D, ACS et Headshot % sont désormais fluides et interactives !",
         time: "Récemment",
         type: "system",
@@ -53,7 +54,7 @@ export default function NotificationsDropdown({
       },
       {
         id: "tip-shortcut",
-        title: "⚡ Astuce Navigation",
+        title: "Astuce Navigation",
         message: "Utilisez le raccourci Ctrl + K pour rechercher un joueur ou naviguer instantanément.",
         time: "Astuce",
         type: "tip",
@@ -66,7 +67,7 @@ export default function NotificationsDropdown({
       if (playerStats.kdRatio >= 1.2) {
         items.unshift({
           id: "perf-kd-high",
-          title: "🔥 Excellente performance K/D !",
+          title: "Excellente performance K/D !",
           message: `Votre ratio K/D moyen est de ${playerStats.kdRatio.toFixed(2)}. Continuez sur cette lancée !`,
           time: "Statut",
           type: "perf",
@@ -75,7 +76,7 @@ export default function NotificationsDropdown({
       } else if (playerStats.kdRatio < 1.0) {
         items.unshift({
           id: "perf-kd-low",
-          title: "🎯 Axe d'amélioration : Positionnement",
+          title: "Axe d'amélioration : Positionnement",
           message: "Votre K/D est sous 1.0. Consultez le Smart Rating pour ajuster vos prises de duels.",
           time: "Conseil",
           type: "perf",
@@ -92,7 +93,7 @@ export default function NotificationsDropdown({
           const latestNews = newsData.slice(0, 3).map((n) => ({
             id: `news-${n.id}`,
             newsId: n.id,
-            title: `📢 Actualité : ${n.title}`,
+            title: `Actualité : ${n.title}`,
             message: "Cliquez pour lire l'article complet et voir les nouveautés.",
             time: n.createdAt
               ? new Date(n.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })

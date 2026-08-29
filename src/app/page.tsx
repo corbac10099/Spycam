@@ -18,6 +18,8 @@ import LeaderboardModal from "@/components/LeaderboardModal";
 import MobileAppDrawer from "@/components/MobileAppDrawer";
 import { trackPageView } from "@/lib/analytics";
 import LandingPage from "@/components/landing/LandingPage";
+import { sounds } from "@/lib/soundEffects";
+import { IconShare, IconBadgeVerified, IconBadgePro } from "@/components/icons/SpyIcons";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -586,9 +588,21 @@ function HomeContent() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [myRiotId, riotId, VALID_SLUGS, SLUG_TO_TAB, slugToRiotId, locale]);
 
+  const rawMatches = useMemo(() => {
+    return (playerData?.matchHistory || playerData?.player?.matchHistory || []) as any[];
+  }, [playerData]);
+
+  const rawAgentStats = useMemo(() => {
+    return (playerData?.agentStats || playerData?.player?.agentStats || []) as any[];
+  }, [playerData]);
+
+  const rawStats = useMemo(() => {
+    return (playerData?.stats || playerData?.player?.stats || null) as any;
+  }, [playerData]);
+
   const filteredMatches = useMemo(() => {
-    if (!playerData?.player?.matchHistory) return [];
-    return playerData.player.matchHistory.filter((m: any) => {
+    if (!rawMatches || rawMatches.length === 0) return [];
+    return rawMatches.filter((m: any) => {
       const modeMatch =
         gameMode === "all" ||
         (gameMode === "competitive" && m.mode === "competitive") ||
@@ -598,11 +612,11 @@ function HomeContent() {
       const seasonMatch = selectedSeason === "all" || m.season === selectedSeason;
       return modeMatch && seasonMatch;
     });
-  }, [playerData?.player?.matchHistory, gameMode, selectedSeason]);
+  }, [rawMatches, gameMode, selectedSeason]);
 
   const filteredAgents = useMemo(() => {
-    if (!playerData?.player?.agentStats) return [];
-    if (gameMode === "all" && selectedSeason === "all") return playerData.player.agentStats;
+    if (!rawAgentStats || rawAgentStats.length === 0) return [];
+    if (gameMode === "all" && selectedSeason === "all") return rawAgentStats;
 
     const counts: Record<string, any> = {};
     filteredMatches.forEach((m: any) => {
@@ -617,7 +631,7 @@ function HomeContent() {
     return Object.keys(counts)
       .map((name) => {
         const data = counts[name];
-        const orig = playerData.player.agentStats.find((a: any) => a.name === name);
+        const orig = rawAgentStats.find((a: any) => a.name === name);
         return {
           name,
           role: orig?.role || "Agent",
@@ -629,16 +643,16 @@ function HomeContent() {
         };
       })
       .sort((a: any, b: any) => b.games - a.games);
-  }, [playerData?.player?.agentStats, gameMode, selectedSeason, filteredMatches]);
+  }, [rawAgentStats, gameMode, selectedSeason, filteredMatches]);
 
   const filteredStats = useMemo(() => {
-    if (!playerData?.player?.stats) return null;
-    if (gameMode === "all" && selectedSeason === "all") return playerData.player.stats;
+    if (!rawStats) return null;
+    if (gameMode === "all" && selectedSeason === "all") return rawStats;
 
     const matches = filteredMatches;
     if (matches.length === 0)
       return {
-        ...playerData.player.stats,
+        ...rawStats,
         kills: 0,
         deaths: 0,
         assists: 0,
@@ -659,7 +673,7 @@ function HomeContent() {
     const totalAces = matches.reduce((sum: number, m: any) => sum + (m.aces || 0), 0);
 
     return {
-      ...playerData.player.stats,
+      ...rawStats,
       kills: totalKills,
       deaths: totalDeaths,
       assists: totalAssists,
@@ -667,10 +681,10 @@ function HomeContent() {
       winRate: Math.round((wins / matches.length) * 100),
       matchesPlayed: matches.length,
       acs: Math.round(matches.reduce((sum: number, m: any) => sum + m.acs, 0) / matches.length),
-      headshotPct: totalShots > 0 ? parseFloat(((totalHS / totalShots) * 100).toFixed(1)) : playerData.player.stats.headshotPct,
+      headshotPct: totalShots > 0 ? parseFloat(((totalHS / totalShots) * 100).toFixed(1)) : rawStats.headshotPct,
       aceCount: totalAces,
     };
-  }, [playerData?.player?.stats, gameMode, selectedSeason, filteredMatches]);
+  }, [rawStats, gameMode, selectedSeason, filteredMatches]);
 
   // Apply logged-in user's theme to body
   useEffect(() => {
@@ -847,6 +861,8 @@ function HomeContent() {
           newsView={newsView}
           agentsView={agentsView}
           settingsOpen={settingsOpen}
+          onOpenLeaderboard={() => setShowLeaderboardModal(true)}
+          leaderboardOpen={showLeaderboardModal}
           onGoHome={() => {
             setNewsView(false);
             setAgentsView(false);
@@ -958,9 +974,22 @@ function HomeContent() {
               (() => {
                 const p = {
                   ...playerData.player,
-                  stats: filteredStats || playerData.player.stats,
+                  ...playerData,
+                  gameName: playerData.player?.gameName || playerData.gameName || "Joueur",
+                  tagLine: playerData.player?.tagLine || playerData.tagLine || "EU1",
+                  stats: filteredStats || rawStats,
                   agentStats: filteredAgents,
                   matchHistory: filteredMatches,
+                  weapons: playerData.weapons || playerData.player?.weapons || [],
+                  rank: playerData.rank || playerData.player?.rank || "Ascendant 3",
+                  rankUrl: playerData.rankUrl || playerData.player?.rankUrl || "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/24/largeicon.png",
+                  rankTier: playerData.rankTier ?? playerData.player?.rankTier ?? 24,
+                  level: playerData.level ?? playerData.player?.level ?? playerData.player?.accountLevel ?? 100,
+                  cardUrl: playerData.player?.cardUrl || playerData.player?.cardSmall || playerData.cardUrl || "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png",
+                  cardWideUrl: playerData.player?.cardWideUrl || playerData.player?.cardWide || playerData.cardWideUrl || "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
+                  mainAgent: playerData.mainAgent || playerData.player?.mainAgent,
+                  badge: playerData.badge || playerData.player?.badge || null,
+                  showBadge: playerData.showBadge ?? playerData.player?.showBadge ?? true,
                 };
                 const s = p.stats;
                 const w = getWarnings(s);
@@ -976,6 +1005,9 @@ function HomeContent() {
                 const profileThemeClass =
                   !canEditProfile && p.customTheme && p.customTheme !== "dark" ? `theme-${p.customTheme}` : "";
 
+                const displayName = streamerMode ? (p.mainAgent?.name || "Joueur Masqué") : p.gameName;
+                const displayTag = streamerMode ? "" : `#${p.tagLine}`;
+
                 return (
                   <div className={`w-full flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 ${profileThemeClass}`}>
                     {/* Bannière Profil Responsive */}
@@ -990,10 +1022,10 @@ function HomeContent() {
                       <div className="absolute inset-0 bg-black/40"></div>
 
                       <div className="relative z-10 px-3 sm:px-6 md:px-8 py-3 sm:py-5 flex items-center justify-between h-full w-full gap-2">
-                        {/* Gauche : Avatar + Pseudo + Tag */}
+                        {/* Gauche : Avatar + Pseudo + Tag + Badge */}
                         <div className="flex items-center gap-2 sm:gap-4 md:gap-5 min-w-0 flex-1">
                           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                            <div className="w-11 h-11 xs:w-13 xs:h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)]">
+                            <div className="w-11 h-11 xs:w-13 xs:h-13 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-[rgba(255,255,255,0.15)] shadow-[0_4px_15px_rgba(0,0,0,0.6)] bg-black/60">
                               <img referrerPolicy="no-referrer" src={p.cardUrl} alt="Avatar" className="w-full h-full object-cover" />
                             </div>
                             {p.mainAgent && (
@@ -1005,9 +1037,18 @@ function HomeContent() {
                           </div>
 
                           <div className="flex flex-col min-w-0" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
-                            <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
-                              <span className="text-sm xs:text-base sm:text-xl md:text-2xl font-black tracking-tight text-white truncate max-w-[110px] xs:max-w-[150px] sm:max-w-none">{p.gameName}</span>
-                              <span className="text-[10px] sm:text-xs md:text-sm text-[var(--color-text-secondary)] font-medium">#{p.tagLine}</span>
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                              <span className="text-sm xs:text-base sm:text-xl md:text-2xl font-black tracking-tight text-white truncate max-w-[110px] xs:max-w-[150px] sm:max-w-none">
+                                {displayName}
+                              </span>
+                              {displayTag && (
+                                <span className="text-[10px] sm:text-xs md:text-sm text-[var(--color-text-secondary)] font-medium">{displayTag}</span>
+                              )}
+                              {p.badge && p.showBadge && !streamerMode && (
+                                <span title={`Badge certifié : ${p.badge}`} className="text-sky-400 flex items-center">
+                                  {p.badge === "pro" ? <IconBadgePro size={18} /> : <IconBadgeVerified size={18} />}
+                                </span>
+                              )}
                             </div>
                             {p.mainAgent && (
                               <span className="text-[8px] sm:text-[9px] md:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.1em] sm:tracking-[0.2em] mt-0.5 font-bold truncate">
@@ -1030,7 +1071,7 @@ function HomeContent() {
                           </div>
                         </div>
 
-                        {/* Droite : Rang + Favori */}
+                        {/* Droite : Rang + Bouton Export Carte (si proprio) ou Favori */}
                         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 flex-shrink-0">
                           <div className="flex flex-col items-end hidden md:flex" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
                             <span className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">Rang</span>
@@ -1038,9 +1079,25 @@ function HomeContent() {
                           </div>
                           <img referrerPolicy="no-referrer" src={p.rankUrl} alt={p.rank} className="w-9 h-9 xs:w-11 xs:h-11 sm:w-14 sm:h-14 md:w-20 md:h-20 object-contain drop-shadow-[0_0_15px_rgba(0,0,0,0.7)]" />
 
-                          {!canEditProfile && (
+                          {canEditProfile ? (
                             <button
-                              onClick={() => toggleFavorite(p)}
+                              type="button"
+                              onClick={() => {
+                                sounds.playClick();
+                                setShowCardModal(true);
+                              }}
+                              title="Exporter ma Carte Joueur (PNG)"
+                              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-black/50 hover:bg-[var(--color-val-red)] border border-white/20 hover:border-[var(--color-val-red)] text-white transition-all flex items-center gap-1.5 text-xs font-bold backdrop-blur-md shadow-lg cursor-pointer group"
+                            >
+                              <IconShare size={14} className="group-hover:scale-110 transition-transform" />
+                              <span className="hidden sm:inline">Exporter Carte</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                sounds.playClick();
+                                toggleFavorite(p);
+                              }}
                               title={isFavorited(p.gameName, p.tagLine) ? "Retirer des favoris" : "Ajouter aux favoris"}
                               className={`w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm border cursor-pointer ${
                                 isFavorited(p.gameName, p.tagLine)
@@ -1069,6 +1126,7 @@ function HomeContent() {
                             <button
                               key={tab.id}
                               onClick={() => {
+                                sounds.playTabSwitch();
                                 setActiveTab(tab.id);
                                 const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
                                 pushUrl({ tab: tab.id, playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
@@ -1307,9 +1365,6 @@ function HomeContent() {
             pushUrl({ view: "settings" });
           }}
           onOpenLeaderboard={() => setShowLeaderboardModal(true)}
-          onOpenCardExport={() => setShowCardModal(true)}
-          streamerMode={streamerMode}
-          onToggleStreamerMode={() => setStreamerMode(!streamerMode)}
           onToggleFullscreen={toggleFullscreen}
         />
       </main>

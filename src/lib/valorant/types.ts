@@ -4,13 +4,24 @@ export interface ValorantPlayerIdentity {
   tagLine: string;
   region: string;
   accountLevel: number;
+  level?: number;
+  cardUrl?: string;
   cardSmall?: string;
   cardLarge?: string;
   cardWide?: string;
+  cardWideUrl?: string;
   badge?: string | null;
   showBadge?: boolean;
   isOwner?: boolean;
   canEdit?: boolean;
+  rank?: string;
+  rankUrl?: string;
+  rankTier?: number;
+  mainAgent?: any;
+  stats?: any;
+  agentStats?: any[];
+  weapons?: any[];
+  matchHistory?: any[];
 }
 
 export interface ValorantPlayerStats {

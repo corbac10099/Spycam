@@ -5,6 +5,9 @@ import { signOut } from "next-auth/react";
 import NotificationsDropdown from "./NotificationsDropdown";
 import LiveClock from "./LiveClock";
 
+import { sounds } from "@/lib/soundEffects";
+import { IconTrophy, IconSettings } from "./icons/SpyIcons";
+
 export interface HeaderProps {
   session: any;
   riotId: string;
@@ -18,6 +21,8 @@ export interface HeaderProps {
   onOpenNews: (newsId?: string) => void;
   onOpenAgents: () => void;
   onToggleSettings: () => void;
+  onOpenLeaderboard?: () => void;
+  leaderboardOpen?: boolean;
   favorites: Array<{ riotId: string; gameName: string; tagLine: string; cardUrl: string; rank?: string }>;
   onSelectFavorite: (riotId: string) => void;
   onRemoveFavorite?: (player: any) => void;
@@ -38,6 +43,8 @@ export default function Header({
   onOpenNews,
   onOpenAgents,
   onToggleSettings,
+  onOpenLeaderboard,
+  leaderboardOpen = false,
   favorites,
   onSelectFavorite,
   onRemoveFavorite,
@@ -322,6 +329,26 @@ export default function Header({
             playerStats={playerStats}
           />
 
+          {/* Desktop Leaderboard Button */}
+          {onOpenLeaderboard && (
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playTabSwitch();
+                onOpenLeaderboard();
+              }}
+              title="Classement Régional Riot"
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border text-xs font-bold cursor-pointer ${
+                leaderboardOpen
+                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
+                  : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-white hover:text-[var(--color-val-red)]"
+              }`}
+            >
+              <IconTrophy size={15} className="text-white" />
+              <span className="hidden lg:inline text-white">Classement</span>
+            </button>
+          )}
+
           {session?.user && (
             <span className="text-xs text-[var(--color-text-secondary)] hidden md:block max-w-[120px] truncate">
               {(session.user as any).firstName || session.user.name || session.user.email}
@@ -329,7 +356,10 @@ export default function Header({
           )}
 
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => {
+              sounds.playClick();
+              signOut({ callbackUrl: "/login" });
+            }}
             className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-3 py-1.5 rounded-full items-center text-xs gap-1.5 border border-[var(--color-border)] cursor-pointer"
             title="Déconnexion"
           >
@@ -342,18 +372,18 @@ export default function Header({
           </button>
 
           <button
-            onClick={onToggleSettings}
+            onClick={() => {
+              sounds.playTabSwitch();
+              onToggleSettings();
+            }}
             title="Paramètres"
             className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-colors items-center justify-center border cursor-pointer ${
               settingsOpen
                 ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                : "bg-[var(--color-surface-hover)] hover:bg-[var(--color-border)] border-[var(--color-border)] text-[var(--color-text-primary)]"
+                : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-white hover:text-[var(--color-val-red)]"
             }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <IconSettings size={18} className="text-white" />
           </button>
         </div>
       </div>

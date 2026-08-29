@@ -184,6 +184,36 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
 
   const rankTier = 24; // Ascendant 3
 
+  const cardSmall = "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png";
+  const cardLarge = "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/largeart.png";
+  const cardWide = "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png";
+  const rankUrl = `https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${rankTier}/largeicon.png`;
+
+  const statsObj = {
+    kills: totalKills,
+    deaths: totalDeaths,
+    assists: totalAssists,
+    kdRatio: parseFloat((totalKills / Math.max(totalDeaths, 1)).toFixed(2)),
+    headshotPct: totalShots > 0 ? parseFloat(((totalHS / totalShots) * 100).toFixed(1)) : 24.8,
+    winRate: Math.round((totalWins / matchHistory.length) * 100),
+    matchesPlayed: matchHistory.length,
+    acs: Math.round(matchHistory.reduce((s, m) => s + m.acs, 0) / matchHistory.length),
+    aceCount: totalAces,
+    kast: 74.2,
+    kastPercentile: "Top 12%",
+    ddDelta: 16.8,
+    adr: 154.2,
+    firstBloods: 22,
+  };
+
+  const mainAgentObj = {
+    name: mainAgentName,
+    uuid: AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid,
+    role: AGENTS_CATALOG[mainAgentName]?.role || "Controller",
+    icon: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid}/displayicon.png`,
+    fullPortrait: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid}/fullportrait.png`,
+  };
+
   return {
     player: {
       puuid: `mock-puuid-${gameName}`,
@@ -191,41 +221,31 @@ export function generateMockProfile(gameName = "Player", tagLine = "EU1"): Valor
       tagLine,
       region: "eu",
       accountLevel: 142,
-      cardSmall: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png",
-      cardLarge: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/largeart.png",
-      cardWide: "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png",
+      level: 142,
+      cardUrl: cardSmall,
+      cardSmall,
+      cardLarge,
+      cardWide,
+      cardWideUrl: cardWide,
       badge: "verified",
       showBadge: true,
       isOwner: true,
       canEdit: true,
+      rank: "Ascendant 3",
+      rankUrl,
+      rankTier,
+      mainAgent: mainAgentObj,
+      stats: statsObj,
+      agentStats,
+      weapons: OFFICIAL_WEAPONS,
+      matchHistory,
     },
     rank: "Ascendant 3",
-    rankUrl: `https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${rankTier}/largeicon.png`,
+    rankUrl,
     rankTier,
     level: 142,
-    mainAgent: {
-      name: mainAgentName,
-      uuid: AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid,
-      role: AGENTS_CATALOG[mainAgentName]?.role || "Controller",
-      icon: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid}/displayicon.png`,
-      fullPortrait: `https://media.valorant-api.com/agents/${AGENTS_CATALOG[mainAgentName]?.uuid || AGENTS_CATALOG.Clove.uuid}/fullportrait.png`,
-    },
-    stats: {
-      kills: totalKills,
-      deaths: totalDeaths,
-      assists: totalAssists,
-      kdRatio: parseFloat((totalKills / Math.max(totalDeaths, 1)).toFixed(2)),
-      headshotPct: totalShots > 0 ? parseFloat(((totalHS / totalShots) * 100).toFixed(1)) : 24.8,
-      winRate: Math.round((totalWins / matchHistory.length) * 100),
-      matchesPlayed: matchHistory.length,
-      acs: Math.round(matchHistory.reduce((s, m) => s + m.acs, 0) / matchHistory.length),
-      aceCount: totalAces,
-      kast: 74.2,
-      kastPercentile: "Top 12%",
-      ddDelta: 16.8,
-      adr: 154.2,
-      firstBloods: 22,
-    },
+    mainAgent: mainAgentObj,
+    stats: statsObj,
     agentStats,
     weapons: OFFICIAL_WEAPONS,
     matchHistory,

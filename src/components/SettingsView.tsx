@@ -111,6 +111,18 @@ export default function SettingsView({
   const [draftSmartRating, setDraftSmartRating] = useState(smartRating);
   const [draftVideoLoop, setDraftVideoLoop] = useState(videoLoop ?? true);
   const [draftVideoLoopDelay, setDraftVideoLoopDelay] = useState(videoLoopDelay ?? 500);
+  const [draftStreamerMode, setDraftStreamerMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("spycam_streamer_mode") === "true";
+    }
+    return false;
+  });
+  const [draftSoundEnabled, setDraftSoundEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("spycam_sound_enabled") !== "false";
+    }
+    return true;
+  });
   const [draftHiddenStats, setDraftHiddenStats] = useState<string[]>(hiddenStats || []);
   const [draftEnforcePublicStats, setDraftEnforcePublicStats] = useState(enforcePublicStats || false);
   const [draftTheme, setDraftTheme] = useState(theme?.startsWith("custom:") ? "custom" : theme);
@@ -285,6 +297,58 @@ export default function SettingsView({
                   </button>
                 </div>
 
+                {/* Streamer Mode Toggle */}
+                <div className="flex items-center justify-between pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Mode Streamer</h3>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
+                      Masque votre pseudo et tag public pour vos diffusions Twitch/YouTube et captures vidéo
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      sounds.playClick();
+                      setDraftStreamerMode(!draftStreamerMode);
+                    }}
+                    className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
+                      draftStreamerMode ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        draftStreamerMode ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
+                      }`}
+                    ></span>
+                  </button>
+                </div>
+
+                {/* Sound Effects Toggle */}
+                <div className="flex items-center justify-between pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Effets sonores d&apos;interface</h3>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
+                      Joue des retours sonores légers et interactifs lors de la navigation et des sauvegardes
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newVal = !draftSoundEnabled;
+                      setDraftSoundEnabled(newVal);
+                      sounds.setEnabled(newVal);
+                      if (newVal) sounds.playClick();
+                    }}
+                    className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
+                      draftSoundEnabled ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        draftSoundEnabled ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
+                      }`}
+                    ></span>
+                  </button>
+                </div>
+
                 <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
                   <div className="flex items-center justify-between">
                     <div>
@@ -294,7 +358,10 @@ export default function SettingsView({
                       </p>
                     </div>
                     <button
-                      onClick={() => setDraftVideoLoop(!draftVideoLoop)}
+                      onClick={() => {
+                        sounds.playClick();
+                        setDraftVideoLoop(!draftVideoLoop);
+                      }}
                       className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
                         draftVideoLoop ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
                       }`}

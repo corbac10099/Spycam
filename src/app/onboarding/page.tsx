@@ -79,6 +79,7 @@ function OnboardingContent() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState<boolean>(false);
+  const [streamerMode, setStreamerMode] = useState<boolean>(false);
   const [isGuest, setIsGuest] = useState<boolean>(false);
 
   // Search and display toggle for languages
@@ -191,6 +192,9 @@ function OnboardingContent() {
       });
 
       if (res.ok) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("spycam_streamer_mode", String(streamerMode));
+        }
         window.location.href = '/';
       } else {
         const data = await res.json();
@@ -602,7 +606,7 @@ function OnboardingContent() {
               </p>
 
               {/* Privacy Checkbox */}
-              <div className="w-full max-w-md mb-6 flex items-start gap-3 bg-[var(--color-background)]/50 p-4 rounded-xl border border-[var(--color-border)] text-left">
+              <div className="w-full max-w-md mb-4 flex items-start gap-3 bg-[var(--color-background)]/50 p-4 rounded-xl border border-[var(--color-border)] text-left">
                 <input 
                   type="checkbox" 
                   id="privacy-opt-in" 
@@ -612,7 +616,22 @@ function OnboardingContent() {
                 />
                 <label htmlFor="privacy-opt-in" className="text-xs text-[var(--color-text-secondary)] leading-relaxed cursor-pointer">
                   <strong className="text-[var(--color-text-primary)] block mb-1">{"J'accepte de rendre mon profil public"}</strong>
-                  {"En cochant cette case, j'accepte que mes statistiques Valorant puissent être recherchées et vues par les autres utilisateurs de la plateforme. (Vous pourrez repasser en privé à tout moment dans les paramètres)."}
+                  {"En cochant cette case, j'accepte que mes statistiques Valorant puissent être recherchées et vues par les autres utilisateurs de la plateforme."}
+                </label>
+              </div>
+
+              {/* Streamer Mode Checkbox */}
+              <div className="w-full max-w-md mb-6 flex items-start gap-3 bg-[var(--color-background)]/50 p-4 rounded-xl border border-[var(--color-border)] text-left">
+                <input 
+                  type="checkbox" 
+                  id="streamer-mode-opt" 
+                  checked={streamerMode} 
+                  onChange={(e) => setStreamerMode(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-val-red)] focus:ring-[var(--color-val-red)] focus:ring-offset-[var(--color-surface)]"
+                />
+                <label htmlFor="streamer-mode-opt" className="text-xs text-[var(--color-text-secondary)] leading-relaxed cursor-pointer">
+                  <strong className="text-[var(--color-text-primary)] block mb-1">{"Activer le Mode Streamer"}</strong>
+                  {"Masque automatiquement votre pseudo et tag public pour préserver votre anonymat lors de vos diffusions en direct ou vidéos."}
                 </label>
               </div>
 
