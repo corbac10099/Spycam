@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback, useLayoutEffect } from "react";
 import { tr } from "@/lib/i18n";
 import { sounds } from "@/lib/soundEffects";
 
@@ -109,9 +109,52 @@ export const PlayerRow = React.memo(function PlayerRow({ player }: { player: any
   );
 });
 
+const MATCH_TABS = [
+  { id: "overview", label: "Preview" },
+  { id: "scoreboard", label: "Leaderboard" },
+  { id: "timeline", label: "Timeline" },
+  { id: "duels", label: "Duels 1v1" },
+  { id: "economy", label: "Économie" },
+  { id: "killmap", label: "Killmap 2D" },
+];
+
 export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPlayer }: { match: any; searchPlayer: (id: string) => void }) {
   const [tab, setTab] = useState<"overview" | "scoreboard" | "timeline" | "duels" | "economy" | "killmap">("overview");
   const [isExporting, setIsExporting] = useState(false);
+
+  // Sliding Red Underline State
+  const matchTabsContainerRef = useRef<HTMLDivElement>(null);
+  const matchTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [matchUnderlineStyle, setMatchUnderlineStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  const updateMatchUnderline = useCallback(() => {
+    if (!matchTabsContainerRef.current) return;
+    const btn = matchTabRefs.current[tab];
+    const container = matchTabsContainerRef.current;
+    if (!btn || !container) {
+      setMatchUnderlineStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    if (btnRect.width > 0) {
+      setMatchUnderlineStyle({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+        opacity: 1,
+      });
+    }
+  }, [tab]);
+
+  useLayoutEffect(() => {
+    updateMatchUnderline();
+    const t1 = setTimeout(updateMatchUnderline, 30);
+    const t2 = setTimeout(updateMatchUnderline, 100);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [tab, updateMatchUnderline]);
 
   // Function to export Match Card as high quality PNG
   const exportMatchCard = () => {
@@ -222,30 +265,41 @@ export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPl
     <div className="glass-panel rounded-2xl p-4 sm:p-6 mt-1 border border-[var(--color-border)] animate-in fade-in slide-in-from-top-4 duration-300 shadow-[0_15px_40px_rgba(0,0,0,0.5)] z-10 relative">
       {/* Top Bar with Tabs and Export PNG Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] mb-6 pb-2">
-        <div className="flex flex-wrap gap-4 sm:gap-6 overflow-x-auto custom-scrollbar">
-          {[
-            { id: "overview", label: "Aperçu" },
-            { id: "scoreboard", label: "Classement" },
-            { id: "timeline", label: "Chronologie" },
-            { id: "duels", label: "Duels 1v1" },
-            { id: "economy", label: "Économie" },
-            { id: "killmap", label: "Killmap 2D" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onMouseEnter={() => sounds.playHover()}
-              onClick={() => {
-                sounds.playTabSwitch();
-                setTab(t.id as any);
-              }}
-              className={`pb-2 text-[10px] sm:text-xs uppercase tracking-widest font-bold transition-all relative cursor-pointer whitespace-nowrap ${
-                tab === t.id ? "text-[var(--color-val-red)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              {t.label}
-              {tab === t.id && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-val-red)] shadow-[0_0_10px_var(--color-val-red)]"></div>}
-            </button>
-          ))}
+        <div ref={matchTabsContainerRef} className="relative flex flex-wrap gap-4 sm:gap-6 overflow-x-auto custom-scrollbar">
+          {/* Sliding Red Underline Indicator */}
+          <div
+            className="absolute bottom-0 h-[2.5px] rounded-full bg-[var(--color-val-red)] shadow-[0_0_12px_rgba(255,70,85,0.9)] pointer-events-none z-10"
+            style={{
+              transform: `translateX(${matchUnderlineStyle.left}px)`,
+              width: `${matchUnderlineStyle.width}px`,
+              opacity: matchUnderlineStyle.opacity,
+              transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          />
+
+          {MATCH_TABS.map((t) => {
+            const isActive = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                ref={(el) => {
+                  matchTabRefs.current[t.id] = el;
+                }}
+                onMouseEnter={() => sounds.playHover()}
+                onClick={() => {
+                  sounds.playTabSwitch();
+                  setTab(t.id as any);
+                }}
+                className={`pb-2 text-[10px] sm:text-xs uppercase tracking-widest font-black transition-colors duration-300 relative cursor-pointer select-none active:scale-95 whitespace-nowrap ${
+                  isActive
+                    ? "text-[var(--color-val-red)] drop-shadow-[0_0_8px_rgba(255,70,85,0.4)]"
+                    : "text-[var(--color-text-secondary)] hover:text-white"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
         <button
