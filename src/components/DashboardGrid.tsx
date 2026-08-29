@@ -72,39 +72,68 @@ function itemsOverlap(a: GridItemConfig, b: GridItemConfig): boolean {
   return a.x < bRight && aRight > b.x && a.y < bBottom && aBottom > b.y;
 }
 
-// Gentle collision resolution on drop (only pushes when there is an actual overlap)
+// Find first available slot scanning from top-left
+function findFirstAvailableSlot(
+  visibleItems: GridItemConfig[],
+  colSpan: number,
+  rowSpan: number,
+  cols: number
+): { x: number; y: number } {
+  let maxSearchRow = 0;
+  visibleItems.forEach((it) => {
+    maxSearchRow = Math.max(maxSearchRow, it.y + it.rowSpan);
+  });
+
+  for (let y = 0; y <= maxSearchRow + 1; y++) {
+    for (let x = 0; x <= cols - colSpan; x++) {
+      const candidate: GridItemConfig = { id: "__candidate__", x, y, colSpan, rowSpan, visible: true };
+      const hasOverlap = visibleItems.some((it) => itemsOverlap(candidate, it));
+      if (!hasOverlap) {
+        return { x, y };
+      }
+    }
+  }
+  return { x: 0, y: maxSearchRow };
+}
+
+// Clean collision resolution on drop (only pushes conflicting items down)
 function resolveCollisions(items: GridItemConfig[], movedId: string, cols: number): GridItemConfig[] {
   const result = items.map((i) => ({ ...i }));
   const moved = result.find((i) => i.id === movedId);
   if (!moved || !moved.visible) return result;
 
-  for (let iter = 0; iter < 30; iter++) {
-    let hadCollision = false;
-    for (const other of result) {
-      if (other.id === movedId || !other.visible) continue;
-      if (itemsOverlap(moved, other)) {
-        other.y = moved.y + moved.rowSpan;
-        if (other.x + other.colSpan > cols) {
-          other.x = Math.max(0, cols - other.colSpan);
-        }
-        hadCollision = true;
+  // 1. Push any item colliding with the moved item
+  for (const other of result) {
+    if (other.id === movedId || !other.visible) continue;
+    if (itemsOverlap(moved, other)) {
+      other.y = moved.y + moved.rowSpan;
+      if (other.x + other.colSpan > cols) {
+        other.x = Math.max(0, cols - other.colSpan);
       }
     }
+  }
+
+  // 2. Cascade down any secondary overlaps
+  for (let pass = 0; pass < 5; pass++) {
+    let hadCascade = false;
     for (let i = 0; i < result.length; i++) {
       if (!result[i].visible) continue;
-      for (let j = i + 1; j < result.length; j++) {
-        if (!result[j].visible) continue;
-        if (result[i].id === movedId || result[j].id === movedId) continue;
+      for (let j = 0; j < result.length; j++) {
+        if (i === j || !result[j].visible || result[j].id === movedId) continue;
         if (itemsOverlap(result[i], result[j])) {
-          const upper = result[i].y <= result[j].y ? result[i] : result[j];
-          const lower = result[i].y <= result[j].y ? result[j] : result[i];
-          lower.y = upper.y + upper.rowSpan;
-          hadCollision = true;
+          if (result[j].y >= result[i].y) {
+            result[j].y = result[i].y + result[i].rowSpan;
+            if (result[j].x + result[j].colSpan > cols) {
+              result[j].x = Math.max(0, cols - result[j].colSpan);
+            }
+            hadCascade = true;
+          }
         }
       }
     }
-    if (!hadCollision) break;
+    if (!hadCascade) break;
   }
+
   return result;
 }
 
@@ -277,14 +306,41 @@ export default function DashboardGrid({
     saveState(scaledLayout, clampedCols);
   };
 
-  // Toggle item visibility
+  // Toggle item visibility with smart minimal-size restoration in top-most slot
   const toggleVisibility = (id: string, makeVisible?: boolean) => {
+    const currentItem = layout.find((i) => i.id === id);
+    if (!currentItem) return;
+
+    const willBeVisible = makeVisible !== undefined ? makeVisible : !currentItem.visible;
+
+    if (!willBeVisible) {
+      const updated = layout.map((item) => (item.id === id ? { ...item, visible: false } : item));
+      saveState(updated);
+      return;
+    }
+
+    // When restoring to grid: set minimal readable size
+    const isChart = id === "chart";
+    const minRow = isChart ? Math.max(2, Math.ceil(130 / step)) : Math.max(1, Math.ceil(75 / step));
+    const minCol = isChart ? Math.min(gridCols, Math.max(6, Math.ceil(240 / step))) : Math.max(2, Math.min(gridCols, Math.ceil(95 / step)));
+
+    const visibleItems = layout.filter((item) => item.visible && item.id !== id);
+    const slot = findFirstAvailableSlot(visibleItems, minCol, minRow, gridCols);
+
     const updated = layout.map((item) => {
       if (item.id === id) {
-        return { ...item, visible: makeVisible !== undefined ? makeVisible : !item.visible };
+        return {
+          ...item,
+          x: slot.x,
+          y: slot.y,
+          colSpan: minCol,
+          rowSpan: minRow,
+          visible: true,
+        };
       }
       return item;
     });
+
     saveState(updated);
   };
 
