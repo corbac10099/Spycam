@@ -50,6 +50,33 @@ interface LobbiesViewProps {
   voiceManagerRef?: React.MutableRefObject<VoiceManager | null>;
 }
 
+export const RANDOM_VALORANT_AVATARS = [
+  "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png", // Jett
+  "https://media.valorant-api.com/playercards/33296839-4467-9c02-e224-3490710ce123/smallart.png", // Reyna
+  "https://media.valorant-api.com/playercards/e979a0b2-4d04-3a56-4b4e-4fbc11f32a56/smallart.png", // Omen
+  "https://media.valorant-api.com/playercards/7e1586a9-4674-8848-038c-cfbc702330a1/smallart.png", // Viper
+  "https://media.valorant-api.com/playercards/df2586e3-4632-68b4-0c58-4ea7e9f3b145/smallart.png", // Cypher
+  "https://media.valorant-api.com/playercards/85ad13f7-49e9-088f-57e0-f38b4b126d3e/smallart.png", // Sova
+  "https://media.valorant-api.com/playercards/c189b88e-49b8-b4b1-4f10-b99611ad1b26/smallart.png", // Chamber
+  "https://media.valorant-api.com/playercards/2f442f9b-4395-8854-8e10-388b64e0ad5c/smallart.png", // Fade
+  "https://media.valorant-api.com/playercards/1a12a528-4448-f682-132d-209a1506bf63/smallart.png", // Clove
+  "https://media.valorant-api.com/playercards/60205d1a-4712-88cf-9486-2a88a0995c52/smallart.png", // Iso
+  "https://media.valorant-api.com/playercards/41819e68-45e8-5609-b68e-e2b27076eb5c/smallart.png", // Raze
+  "https://media.valorant-api.com/playercards/5e38600c-43f1-3ec9-b570-ff8cf5501b44/smallart.png", // Killjoy
+  "https://media.valorant-api.com/playercards/a75d5a23-42e7-cf6e-8212-32b0a1f0a1c1/smallart.png", // Skye
+];
+
+export function getPlayerAvatar(name: string = "player", customUrl?: string): string {
+  if (customUrl && customUrl.startsWith("http")) return customUrl;
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % RANDOM_VALORANT_AVATARS.length;
+  return RANDOM_VALORANT_AVATARS[idx];
+}
+
 export function renderRoleIcon(role: string, size = 14) {
   switch (role) {
     case "Duelliste":
@@ -1260,13 +1287,11 @@ export default function LobbiesView({
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {lobby.leaderAvatar ? (
-                          <img src={lobby.leaderAvatar} alt={lobby.leaderName} className="w-11 h-11 rounded-xl object-cover border border-white/20 flex-shrink-0" />
-                        ) : (
-                          <div className="w-11 h-11 rounded-xl bg-[#1a232e] border border-white/20 flex items-center justify-center text-white font-black flex-shrink-0">
-                            {lobby.leaderName[0]?.toUpperCase()}
-                          </div>
-                        )}
+                        <img
+                          src={getPlayerAvatar(lobby.leaderName, lobby.leaderAvatar)}
+                          alt={lobby.leaderName}
+                          className="w-11 h-11 rounded-xl object-cover border border-white/20 flex-shrink-0"
+                        />
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="text-sm font-black text-white truncate">{lobby.leaderName}</span>
@@ -1535,27 +1560,15 @@ export default function LobbiesView({
                     <div className="flex flex-col items-center gap-1.5 animate-pop-in">
                       <div className="relative">
                         {isMyVoiceSpeaking && <div className="speaking-beam-ring" />}
-                        {myAvatar ? (
-                          <img
-                            src={myAvatar}
-                            alt={myName}
-                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 relative z-0 ${
-                              isMyVoiceSpeaking
-                                ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
-                                : "border-white/20"
-                            }`}
-                          />
-                        ) : (
-                          <div
-                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 relative z-0 ${
-                              isMyVoiceSpeaking
-                                ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
-                                : "border-white/20"
-                            }`}
-                          >
-                            {myName[0]?.toUpperCase()}
-                          </div>
-                        )}
+                        <img
+                          src={getPlayerAvatar(myName, myAvatar)}
+                          alt={myName}
+                          className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 relative z-0 ${
+                            isMyVoiceSpeaking
+                              ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
+                              : "border-white/20"
+                          }`}
+                        />
                         {isMicMuted && (
                           <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white z-20">
                             <IconMicOff size={10} />
@@ -1578,27 +1591,16 @@ export default function LobbiesView({
                           <div key={v.memberId} className="flex flex-col items-center gap-1.5 animate-pop-in">
                             <div className="relative">
                               {isSpeaking && <div className="speaking-beam-ring" />}
-                              {v.avatarUrl ? (
-                                <img
-                                  src={v.avatarUrl}
-                                  alt={v.gameName}
-                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 relative z-0 ${
-                                    isSpeaking
-                                      ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
-                                      : "border-white/20"
-                                  }`}
-                                />
-                              ) : (
-                                <div
-                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 relative z-0 ${
-                                    isSpeaking
-                                      ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
-                                      : "border-white/20"
-                                  }`}
-                                >
-                                  {v.gameName[0]?.toUpperCase()}
-                                </div>
-                              )}
+                              <img
+                                src={getPlayerAvatar(v.gameName, v.avatarUrl)}
+                                alt={v.gameName}
+                                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 relative z-0 ${
+                                  isSpeaking
+                                    ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
+                                    : "border-white/20"
+                                }`
+                              }
+                              />
                               {v.isMuted && (
                                 <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white z-20">
                                   <IconMicOff size={10} />

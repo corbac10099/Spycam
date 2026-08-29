@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { signOut } from "next-auth/react";
 import NotificationsDropdown from "./NotificationsDropdown";
 import LiveClock from "./LiveClock";
@@ -42,6 +42,8 @@ export interface HeaderProps {
   playerStats?: any;
 }
 
+type NavId = "profile" | "news" | "agents" | "lobbies";
+
 export default function Header({
   session,
   riotId,
@@ -71,7 +73,51 @@ export default function Header({
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load recent searches from localStorage
+  // ─── Sliding Pill State ─────────────────────────────────────────────
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<Record<NavId, HTMLButtonElement | null>>({
+    profile: null,
+    news: null,
+    agents: null,
+    lobbies: null,
+  });
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  // Derive active nav id from props
+  const activeNavId: NavId | null = settingsOpen
+    ? null
+    : lobbiesView
+      ? "lobbies"
+      : agentsView
+        ? "agents"
+        : newsView
+          ? "news"
+          : myRiotId
+            ? "profile"
+            : null;
+
+  // Measure active button and position the sliding pill
+  useLayoutEffect(() => {
+    if (!activeNavId || !navContainerRef.current) {
+      setPillStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const btn = btnRefs.current[activeNavId];
+    const container = navContainerRef.current;
+    if (!btn || !container) {
+      setPillStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    setPillStyle({
+      left: btnRect.left - containerRect.left,
+      width: btnRect.width,
+      opacity: 1,
+    });
+  }, [activeNavId, myRiotId]);
+
+  // ─── Recent Searches ───────────────────────────────────────────────
   useEffect(() => {
     try {
       const stored = localStorage.getItem("spycam_recent_searches");
@@ -141,12 +187,45 @@ export default function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ─── Nav Items Config ──────────────────────────────────────────────
+  const navItems: { id: NavId; label: string; icon: React.ReactNode; onClick: () => void; show: boolean }[] = [
+    {
+      id: "profile",
+      label: "Profil",
+      icon: <IconHome size={15} />,
+      onClick: onGoHome,
+      show: !!myRiotId,
+    },
+    {
+      id: "news",
+      label: "Actualités",
+      icon: <IconNews size={15} />,
+      onClick: () => onOpenNews(),
+      show: true,
+    },
+    {
+      id: "agents",
+      label: "Agents",
+      icon: <IconAgents size={15} />,
+      onClick: onOpenAgents,
+      show: true,
+    },
+    {
+      id: "lobbies",
+      label: "Salons",
+      icon: <IconUsers size={15} />,
+      onClick: () => onOpenLobbies?.(),
+      show: !!onOpenLobbies,
+    },
+  ];
+
   return (
     <header className="w-full z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md sticky top-0 mb-6 sm:mb-8 flex flex-col shadow-lg">
-      {/* Top Navbar */}
+      {/* Top Navbar — 3 column grid layout */}
       <div className="relative flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 w-full">
-        {/* Left: Logo + Nav segmented group */}
-        <div className="flex items-center gap-2 sm:gap-3 relative z-10">
+
+        {/* ═══ LEFT: Logo ═══ */}
+        <div className="flex items-center gap-2 sm:gap-3 relative z-10 flex-shrink-0">
           <div
             onClick={onGoHome}
             className="flex items-center gap-2.5 cursor-pointer select-none transition-all hover:scale-105 active:scale-95 group"
@@ -163,88 +242,54 @@ export default function Header({
               SPYCAM
             </span>
           </div>
+        </div>
 
-          {/* Navigation Items Segmented Pill */}
-          <div className="hidden md:flex items-center gap-1.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md ml-2">
-            {/* Home button */}
-            {myRiotId && (
-              <button
-                onClick={() => {
-                  sounds.playTabSwitch();
-                  onGoHome();
-                }}
-                onMouseEnter={() => sounds.playHover()}
-                title="Mon Profil & Statistiques (1)"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
-                  !newsView && !agentsView && !lobbiesView && !settingsOpen
-                    ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)] scale-100"
-                    : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
-                }`}
-              >
-                <IconHome size={15} />
-                <span className="hidden xl:inline">Profil</span>
-              </button>
-            )}
-
-            {/* News button */}
-            <button
-              onClick={() => {
-                sounds.playTabSwitch();
-                onOpenNews();
+        {/* ═══ CENTER-LEFT: Navigation Pill Container with Sliding Indicator ═══ */}
+        <div className="hidden md:flex items-center relative z-10 ml-4 xl:ml-6">
+          <div
+            ref={navContainerRef}
+            className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md"
+          >
+            {/* Animated Sliding Red Pill Background */}
+            <div
+              className="absolute top-1 bottom-1 rounded-xl bg-[var(--color-val-red)] shadow-[0_0_18px_rgba(255,70,85,0.6)] pointer-events-none z-0"
+              style={{
+                transform: `translateX(${pillStyle.left}px)`,
+                width: `${pillStyle.width}px`,
+                opacity: pillStyle.opacity,
+                transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
               }}
-              onMouseEnter={() => sounds.playHover()}
-              title="Actualités Valorant"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
-                newsView && !agentsView
-                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
-                  : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
-              }`}
-            >
-              <IconNews size={15} />
-              <span className="hidden xl:inline">Actualités</span>
-            </button>
+            />
 
-            {/* Agents Wiki button */}
-            <button
-              onClick={() => {
-                sounds.playTabSwitch();
-                onOpenAgents();
-              }}
-              onMouseEnter={() => sounds.playHover()}
-              title="Wiki & Guides Agents (2)"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
-                agentsView
-                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
-                  : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
-              }`}
-            >
-              <IconAgents size={15} />
-              <span className="hidden xl:inline">Agents</span>
-            </button>
-
-            {/* LFG Lobbies button */}
-            {onOpenLobbies && (
-              <button
-                onClick={() => {
-                  sounds.playTabSwitch();
-                  onOpenLobbies();
-                }}
-                onMouseEnter={() => sounds.playHover()}
-                title="Salons LFG & Vocal (4)"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
-                  lobbiesView
-                    ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
-                    : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
-                }`}
-              >
-                <IconUsers size={15} />
-                <span className="hidden xl:inline">Salons</span>
-              </button>
-            )}
+            {/* Nav Buttons */}
+            {navItems
+              .filter((item) => item.show)
+              .map((item) => {
+                const isActive = activeNavId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    ref={(el) => { btnRefs.current[item.id] = el; }}
+                    onClick={() => {
+                      sounds.playTabSwitch();
+                      item.onClick();
+                    }}
+                    onMouseEnter={() => sounds.playHover()}
+                    className={`relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer select-none transition-colors duration-200 active:scale-95 ${
+                      isActive
+                        ? "text-white"
+                        : "text-neutral-400 hover:text-white"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="hidden xl:inline">{item.label}</span>
+                  </button>
+                );
+              })}
           </div>
         </div>
 
-        {/* Center: Search Bar — absolutely centered in the header */}
+        {/* ═══ CENTER: Search Bar — absolutely centered ═══ */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4 sm:px-6">
           <div ref={searchContainerRef} className="relative w-full max-w-sm sm:max-w-md pointer-events-auto">
             <form onSubmit={handleSubmit} className="relative w-full">
@@ -278,68 +323,67 @@ export default function Header({
               <div className="absolute left-0 right-0 top-full mt-2 bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-2">
                 {/* Recent Searches */}
                 {recentSearches.length > 0 && (
-                  <div className="mb-2">
-                    <div className="flex items-center justify-between px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-secondary)]">
-                      <span>Recherches récentes</span>
+                  <div className="mb-1">
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] tracking-wider">Recherches récentes</span>
                       <button
                         type="button"
                         onClick={clearAllRecent}
-                        className="text-red-400 hover:underline cursor-pointer"
+                        className="text-[9px] text-[var(--color-text-secondary)] hover:text-[var(--color-val-red)] cursor-pointer"
                       >
-                        Effacer
+                        Tout effacer
                       </button>
                     </div>
-                    <div className="space-y-1">
-                      {recentSearches.map((query) => (
-                        <div
-                          key={query}
-                          onMouseEnter={() => sounds.playHover()}
+                    <div className="space-y-0.5">
+                      {recentSearches.map((search) => (
+                        <button
+                          key={search}
+                          type="button"
                           onClick={() => {
-                            sounds.playClick();
-                            setRiotId(query);
+                            setRiotId(search);
                             setIsFocused(false);
-                            onSelectFavorite(query);
+                            setTimeout(() => {
+                              const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+                              saveRecentSearch(search);
+                              onSearch(fakeEvent);
+                            }, 50);
                           }}
-                          className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[var(--color-surface-hover)] cursor-pointer text-xs font-bold text-[var(--color-text-primary)] transition-colors group"
+                          className="flex items-center justify-between w-full p-2 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer text-left group"
                         >
                           <div className="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)]">
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            <span>{query}</span>
+                            <span className="text-[10px] text-[var(--color-text-secondary)]">🕑</span>
+                            <span className="text-xs font-medium text-[var(--color-text-primary)]">{search}</span>
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => removeRecentSearch(query, e)}
-                            className="text-[var(--color-text-secondary)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-xs cursor-pointer"
-                            title="Retirer"
+                            onClick={(e) => removeRecentSearch(search, e)}
+                            className="w-5 h-5 rounded-full hover:bg-red-500/20 flex items-center justify-center text-[10px] text-[var(--color-text-secondary)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                           >
                             ✕
                           </button>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Quick Favorites Section */}
+                {/* Favorites in Search */}
                 {favorites.length > 0 && (
-                  <div className="pt-2 border-t border-[var(--color-border)]">
-                    <div className="px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-secondary)]">
-                      Favoris rapides
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {favorites.slice(0, 4).map((fav) => (
+                  <div className="border-t border-[var(--color-border)]/50 pt-1 mt-1">
+                    <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] tracking-wider px-2 py-1 block">
+                      ★ Favoris
+                    </span>
+                    <div className="space-y-0.5">
+                      {favorites.map((fav) => (
                         <button
                           key={fav.riotId}
                           type="button"
                           onClick={() => {
-                            setRiotId(fav.riotId);
                             setIsFocused(false);
+                            sounds.playClick();
                             onSelectFavorite(fav.riotId);
                           }}
-                          className="flex items-center gap-2 p-2 rounded-xl hover:bg-[var(--color-surface-hover)] cursor-pointer text-left transition-colors border border-transparent hover:border-[var(--color-border)]"
+                          className="flex items-center gap-2 p-2 rounded-xl hover:bg-[var(--color-surface-hover)] cursor-pointer text-left transition-colors border border-transparent hover:border-[var(--color-border)] w-full"
                         >
                           {fav.cardUrl ? (
                             <img referrerPolicy="no-referrer" src={fav.cardUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
@@ -368,19 +412,21 @@ export default function Header({
           </div>
         </div>
 
-        {/* Right: Clock, Notifications, Auth & Settings */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Live Clock (Desktop PC only) */}
-          <LiveClock />
+        {/* ═══ RIGHT: Segmented Glass Capsules ═══ */}
+        <div className="flex items-center gap-2 sm:gap-2.5 relative z-10 flex-shrink-0">
 
-          {/* Notifications Dropdown */}
-          <NotificationsDropdown
-            onNavigateToNews={onOpenNews}
-            onNavigateToAgents={onOpenAgents}
-            playerStats={playerStats}
-          />
+          {/* ── Capsule 1: LiveClock + Notifications ── */}
+          <div className="hidden md:flex items-center gap-0 p-0.5 rounded-full bg-black/25 border border-white/10 backdrop-blur-md">
+            <LiveClock />
+            <div className="w-px h-5 bg-white/10 mx-0.5" />
+            <NotificationsDropdown
+              onNavigateToNews={onOpenNews}
+              onNavigateToAgents={onOpenAgents}
+              playerStats={playerStats}
+            />
+          </div>
 
-          {/* Desktop Leaderboard Button */}
+          {/* ── Capsule 2: Leaderboard ── */}
           {onOpenLeaderboard && (
             <button
               type="button"
@@ -390,51 +436,85 @@ export default function Header({
               }}
               onMouseEnter={() => sounds.playHover()}
               title="Classement Régional Riot"
-              className={`hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-all border text-xs font-bold cursor-pointer active:scale-95 ${
+              className={`hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all border text-xs font-bold cursor-pointer active:scale-95 ${
                 leaderboardOpen
                   ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                  : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-white hover:text-[var(--color-val-red)]"
+                  : "bg-black/25 hover:bg-white/[0.07] border-white/10 text-white/80 hover:text-white backdrop-blur-md"
               }`}
             >
-              <IconTrophy size={15} className="text-white" />
-              <span className="hidden lg:inline text-white">Classement</span>
+              <IconTrophy size={15} />
+              <span className="hidden lg:inline">Classement</span>
             </button>
           )}
 
-          {session?.user && (
-            <span className="text-xs font-semibold text-[var(--color-text-secondary)] hidden md:block max-w-[120px] truncate">
-              {(session.user as any).firstName || session.user.name || session.user.email}
-            </span>
-          )}
+          {/* ── Capsule 3: User + Logout + Settings ── */}
+          <div className="hidden md:flex items-center gap-0 p-0.5 rounded-full bg-black/25 border border-white/10 backdrop-blur-md">
+            {/* User Name */}
+            {session?.user && (
+              <span className="text-[11px] font-bold text-white/70 px-2.5 max-w-[100px] truncate select-none">
+                {(session.user as any).firstName || session.user.name || session.user.email}
+              </span>
+            )}
 
-          <button
-            onClick={() => {
-              sounds.playClick();
-              signOut({ callbackUrl: "/login" });
-            }}
-            onMouseEnter={() => sounds.playHover()}
-            className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-all text-[var(--color-text-primary)] hover:text-white font-bold px-3.5 py-1.5 rounded-full items-center text-xs gap-1.5 border border-[var(--color-border)] cursor-pointer active:scale-95"
-            title="Déconnexion"
-          >
-            <IconLogOut size={14} />
-            <span>Déconnexion</span>
-          </button>
+            {/* Separator */}
+            {session?.user && <div className="w-px h-5 bg-white/10" />}
 
-          <button
-            onClick={() => {
-              sounds.playTabSwitch();
-              onToggleSettings();
-            }}
-            onMouseEnter={() => sounds.playHover()}
-            title="Paramètres & Raccourcis"
-            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all items-center justify-center border cursor-pointer active:scale-95 ${
-              settingsOpen
-                ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-white hover:text-[var(--color-val-red)]"
-            }`}
-          >
-            <IconSettings size={18} className="text-white" />
-          </button>
+            {/* Logout */}
+            <button
+              onClick={() => {
+                sounds.playClick();
+                signOut({ callbackUrl: "/login" });
+              }}
+              onMouseEnter={() => sounds.playHover()}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-white/70 hover:text-red-400 transition-all cursor-pointer active:scale-95 rounded-full hover:bg-red-500/10"
+              title="Déconnexion"
+            >
+              <IconLogOut size={14} />
+              <span className="text-[11px] font-bold hidden lg:inline">Quitter</span>
+            </button>
+
+            {/* Separator */}
+            <div className="w-px h-5 bg-white/10" />
+
+            {/* Settings */}
+            <button
+              onClick={() => {
+                sounds.playTabSwitch();
+                onToggleSettings();
+              }}
+              onMouseEnter={() => sounds.playHover()}
+              title="Paramètres & Raccourcis"
+              className={`w-8 h-8 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                settingsOpen
+                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_12px_rgba(255,70,85,0.5)]"
+                  : "text-white/70 hover:text-white hover:bg-white/[0.07]"
+              }`}
+            >
+              <IconSettings size={16} className={settingsOpen ? "animate-spin-slow" : ""} />
+            </button>
+          </div>
+
+          {/* ── Mobile fallback buttons ── */}
+          <div className="flex md:hidden items-center gap-1.5">
+            <NotificationsDropdown
+              onNavigateToNews={onOpenNews}
+              onNavigateToAgents={onOpenAgents}
+              playerStats={playerStats}
+            />
+            <button
+              onClick={() => {
+                sounds.playTabSwitch();
+                onToggleSettings();
+              }}
+              className={`w-9 h-9 rounded-full transition-all flex items-center justify-center border cursor-pointer active:scale-95 ${
+                settingsOpen
+                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white"
+                  : "bg-[var(--color-surface)] border-[var(--color-border)] text-white"
+              }`}
+            >
+              <IconSettings size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
