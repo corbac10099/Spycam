@@ -205,9 +205,9 @@ export default function DashboardGrid({
     setDrawerOpen(false);
   };
 
-  // Proportional scaling when changing gridCols density
+  // Proportional scaling when changing gridCols density (clamped to max 29)
   const handleColumnsChange = (newCols: number) => {
-    const clampedCols = Math.max(4, Math.min(48, newCols));
+    const clampedCols = Math.max(4, Math.min(29, newCols));
     const prevCols = gridCols;
     if (clampedCols === prevCols) return;
 
@@ -251,7 +251,7 @@ export default function DashboardGrid({
     saveState(updated);
   };
 
-  // Custom 60fps Mouse Dragging (Pins directly to cursor, zero lag)
+  // Custom 60fps Mouse Dragging (RAF Throttled, Zero Lag)
   const handleCardMouseDown = (e: React.MouseEvent, item: GridItemConfig) => {
     if (!isEditing || resizingItemId) return;
     if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest(".resize-handle")) {
@@ -275,24 +275,29 @@ export default function DashboardGrid({
 
     let currentTargetX = startX;
     let currentTargetY = startY;
+    let rafId: number | null = null;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - startMouseX;
-      const deltaY = moveEvent.clientY - startMouseY;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const deltaX = moveEvent.clientX - startMouseX;
+        const deltaY = moveEvent.clientY - startMouseY;
 
-      currentTargetX = Math.max(0, Math.min(gridCols - spanW, Math.round(startX + deltaX / step)));
-      currentTargetY = Math.max(0, Math.round(startY + deltaY / step));
+        currentTargetX = Math.max(0, Math.min(gridCols - spanW, Math.round(startX + deltaX / step)));
+        currentTargetY = Math.max(0, Math.round(startY + deltaY / step));
 
-      setDraggingItem({
-        id: item.id,
-        deltaX,
-        deltaY,
-        targetX: currentTargetX,
-        targetY: currentTargetY,
+        setDraggingItem({
+          id: item.id,
+          deltaX,
+          deltaY,
+          targetX: currentTargetX,
+          targetY: currentTargetY,
+        });
       });
     };
 
     const onMouseUp = () => {
+      if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
 
@@ -532,7 +537,7 @@ export default function DashboardGrid({
                     <input
                       type="number"
                       min={4}
-                      max={48}
+                      max={29}
                       value={gridCols}
                       onChange={(e) => handleColumnsChange(Number(e.target.value) || 12)}
                       className="w-11 bg-black/60 border border-white/15 text-white rounded-lg px-1.5 py-0.5 text-center text-xs font-mono font-black focus:border-[var(--color-val-red)] focus:outline-none"
@@ -653,28 +658,24 @@ export default function DashboardGrid({
             height: isEditing ? `${gridPixelHeight}px` : "auto",
           }}
         >
-          {/* SVG dots matrix: strictly bounded inside usableWidth and gridPixelHeight */}
+          {/* SVG dots matrix: GPU-accelerated pattern (zero lag) */}
           {isEditing && (
             <svg
               width={usableWidth}
               height={gridPixelHeight}
               className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
             >
-              {Array.from({ length: totalRows + 1 }).map((_, r) =>
-                Array.from({ length: gridCols + 1 }).map((_, c) => {
-                  const cx = Math.min(usableWidth - 2, Math.max(2, c * step));
-                  const cy = Math.min(gridPixelHeight - 2, Math.max(2, r * step));
-                  return (
-                    <circle
-                      key={`${r}-${c}`}
-                      cx={cx}
-                      cy={cy}
-                      r="1.6"
-                      fill="rgba(255, 70, 85, 0.4)"
-                    />
-                  );
-                })
-              )}
+              <defs>
+                <pattern
+                  id="spycam-grid-dots"
+                  width={step}
+                  height={step}
+                  patternUnits="userSpaceOnUse"
+                >
+                  <circle cx="2" cy="2" r="1.6" fill="rgba(255, 70, 85, 0.45)" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#spycam-grid-dots)" />
             </svg>
           )}
 
