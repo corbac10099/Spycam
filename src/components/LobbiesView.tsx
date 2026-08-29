@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { sounds } from "@/lib/soundEffects";
 import { LobbyItem, LobbyMember, VoiceMember, ChatMessage, getTierName } from "@/app/api/lobbies/route";
 import { VoiceManager, AudioDeviceInfo } from "@/lib/voiceManager";
@@ -108,6 +108,13 @@ const ROLES_LIST = [
   { id: "Tous Rôles", label: "Tous Rôles" },
 ];
 
+const MODE_TABS = [
+  { id: "all", label: "All" },
+  { id: "Compétitif", label: "Competitive" },
+  { id: "Non-classé", label: "Unrated" },
+  { id: "others", label: "Others" },
+];
+
 export default function LobbiesView({
   playerData,
   isPublic = true,
@@ -191,6 +198,28 @@ export default function LobbiesView({
   const [filterMode, setFilterMode] = useState<string>("all");
   const [filterSlots, setFilterSlots] = useState<string>("all");
   const [filterSearch, setFilterSearch] = useState<string>("");
+
+  // Mode Tabs Sliding Pill State
+  const modeContainerRef = useRef<HTMLDivElement>(null);
+  const modeBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [modePillStyle, setModePillStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  useLayoutEffect(() => {
+    if (!modeContainerRef.current) return;
+    const btn = modeBtnRefs.current[filterMode];
+    const container = modeContainerRef.current;
+    if (!btn || !container) {
+      setModePillStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    setModePillStyle({
+      left: btnRect.left - containerRect.left,
+      width: btnRect.width,
+      opacity: 1,
+    });
+  }, [filterMode, currentView]);
 
   // ==================== SALON REAL-TIME STATE ====================
   const [chatMessage, setChatMessage] = useState<string>("");
@@ -676,7 +705,13 @@ export default function LobbiesView({
 
   // Filter lobbies
   const filteredLobbies = lobbies.filter((l) => {
-    if (filterMode !== "all" && l.mode !== filterMode) return false;
+    if (filterMode !== "all") {
+      if (filterMode === "others") {
+        if (l.mode === "Compétitif" || l.mode === "Non-classé") return false;
+      } else if (l.mode !== filterMode) {
+        return false;
+      }
+    }
     if (filterRole !== "all" && !l.roleNeeded.includes(filterRole) && !l.roleNeeded.includes("Tous Rôles"))
       return false;
     if (filterSlots !== "all") {
@@ -1223,32 +1258,49 @@ export default function LobbiesView({
           </div>
 
           {/* FILTRES INTERACTIFS */}
-          <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-[var(--color-border)] space-y-3">
-            <div className="flex flex-wrap gap-2 items-center justify-between">
-              {/* Filter by Role */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-                <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] mr-1">Rôle :</span>
-                {[{ id: "all", label: "Tous" }, ...ROLES_LIST.slice(0, 4)].map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => {
-                      sounds.playHover();
-                      setFilterRole(r.id);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1.5 ${
-                      filterRole === r.id
-                        ? "bg-[var(--color-val-red)] text-white border-[var(--color-val-red)] shadow-md"
-                        : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
-                    }`}
-                  >
-                    {renderRoleIcon(r.id, 12)}
-                    <span>{r.label}</span>
-                  </button>
-                ))}
+          <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-[var(--color-border)] space-y-4">
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              {/* Mode Filter Capsule with Sliding Pill */}
+              <div
+                ref={modeContainerRef}
+                className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md overflow-x-auto custom-scrollbar"
+              >
+                {/* Sliding Red Pill */}
+                <div
+                  className="absolute top-1 bottom-1 rounded-xl bg-[var(--color-val-red)] shadow-[0_0_18px_rgba(255,70,85,0.6)] pointer-events-none z-0"
+                  style={{
+                    transform: `translateX(${modePillStyle.left}px)`,
+                    width: `${modePillStyle.width}px`,
+                    opacity: modePillStyle.opacity,
+                    transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                />
+
+                {MODE_TABS.map((tab) => {
+                  const isActive = filterMode === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      ref={(el) => {
+                        modeBtnRefs.current[tab.id] = el;
+                      }}
+                      onClick={() => {
+                        sounds.playTabSwitch();
+                        setFilterMode(tab.id);
+                      }}
+                      onMouseEnter={() => sounds.playHover()}
+                      className={`relative z-10 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors duration-200 cursor-pointer select-none active:scale-95 whitespace-nowrap ${
+                        isActive ? "text-white" : "text-neutral-400 hover:text-white"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Search input */}
-              <div className="relative min-w-[200px]">
+              <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
                 <input
                   type="text"
                   value={filterSearch}
@@ -1260,6 +1312,28 @@ export default function LobbiesView({
                   <IconSearch size={13} />
                 </span>
               </div>
+            </div>
+
+            {/* Filter by Role */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar pt-1 border-t border-[var(--color-border)]/40">
+              <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] mr-1">Rôle :</span>
+              {[{ id: "all", label: "Tous" }, ...ROLES_LIST.slice(0, 4)].map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => {
+                    sounds.playHover();
+                    setFilterRole(r.id);
+                  }}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer flex items-center gap-1.5 ${
+                    filterRole === r.id
+                      ? "bg-[var(--color-val-red)] text-white border-[var(--color-val-red)] shadow-md"
+                      : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-white/20"
+                  }`}
+                >
+                  {renderRoleIcon(r.id, 12)}
+                  <span>{r.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 

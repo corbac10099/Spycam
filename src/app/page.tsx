@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Suspense, useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useLanguage, tr, trFormat } from "@/lib/i18n";
@@ -172,6 +172,28 @@ export function HomeContent({
   const [lobbiesView, setLobbiesView] = useState(initialLobbiesView);
   const [leaderboardView, setLeaderboardView] = useState(initialLeaderboardView);
   const [showHotkeysModal, setShowHotkeysModal] = useState(false);
+  
+  // Profile Tabs Sliding Red Underline State
+  const profileTabsContainerRef = useRef<HTMLDivElement>(null);
+  const profileTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [profileUnderlineStyle, setProfileUnderlineStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  useLayoutEffect(() => {
+    if (!profileTabsContainerRef.current) return;
+    const btn = profileTabRefs.current[activeTab];
+    const container = profileTabsContainerRef.current;
+    if (!btn || !container) {
+      setProfileUnderlineStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    setProfileUnderlineStyle({
+      left: btnRect.left - containerRect.left,
+      width: btnRect.width,
+      opacity: 1,
+    });
+  }, [activeTab, playerData]);
   
   // Persistent Global Voice & Lobby State across all page views
   const [activeVoiceLobby, setActiveVoiceLobby] = useState<LobbyItem | null>(null);
@@ -1406,33 +1428,47 @@ export function HomeContent({
                     {/* Tabs + Mode Filter */}
                     <div className="w-full mt-4 sm:mt-6">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-[var(--color-border)] mb-4 sm:mb-6 gap-3">
-                        <div className="flex items-center gap-4 sm:gap-8">
+                        <div ref={profileTabsContainerRef} className="relative flex items-center gap-4 sm:gap-8">
+                          {/* Sliding Red Underline Indicator */}
+                          <div
+                            className="absolute bottom-0 h-[2.5px] rounded-full bg-[var(--color-val-red)] shadow-[0_0_12px_rgba(255,70,85,0.9)] pointer-events-none z-10"
+                            style={{
+                              transform: `translateX(${profileUnderlineStyle.left}px)`,
+                              width: `${profileUnderlineStyle.width}px`,
+                              opacity: profileUnderlineStyle.opacity,
+                              transition: "all 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+                            }}
+                          />
+
                           {[
                             { id: "performance", label: "Performances" },
                             { id: "agents", label: "Agents" },
                             { id: "matches", label: "Historique" },
-                          ].map((tab) => (
-                            <button
-                              key={tab.id}
-                              onMouseEnter={() => sounds.playHover()}
-                              onClick={() => {
-                                sounds.playTabSwitch();
-                                setActiveTab(tab.id);
-                                const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
-                                pushUrl({ tab: tab.id, playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
-                              }}
-                              className={`pb-3 text-xs sm:text-sm uppercase tracking-widest font-bold transition-all relative cursor-pointer ${
-                                activeTab === tab.id
-                                  ? "text-[var(--color-val-red)]"
-                                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                              }`}
-                            >
-                              {tab.label}
-                              {activeTab === tab.id && (
-                                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-val-red)] shadow-[0_0_10px_var(--color-val-red)]"></div>
-                              )}
-                            </button>
-                          ))}
+                          ].map((tab) => {
+                            const isActive = activeTab === tab.id;
+                            return (
+                              <button
+                                key={tab.id}
+                                ref={(el) => {
+                                  profileTabRefs.current[tab.id] = el;
+                                }}
+                                onMouseEnter={() => sounds.playHover()}
+                                onClick={() => {
+                                  sounds.playTabSwitch();
+                                  setActiveTab(tab.id);
+                                  const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
+                                  pushUrl({ tab: tab.id, playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
+                                }}
+                                className={`pb-3 text-xs sm:text-sm uppercase tracking-widest font-black transition-colors duration-300 relative cursor-pointer select-none active:scale-95 ${
+                                  isActive
+                                    ? "text-[var(--color-val-red)] drop-shadow-[0_0_8px_rgba(255,70,85,0.4)]"
+                                    : "text-[var(--color-text-secondary)] hover:text-white"
+                                }`}
+                              >
+                                {tab.label}
+                              </button>
+                            );
+                          })}
                         </div>
 
                         {/* Filtres mode de jeu & saison */}
