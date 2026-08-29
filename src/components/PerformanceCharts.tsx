@@ -34,35 +34,7 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const [activeMetric, setActiveMetric] = useState<"kd" | "acs" | "hs">("kd");
   const [matchLimit, setMatchLimit] = useState<number | "all">(20);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(800);
-  const [containerHeight, setContainerHeight] = useState<number>(140);
-  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const w = containerRef.current.clientWidth;
-        const h = containerRef.current.clientHeight;
-        if (w > 0) setContainerWidth(w);
-        if (h > 0) setContainerHeight(h);
-      }
-    };
-    updateDimensions();
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0) {
-          setContainerWidth(entry.contentRect.width);
-        }
-        if (entry.contentRect.height > 0) {
-          setContainerHeight(entry.contentRect.height);
-        }
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   const totalAvailable = matchHistory?.length || 0;
 
@@ -98,20 +70,18 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
     return null;
   }
 
-  // Dynamic responsive viewBox dimensions based on measured width and height
-  const width = Math.max(120, containerWidth || 800);
-  const height = Math.max(50, containerHeight || 140);
-  const isCompact = height < 120 || width < 380;
-  const isUltraCompact = height < 85 || width < 260;
+  // Stable virtual coordinate system (1000 x 260) - completely prevents layout jitter/glitch
+  const width = 1000;
+  const height = 260;
 
   const padding = {
-    top: isUltraCompact ? 4 : isCompact ? 8 : 16,
-    right: 10,
-    bottom: isUltraCompact ? 6 : isCompact ? 10 : 20,
-    left: 10,
+    top: 25,
+    right: 25,
+    bottom: 35,
+    left: 25,
   };
-  const graphWidth = Math.max(10, width - padding.left - padding.right);
-  const graphHeight = Math.max(10, height - padding.top - padding.bottom);
+  const graphWidth = width - padding.left - padding.right;
+  const graphHeight = height - padding.top - padding.bottom;
 
   let values: number[] = [];
   let formatVal = (v: number) => String(v);
@@ -157,7 +127,7 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
 
   const average = values.reduce((a, b) => a + b, 0) / (values.length || 1);
 
-  // Smooth mouse move handler to avoid any jitter/flicker
+  // Smooth mouse move handler mapping directly to SVG viewBox
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -180,39 +150,37 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
     setHoveredIdx(null);
   };
 
-  const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null;
+  const activePoint = hoveredIdx !== null && points[hoveredIdx] ? points[hoveredIdx] : null;
 
   return (
     <div className="glass-panel rounded-2xl p-2 sm:p-3 mb-0 animate-in fade-in duration-500 w-full h-full flex flex-col justify-between overflow-hidden">
       {/* Header controls */}
       <div className="flex flex-row items-center justify-between gap-1 mb-1 flex-nowrap flex-shrink-0">
-        <div className="flex items-center gap-1 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] truncate">
-            {isUltraCompact ? "📈" : "Progression"}
+            Progression
           </span>
 
-          {/* Range Selector: 10, 20, Tous (hidden in compact) */}
-          {!isCompact && (
-            <div className="flex items-center gap-0.5 bg-[var(--color-background)]/80 p-0.5 rounded-lg border border-[var(--color-border)]">
-              {[
-                { id: 10, label: "10" },
-                { id: 20, label: "20" },
-                { id: "all", label: `Tous` },
-              ].map((r) => (
-                <button
-                  key={String(r.id)}
-                  onClick={() => setMatchLimit(r.id as any)}
-                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all cursor-pointer ${
-                    matchLimit === r.id
-                      ? "bg-[var(--color-val-red)] text-white shadow-sm"
-                      : "text-[var(--color-text-secondary)] hover:text-white"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Range Selector: 10, 20, Tous */}
+          <div className="hidden xs:flex items-center gap-0.5 bg-[var(--color-background)]/80 p-0.5 rounded-lg border border-[var(--color-border)]">
+            {[
+              { id: 10, label: "10" },
+              { id: 20, label: "20" },
+              { id: "all", label: `Tous` },
+            ].map((r) => (
+              <button
+                key={String(r.id)}
+                onClick={() => setMatchLimit(r.id as any)}
+                className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase transition-all cursor-pointer ${
+                  matchLimit === r.id
+                    ? "bg-[var(--color-val-red)] text-white shadow-sm"
+                    : "text-[var(--color-text-secondary)] hover:text-white"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Metric Selector (K/D, ACS, Headshot %) */}
@@ -237,14 +205,12 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
         </div>
       </div>
 
-      {!isCompact && (
-        <div className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] mb-0.5 flex-shrink-0">
-          Moyenne : <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
-        </div>
-      )}
+      <div className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] mb-0.5 flex-shrink-0">
+        Moyenne : <strong className="text-[var(--color-text-primary)]">{formatVal(average)}</strong>
+      </div>
 
       {/* Full-width SVG Chart with smooth mouse tracking */}
-      <div ref={containerRef} className="w-full flex-1 min-h-[30px] relative overflow-hidden flex items-center justify-center">
+      <div className="w-full flex-1 min-h-[40px] relative overflow-hidden flex items-center justify-center">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
@@ -401,51 +367,48 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
             </g>
           )}
 
-          {/* Bottom Date Labels (only shown when not flattened) */}
-          {!isCompact &&
-            points.map((p, i) => {
-              const step = Math.max(1, Math.floor(points.length / 5));
-              const showLabel = i === 0 || i === points.length - 1 || i % step === 0;
-              if (!showLabel) return null;
+          {/* Bottom Date Labels */}
+          {points.map((p, i) => {
+            const step = Math.max(1, Math.floor(points.length / 5));
+            const showLabel = i === 0 || i === points.length - 1 || i % step === 0;
+            if (!showLabel) return null;
 
-              return (
-                <text
-                  key={i}
-                  x={p.x}
-                  y={height - 6}
-                  textAnchor="middle"
-                  fill="var(--color-text-secondary)"
-                  fontSize="9"
-                  fontWeight="bold"
-                  fontFamily="sans-serif"
-                  pointerEvents="none"
-                >
-                  {p.date}
-                </text>
-              );
-            })}
+            return (
+              <text
+                key={i}
+                x={p.x}
+                y={height - 8}
+                textAnchor="middle"
+                fill="var(--color-text-secondary)"
+                fontSize="11"
+                fontWeight="bold"
+                fontFamily="sans-serif"
+                pointerEvents="none"
+              >
+                {p.date}
+              </text>
+            );
+          })}
         </svg>
       </div>
 
-      {/* Legend & Summary (hidden when chart is flat or compact) */}
-      {height >= 140 && (
-        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between pt-1.5 mt-0.5 border-t border-[var(--color-border)] text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] gap-1.5 flex-shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+      {/* Legend & Summary */}
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between pt-1.5 mt-0.5 border-t border-[var(--color-border)] text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Victoire
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span> Défaite
+          </span>
+          {threshold !== null && (
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Victoire
+              <span className="w-2 h-0.5 bg-[#38bdf8]"></span> Seuil ({threshold})
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span> Défaite
-            </span>
-            {threshold !== null && (
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-0.5 bg-[#38bdf8]"></span> Seuil ({threshold})
-              </span>
-            )}
-          </div>
-          <span className="font-mono opacity-60 hidden sm:inline-block">Survolez pour inspecter</span>
+          )}
         </div>
-      )}
+        <span className="font-mono opacity-60 hidden sm:inline-block">Survolez pour inspecter</span>
+      </div>
     </div>
   );
 }

@@ -41,26 +41,26 @@ export interface DashboardGridProps {
   initialGridData?: string | null;
 }
 
-const DEFAULT_COLS = 12;
-const GRID_GAP = 10;
+const DEFAULT_COLS = 29;
+const GRID_GAP = 8;
 
 const DEFAULT_LAYOUT: GridItemConfig[] = [
-  { id: "chart", x: 0, y: 0, colSpan: 12, rowSpan: 2, visible: true },
-  { id: "weapons", x: 0, y: 2, colSpan: 4, rowSpan: 3, visible: true },
-  { id: "kills", x: 4, y: 2, colSpan: 4, rowSpan: 1, visible: true },
-  { id: "deaths", x: 8, y: 2, colSpan: 4, rowSpan: 1, visible: true },
-  { id: "assists", x: 4, y: 3, colSpan: 4, rowSpan: 1, visible: true },
-  { id: "kd", x: 8, y: 3, colSpan: 4, rowSpan: 1, visible: true },
-  { id: "adr", x: 4, y: 4, colSpan: 4, rowSpan: 1, visible: true },
-  { id: "hs", x: 8, y: 4, colSpan: 4, rowSpan: 1, visible: true },
-  { id: "wr", x: 0, y: 5, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "acs", x: 3, y: 5, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "fb", x: 6, y: 5, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "ace", x: 9, y: 5, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "kast", x: 0, y: 6, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "dd", x: 3, y: 6, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "wins", x: 6, y: 6, colSpan: 3, rowSpan: 1, visible: true },
-  { id: "matches", x: 9, y: 6, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "chart", x: 0, y: 0, colSpan: 29, rowSpan: 4, visible: true },
+  { id: "weapons", x: 0, y: 4, colSpan: 9, rowSpan: 5, visible: true },
+  { id: "kills", x: 9, y: 4, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "deaths", x: 19, y: 4, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "assists", x: 9, y: 5, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "kd", x: 19, y: 5, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "adr", x: 9, y: 6, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "hs", x: 19, y: 6, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "wr", x: 9, y: 7, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "acs", x: 19, y: 7, colSpan: 10, rowSpan: 1, visible: true },
+  { id: "fb", x: 9, y: 8, colSpan: 5, rowSpan: 1, visible: true },
+  { id: "ace", x: 14, y: 8, colSpan: 5, rowSpan: 1, visible: true },
+  { id: "kast", x: 19, y: 8, colSpan: 5, rowSpan: 1, visible: true },
+  { id: "dd", x: 24, y: 8, colSpan: 5, rowSpan: 1, visible: true },
+  { id: "wins", x: 0, y: 9, colSpan: 14, rowSpan: 1, visible: true },
+  { id: "matches", x: 14, y: 9, colSpan: 15, rowSpan: 1, visible: true },
 ];
 
 export const ITEM_ICONS: Record<string, React.ReactNode> = {
@@ -185,10 +185,10 @@ export default function DashboardGrid({
   userStorageKey = "default",
   initialGridData,
 }: DashboardGridProps) {
-  const storageKey = `spycam_grid_layout_v7_${userStorageKey}`;
+  const storageKey = `spycam_grid_layout_v8_29_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
-  const [gridCols, setGridCols] = useState<number>(DEFAULT_COLS);
+  const gridCols = DEFAULT_COLS;
   const [layout, setLayout] = useState<GridItemConfig[]>(DEFAULT_LAYOUT);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   
@@ -239,15 +239,14 @@ export default function DashboardGrid({
       try {
         const parsed = typeof initialGridData === "string" ? JSON.parse(initialGridData) : initialGridData;
         if (parsed && typeof parsed === "object") {
-          if (parsed.cols) setGridCols(parsed.cols);
           if (Array.isArray(parsed.items) && parsed.items.length > 0) {
             const existingIds = new Set(parsed.items.map((item: any) => item.id));
             const normalized = parsed.items.map((item: any) => ({
               id: item.id,
               x: item.x ?? 0,
               y: item.y ?? 0,
-              colSpan: item.colSpan || (item.id === "chart" ? (parsed.cols || 12) : 3),
-              rowSpan: item.rowSpan || (item.id === "chart" ? 2 : 1),
+              colSpan: item.colSpan || (item.id === "chart" ? DEFAULT_COLS : 5),
+              rowSpan: item.rowSpan || (item.id === "chart" ? 4 : 1),
               visible: item.visible !== false,
             }));
             const missing = DEFAULT_LAYOUT.filter((item) => !existingIds.has(item.id));
@@ -264,15 +263,14 @@ export default function DashboardGrid({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && typeof parsed === "object") {
-          if (parsed.cols) setGridCols(parsed.cols);
           if (Array.isArray(parsed.items) && parsed.items.length > 0) {
             const existingIds = new Set(parsed.items.map((item: any) => item.id));
             const normalized = parsed.items.map((item: any) => ({
               id: item.id,
               x: item.x ?? 0,
               y: item.y ?? 0,
-              colSpan: item.colSpan || (item.id === "chart" ? (parsed.cols || 12) : 3),
-              rowSpan: item.rowSpan || (item.id === "chart" ? 2 : 1),
+              colSpan: item.colSpan || (item.id === "chart" ? DEFAULT_COLS : 5),
+              rowSpan: item.rowSpan || (item.id === "chart" ? 4 : 1),
               visible: item.visible !== false,
             }));
             const missing = DEFAULT_LAYOUT.filter((item) => !existingIds.has(item.id));
@@ -285,9 +283,9 @@ export default function DashboardGrid({
 
   // Save layout locally and sync to Neon DB
   const saveState = useCallback(
-    (newLayout: GridItemConfig[], cols = gridCols, syncToDatabase = false) => {
+    (newLayout: GridItemConfig[], syncToDatabase = false) => {
       setLayout(newLayout);
-      const payload = { cols, items: newLayout };
+      const payload = { cols: DEFAULT_COLS, items: newLayout };
       try {
         localStorage.setItem(storageKey, JSON.stringify(payload));
       } catch {}
@@ -300,48 +298,12 @@ export default function DashboardGrid({
         }).catch((err) => console.warn("Erreur sauvegarde Neon:", err));
       }
     },
-    [gridCols, storageKey, canEdit]
+    [storageKey, canEdit]
   );
 
   const handleResetLayout = () => {
-    setGridCols(DEFAULT_COLS);
-    saveState(DEFAULT_LAYOUT, DEFAULT_COLS, true);
+    saveState(DEFAULT_LAYOUT, true);
     setDrawerOpen(false);
-  };
-
-  // Proportional scaling when changing gridCols density (clamped to max 29)
-  const handleColumnsChange = (newCols: number) => {
-    const clampedCols = Math.max(4, Math.min(29, newCols));
-    const prevCols = gridCols;
-    if (clampedCols === prevCols) return;
-
-    const scale = clampedCols / prevCols;
-    setGridCols(clampedCols);
-
-    const totalGaps = (clampedCols - 1) * GRID_GAP;
-    const newCellSize = Math.max(15, (usableWidth - totalGaps) / clampedCols);
-    const newStep = newCellSize + GRID_GAP;
-
-    const scaledLayout = layout.map((item) => {
-      const isChart = item.id === "chart";
-      const minRow = isChart ? Math.max(2, Math.ceil(130 / newStep)) : Math.max(1, Math.ceil(75 / newStep));
-      const minCol = isChart ? Math.max(4, Math.ceil(240 / newStep)) : Math.max(1, Math.ceil(90 / newStep));
-
-      const scaledCol = Math.max(minCol, Math.min(clampedCols, Math.round(item.colSpan * scale)));
-      const scaledRow = Math.max(minRow, Math.round(item.rowSpan * scale));
-      const scaledX = Math.min(clampedCols - scaledCol, Math.round(item.x * scale));
-      const scaledY = Math.round(item.y * scale);
-
-      return {
-        ...item,
-        x: Math.max(0, scaledX),
-        y: Math.max(0, scaledY),
-        colSpan: scaledCol,
-        rowSpan: scaledRow,
-      };
-    });
-
-    saveState(scaledLayout, clampedCols);
   };
 
   // Toggle item visibility with smart minimal-size restoration in top-most slot
@@ -677,33 +639,16 @@ export default function DashboardGrid({
           <div className="flex items-center gap-3 flex-wrap">
             {isEditing ? (
               <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-2.5 w-2.5 relative">
+                <div className="flex items-center gap-2 bg-[var(--color-surface)]/80 border border-[var(--color-val-red)]/40 px-3 py-1.5 rounded-xl backdrop-blur-md">
+                  <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-val-red)] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--color-val-red)]"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-val-red)]"></span>
                   </span>
-                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-[var(--color-val-red)]">
-                    Mode Grille
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--color-val-red)]">
+                    Mode Grille • 29 Colonnes
                   </span>
-                </div>
-
-                {/* Density Input */}
-                <div className="flex items-center gap-2 bg-[var(--color-surface)]/80 border border-[var(--color-border)] px-2.5 py-1 rounded-xl backdrop-blur-md">
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-secondary)]">
-                      Colonnes
-                    </label>
-                    <input
-                      type="number"
-                      min={4}
-                      max={29}
-                      value={gridCols}
-                      onChange={(e) => handleColumnsChange(Number(e.target.value) || 12)}
-                      className="w-11 bg-black/60 border border-white/15 text-white rounded-lg px-1.5 py-0.5 text-center text-xs font-mono font-black focus:border-[var(--color-val-red)] focus:outline-none"
-                    />
-                  </div>
-                  <span className="text-[10px] text-[var(--color-text-secondary)] opacity-60">
-                    {Math.round(cellSize)}px/point
+                  <span className="text-[10px] text-[var(--color-text-secondary)] opacity-60 font-mono">
+                    ({Math.round(cellSize)}px/case)
                   </span>
                 </div>
               </div>
@@ -757,7 +702,7 @@ export default function DashboardGrid({
                     sounds.playLockIn();
                     setIsEditing(false);
                     setDrawerOpen(false);
-                    saveState(layout, gridCols, true);
+                    saveState(layout, true);
                     setSaveToast(true);
                     setTimeout(() => setSaveToast(false), 2500);
                   }}
