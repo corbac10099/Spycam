@@ -21,6 +21,9 @@ import LandingPage from "@/components/landing/LandingPage";
 import { sounds } from "@/lib/soundEffects";
 import { IconShare } from "@/components/icons/SpyIcons";
 import { UserBadges } from "@/components/UserBadges";
+import LobbiesView from "@/components/LobbiesView";
+import HotkeysHelpModal from "@/components/HotkeysHelpModal";
+import { registerServiceWorker } from "@/lib/pushNotifications";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -156,7 +159,89 @@ function HomeContent() {
   const [newsView, setNewsView] = useState(false);
   const [targetNewsId, setTargetNewsId] = useState<string | null>(null);
   const [agentsView, setAgentsView] = useState(false);
+  const [lobbiesView, setLobbiesView] = useState(false);
+  const [showHotkeysModal, setShowHotkeysModal] = useState(false);
+  const [ecoMode, setEcoMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("spycam_eco_mode") === "true";
+    }
+    return false;
+  });
   const { lang: locale, setLanguage: setAppLanguage } = useLanguage();
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      if (ecoMode) {
+        document.documentElement.classList.add("mode-eco");
+      } else {
+        document.documentElement.classList.remove("mode-eco");
+      }
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spycam_eco_mode", ecoMode ? "true" : "false");
+    }
+  }, [ecoMode]);
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.target as HTMLElement).tagName === "INPUT" ||
+        (e.target as HTMLElement).tagName === "TEXTAREA" ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "1") {
+        sounds.playTabSwitch();
+        setAgentsView(false);
+        setNewsView(false);
+        setLobbiesView(false);
+        setActiveTab("performance");
+      } else if (e.key === "2") {
+        sounds.playTabSwitch();
+        setNewsView(false);
+        setLobbiesView(false);
+        setAgentsView(true);
+      } else if (e.key === "3") {
+        sounds.playTabSwitch();
+        setAgentsView(false);
+        setNewsView(false);
+        setLobbiesView(false);
+        setActiveTab("matches");
+      } else if (e.key === "4") {
+        sounds.playTabSwitch();
+        setAgentsView(false);
+        setNewsView(false);
+        setLobbiesView(true);
+      } else if (e.key === "/") {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Rechercher"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      } else if (e.key.toLowerCase() === "s") {
+        sounds.playClick();
+        setSettingsOpen((prev) => !prev);
+      } else if (e.key.toLowerCase() === "e") {
+        sounds.playClick();
+        setEcoMode((prev) => !prev);
+      } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        setShowHotkeysModal((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setSettingsOpen(false);
+        setShowHotkeysModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // URL Routing Mappings
   const TAB_TO_SLUG: Record<string, string> = useMemo(
@@ -871,18 +956,21 @@ function HomeContent() {
           onSearch={handleSearch}
           newsView={newsView}
           agentsView={agentsView}
+          lobbiesView={lobbiesView}
           settingsOpen={settingsOpen}
           onOpenLeaderboard={() => setShowLeaderboardModal(true)}
           leaderboardOpen={showLeaderboardModal}
           onGoHome={() => {
             setNewsView(false);
             setAgentsView(false);
+            setLobbiesView(false);
             setSettingsOpen(false);
             goHome();
           }}
           onOpenNews={(newsId) => {
             setNewsView(true);
             setAgentsView(false);
+            setLobbiesView(false);
             setSettingsOpen(false);
             if (newsId) setTargetNewsId(newsId);
             else setTargetNewsId(null);
@@ -892,10 +980,18 @@ function HomeContent() {
           onOpenAgents={() => {
             setAgentsView(true);
             setNewsView(false);
+            setLobbiesView(false);
             setSettingsOpen(false);
             const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
             pushUrl({ view: "agents", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
           }}
+          onOpenLobbies={() => {
+            setLobbiesView(true);
+            setNewsView(false);
+            setAgentsView(false);
+            setSettingsOpen(false);
+          }}
+          onOpenHotkeys={() => setShowHotkeysModal(true)}
           onToggleSettings={() => {
             const newVal = !settingsOpen;
             setSettingsOpen(newVal);
@@ -948,6 +1044,18 @@ function HomeContent() {
             streamerMode={streamerMode}
             setStreamerMode={setStreamerMode}
           />
+        ) : lobbiesView ? (
+          <div className="flex-1 flex flex-col items-center px-4 sm:px-8 z-10 w-full max-w-6xl mx-auto">
+            <LobbiesView
+              playerData={playerData?.player || playerData}
+              isPublic={isPublic}
+              onUpdateIsPublic={setIsPublic}
+              onSelectPlayer={(id) => {
+                setLobbiesView(false);
+                searchPlayer(id);
+              }}
+            />
+          </div>
         ) : newsView && !agentsView ? (
           <NewsViewComponent newsItems={newsItems} setNewsItems={setNewsItems} targetNewsId={targetNewsId} />
         ) : agentsView && !newsView ? (
@@ -1330,14 +1438,17 @@ function HomeContent() {
           activeTab={activeTab}
           newsView={newsView}
           agentsView={agentsView}
+          lobbiesView={lobbiesView}
           settingsOpen={settingsOpen}
           onGoHome={() => {
             setNewsView(false);
             setAgentsView(false);
+            setLobbiesView(false);
             setSettingsOpen(false);
             goHome();
           }}
           onSelectTab={(tab) => {
+            setLobbiesView(false);
             setActiveTab(tab);
             const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
             pushUrl({ tab, playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
@@ -1345,6 +1456,7 @@ function HomeContent() {
           onOpenNews={() => {
             setNewsView(true);
             setAgentsView(false);
+            setLobbiesView(false);
             setSettingsOpen(false);
             const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
             pushUrl({ view: "news", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
@@ -1352,9 +1464,16 @@ function HomeContent() {
           onOpenAgents={() => {
             setAgentsView(true);
             setNewsView(false);
+            setLobbiesView(false);
             setSettingsOpen(false);
             const isOwn = myRiotId && riotId.toLowerCase() === myRiotId.toLowerCase();
             pushUrl({ view: "agents", playerId: riotId || myRiotId, isOwnProfile: !!isOwn });
+          }}
+          onOpenLobbies={() => {
+            setLobbiesView(true);
+            setNewsView(false);
+            setAgentsView(false);
+            setSettingsOpen(false);
           }}
           onToggleSettings={() => {
             const newVal = !settingsOpen;
@@ -1367,6 +1486,14 @@ function HomeContent() {
             }
           }}
           onOpenMenuDrawer={() => setShowMobileDrawer(true)}
+        />
+
+        {/* Hotkeys Help Modal */}
+        <HotkeysHelpModal
+          isOpen={showHotkeysModal}
+          onClose={() => setShowHotkeysModal(false)}
+          ecoMode={ecoMode}
+          onToggleEcoMode={() => setEcoMode(!ecoMode)}
         />
 
         {/* Official Riot Leaderboard Modal */}

@@ -16,10 +16,13 @@ export interface HeaderProps {
   onSearch: (e: React.FormEvent) => void;
   newsView: boolean;
   agentsView: boolean;
+  lobbiesView?: boolean;
   settingsOpen: boolean;
   onGoHome: () => void;
   onOpenNews: (newsId?: string) => void;
   onOpenAgents: () => void;
+  onOpenLobbies?: () => void;
+  onOpenHotkeys?: () => void;
   onToggleSettings: () => void;
   onOpenLeaderboard?: () => void;
   leaderboardOpen?: boolean;
@@ -38,10 +41,13 @@ export default function Header({
   onSearch,
   newsView,
   agentsView,
+  lobbiesView = false,
   settingsOpen,
   onGoHome,
   onOpenNews,
   onOpenAgents,
+  onOpenLobbies,
+  onOpenHotkeys,
   onToggleSettings,
   onOpenLeaderboard,
   leaderboardOpen = false,
@@ -209,6 +215,40 @@ export default function Header({
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
           </button>
+
+          {/* LFG Lobbies button (Desktop only) */}
+          {onOpenLobbies && (
+            <button
+              onClick={() => {
+                sounds.playTabSwitch();
+                onOpenLobbies();
+              }}
+              onMouseEnter={() => sounds.playHover()}
+              title="Recherche de Salons / LFG"
+              className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
+                lobbiesView
+                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
+                  : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
+              }`}
+            >
+              <span className="text-sm">👥</span>
+            </button>
+          )}
+
+          {/* Hotkeys modal button (Desktop only) */}
+          {onOpenHotkeys && (
+            <button
+              onClick={() => {
+                sounds.playClick();
+                onOpenHotkeys();
+              }}
+              onMouseEnter={() => sounds.playHover()}
+              title="Raccourcis Clavier (?)"
+              className="hidden lg:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
+            >
+              <span className="text-xs font-mono font-black">⌨️</span>
+            </button>
+          )}
         </div>
 
         {/* Center: Search Bar — absolutely centered in the header */}

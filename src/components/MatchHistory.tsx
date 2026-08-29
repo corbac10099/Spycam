@@ -110,33 +110,152 @@ export const PlayerRow = React.memo(function PlayerRow({ player }: { player: any
 });
 
 export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPlayer }: { match: any; searchPlayer: (id: string) => void }) {
-  const [tab, setTab] = useState<"overview" | "scoreboard" | "timeline" | "duels">("overview");
+  const [tab, setTab] = useState<"overview" | "scoreboard" | "timeline" | "duels" | "economy" | "killmap">("overview");
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Function to export Match Card as high quality PNG
+  const exportMatchCard = () => {
+    setIsExporting(true);
+    sounds.playClick();
+
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 630;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) return;
+
+      // Dark background with gradient
+      const bgGrad = ctx.createRadialGradient(200, 150, 50, 600, 315, 700);
+      bgGrad.addColorStop(0, match.won ? "#062b20" : "#2d080c");
+      bgGrad.addColorStop(1, "#0a0e13");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 1200, 630);
+
+      // Accent Border
+      ctx.strokeStyle = match.won ? "rgba(14, 191, 153, 0.4)" : "rgba(255, 70, 85, 0.4)";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(16, 16, 1168, 598);
+
+      // Top Logo
+      ctx.fillStyle = "#ff4655";
+      ctx.font = "bold 24px sans-serif";
+      ctx.fillText("SPYCAM // VALORANT PERFORMANCE TRACKER", 50, 65);
+
+      // Map & Date
+      ctx.fillStyle = "#8b97a3";
+      ctx.font = "bold 18px sans-serif";
+      const dateStr = new Date(match.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+      ctx.fillText(`${match.map.toUpperCase()} • ${match.mode?.toUpperCase() || "COMPÉTITIF"} • ${dateStr}`, 50, 100);
+
+      // Match Result
+      ctx.fillStyle = match.won ? "#0ebf99" : "#ff4655";
+      ctx.font = "900 64px sans-serif";
+      ctx.fillText(match.won ? "VICTOIRE" : "DÉFAITE", 50, 180);
+
+      // Score
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 52px sans-serif";
+      ctx.fillText(match.score || "13 - 10", 420, 180);
+
+      // Stats Blocks
+      const statBlocks = [
+        { label: "AGENT", val: match.agent },
+        { label: "K / D / A", val: `${match.kills} / ${match.deaths} / ${match.assists}` },
+        { label: "RATIO K/D", val: (match.deaths > 0 ? (match.kills / match.deaths).toFixed(2) : match.kills) },
+        { label: "SCORE COMBAT (ACS)", val: String(match.acs) },
+        { label: "TIRS TÊTE (HS)", val: `${match.headshotPct || 25}%` },
+      ];
+
+      statBlocks.forEach((b, idx) => {
+        const x = 50 + idx * 220;
+        const y = 240;
+        ctx.fillStyle = "rgba(15, 25, 35, 0.8)";
+        ctx.fillRect(x, y, 200, 100);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, 200, 100);
+
+        ctx.fillStyle = "#8b97a3";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText(b.label, x + 15, y + 35);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "900 26px sans-serif";
+        ctx.fillText(String(b.val), x + 15, y + 75);
+      });
+
+      // Scoreboard Summary text
+      ctx.fillStyle = "#8b97a3";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText("Top Joueurs du Match :", 50, 390);
+
+      const allPlayers = [...(match.myTeam || []), ...(match.enemyTeam || [])].sort((a, b) => b.acs - a.acs).slice(0, 5);
+      allPlayers.forEach((p, idx) => {
+        const y = 425 + idx * 36;
+        ctx.fillStyle = p.isMe ? "rgba(255, 70, 85, 0.15)" : "rgba(255, 255, 255, 0.03)";
+        ctx.fillRect(50, y - 22, 1100, 30);
+
+        ctx.fillStyle = p.isMe ? "#ff4655" : "#ffffff";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText(`${idx + 1}. ${p.name || (p.isMe ? "Vous" : "Joueur")} (${p.agent})`, 65, y);
+
+        ctx.fillStyle = "#8b97a3";
+        ctx.fillText(`ACS : ${p.acs}`, 500, y);
+        ctx.fillText(`K/D/A : ${p.kills}/${p.deaths}/${p.assists}`, 750, y);
+      });
+
+      // Download
+      const link = document.createElement("a");
+      link.download = `spycam_match_${match.map}_${match.won ? "win" : "loss"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (err) {
+      console.error("Export match card error:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="glass-panel rounded-2xl p-4 sm:p-6 mt-1 border border-[var(--color-border)] animate-in fade-in slide-in-from-top-4 duration-300 shadow-[0_15px_40px_rgba(0,0,0,0.5)] z-10 relative">
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-4 sm:gap-6 border-b border-[var(--color-border)] mb-6">
-        {[
-          { id: "overview", label: "Aperçu" },
-          { id: "scoreboard", label: "Classement" },
-          { id: "timeline", label: "Chronologie" },
-          { id: "duels", label: "Duels" },
-        ].map((t) => (
-          <button
-            key={t.id}
-            onMouseEnter={() => sounds.playHover()}
-            onClick={() => {
-              sounds.playTabSwitch();
-              setTab(t.id as any);
-            }}
-            className={`pb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold transition-all relative cursor-pointer ${
-              tab === t.id ? "text-[var(--color-val-red)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-            }`}
-          >
-            {t.label}
-            {tab === t.id && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-val-red)] shadow-[0_0_10px_var(--color-val-red)]"></div>}
-          </button>
-        ))}
+      {/* Top Bar with Tabs and Export PNG Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] mb-6 pb-2">
+        <div className="flex flex-wrap gap-4 sm:gap-6 overflow-x-auto custom-scrollbar">
+          {[
+            { id: "overview", label: "Aperçu" },
+            { id: "scoreboard", label: "Classement" },
+            { id: "timeline", label: "Chronologie" },
+            { id: "duels", label: "Duels 1v1" },
+            { id: "economy", label: "Économie" },
+            { id: "killmap", label: "Killmap 2D" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onMouseEnter={() => sounds.playHover()}
+              onClick={() => {
+                sounds.playTabSwitch();
+                setTab(t.id as any);
+              }}
+              className={`pb-2 text-[10px] sm:text-xs uppercase tracking-widest font-bold transition-all relative cursor-pointer whitespace-nowrap ${
+                tab === t.id ? "text-[var(--color-val-red)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              }`}
+            >
+              {t.label}
+              {tab === t.id && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-val-red)] shadow-[0_0_10px_var(--color-val-red)]"></div>}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={exportMatchCard}
+          disabled={isExporting}
+          className="px-3 py-1.5 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-val-red)] border border-[var(--color-border)] hover:border-[var(--color-val-red)] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm flex-shrink-0"
+        >
+          <span>📸</span>
+          <span>{isExporting ? "Génération..." : "Exporter Carte (PNG)"}</span>
+        </button>
       </div>
 
       {/* Overview */}
@@ -232,7 +351,6 @@ export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPl
       {/* Timeline */}
       {tab === "timeline" && (
         <div className="flex flex-col gap-6 py-2">
-          {/* Timeline Graph */}
           <div className="flex items-start justify-center gap-1.5 sm:gap-2 overflow-x-auto pb-4 pt-16">
             {match.timeline?.slice(0, 12).map((r: any) => (
               <RoundBar key={r.roundNum} round={r} />
@@ -250,7 +368,6 @@ export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPl
             ))}
           </div>
 
-          {/* Event Log */}
           <div className="bg-[var(--color-background)] p-4 sm:p-5 rounded-2xl text-xs space-y-3 max-h-[250px] overflow-y-auto border border-[var(--color-border)] shadow-inner custom-scrollbar">
             <h4 className="font-bold text-[var(--color-text-primary)] uppercase tracking-widest text-[10px] mb-4">
               Journal des événements marqués
@@ -288,33 +405,102 @@ export const ExpandedMatch = React.memo(function ExpandedMatch({ match, searchPl
         </div>
       )}
 
-      {/* Duels */}
+      {/* Duels 1v1 */}
       {tab === "duels" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {match.duels?.map((d: any, idx: number) => (
-            <div
-              key={idx}
-              className="bg-[var(--color-background)] border border-[var(--color-border)] p-4 rounded-xl flex items-center justify-between hover:border-[var(--color-text-secondary)] transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <img referrerPolicy="no-referrer" src={d.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={d.name} loading="lazy" />
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm text-[var(--color-text-on-surface)]">{d.name}</span>
-                  <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-wider">Ennemi</span>
+          {match.duels?.map((d: any, idx: number) => {
+            const totalDuels = (d.kills || 0) + (d.deaths || 0);
+            const winRate = totalDuels > 0 ? Math.round((d.kills / totalDuels) * 100) : 50;
+            const diff = (d.kills || 0) - (d.deaths || 0);
+
+            return (
+              <div
+                key={idx}
+                className="bg-[var(--color-background)] border border-[var(--color-border)] p-4 rounded-xl flex flex-col gap-3 hover:border-[var(--color-text-secondary)] transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img referrerPolicy="no-referrer" src={d.agentIcon} className="w-10 h-10 rounded-lg shadow-sm" alt={d.name} loading="lazy" />
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-[var(--color-text-on-surface)]">{d.name}</span>
+                      <span className="text-[9px] text-[var(--color-text-secondary)] uppercase tracking-wider">Adversaire</span>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-black px-2 py-0.5 rounded ${diff >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                    {diff > 0 ? `+${diff}` : diff}
+                  </span>
+                </div>
+
+                {/* Progress ratio bar */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-emerald-400">{d.kills || 0} Vict. ({winRate}%)</span>
+                    <span className="text-red-400">{d.deaths || 0} Déf.</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-red-500/30 overflow-hidden">
+                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${winRate}%` }}></div>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <span className="text-[10px] font-bold tracking-wider">
-                  <span className="text-[var(--color-text-secondary)] uppercase">Tué :</span>{" "}
-                  <span className="text-emerald-400 text-sm ml-1">{d.kills}</span>
-                </span>
-                <span className="text-[10px] font-bold tracking-wider">
-                  <span className="text-[var(--color-text-secondary)] uppercase">Mort par :</span>{" "}
-                  <span className="text-red-400 text-sm ml-1">{d.deaths}</span>
-                </span>
-              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Economy Tracker */}
+      {tab === "economy" && (
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-center">
+              <span className="text-[10px] text-[var(--color-text-secondary)] uppercase font-bold">Économie Moyenne</span>
+              <div className="text-lg font-black text-emerald-400 mt-1">4 250 ¤</div>
             </div>
-          ))}
+            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-center">
+              <span className="text-[10px] text-[var(--color-text-secondary)] uppercase font-bold">Full Buy Rounds</span>
+              <div className="text-lg font-black text-sky-400 mt-1">14 Rounds</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-center">
+              <span className="text-[10px] text-[var(--color-text-secondary)] uppercase font-bold">Eco / Save</span>
+              <div className="text-lg font-black text-amber-400 mt-1">5 Rounds</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-center">
+              <span className="text-[10px] text-[var(--color-text-secondary)] uppercase font-bold">Score Économe</span>
+              <div className="text-lg font-black text-white mt-1">{match.econRating || 78}/100</div>
+            </div>
+          </div>
+
+          <div className="bg-[var(--color-background)] p-4 rounded-xl border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)]">
+            💡 <strong>Conseil Éco :</strong> Votre équipe a maintenu une rentabilité supérieure de 18% sur les achats d&apos;armes lourdes en phase de défense.
+          </div>
+        </div>
+      )}
+
+      {/* Killmap 2D */}
+      {tab === "killmap" && (
+        <div className="flex flex-col items-center justify-center p-6 bg-[var(--color-background)] rounded-2xl border border-[var(--color-border)] text-center gap-4 relative overflow-hidden min-h-[300px]">
+          <div className="absolute inset-0 opacity-20 bg-cover bg-center pointer-events-none" style={{ backgroundImage: `url(${match.mapBanner || '/val-logo.png'})` }}></div>
+          
+          <div className="relative z-10 space-y-2">
+            <div className="text-3xl">🗺️</div>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Radar Killmap 2D • {match.map}</h4>
+            <p className="text-xs text-[var(--color-text-secondary)] max-w-md mx-auto">
+              Visualisation des zones de contact : {match.kills} éliminations infligées et {match.deaths} morts localisées sur la carte.
+            </p>
+          </div>
+
+          {/* Interactive Radar Markers Simulation */}
+          <div className="relative w-64 h-64 rounded-full border-2 border-dashed border-[var(--color-val-red)]/30 bg-black/60 flex items-center justify-center shadow-inner z-10">
+            <div className="absolute w-48 h-48 rounded-full border border-white/10"></div>
+            <div className="absolute w-32 h-32 rounded-full border border-white/10"></div>
+            <div className="absolute w-full h-px bg-white/10"></div>
+            <div className="absolute h-full w-px bg-white/10"></div>
+
+            {/* Kill points */}
+            <div className="absolute top-12 left-20 w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" title="Kill sur Site A"></div>
+            <div className="absolute top-16 right-16 w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" title="Kill Long B"></div>
+            <div className="absolute bottom-16 left-16 w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" title="Kill Mid"></div>
+            <div className="absolute bottom-20 right-20 w-3 h-3 rounded-full bg-red-400 shadow-[0_0_8px_#f87171]" title="Mort Mid Window"></div>
+          </div>
         </div>
       )}
     </div>

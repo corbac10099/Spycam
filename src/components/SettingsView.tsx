@@ -22,6 +22,7 @@ import {
 } from "./icons/SpyIcons";
 import { BADGES_REGISTRY, parseBadges } from "./UserBadges";
 import { sounds } from "@/lib/soundEffects";
+import { requestPushPermission, sendLocalNotification } from "@/lib/pushNotifications";
 
 export interface SettingsViewProps {
   onClose: () => void;
@@ -481,6 +482,34 @@ export default function SettingsView({
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Notifications Push Web */}
+                <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] flex items-center gap-2">
+                        <span>🔔</span>
+                        <span>Notifications Push Web (PC &amp; Mobile)</span>
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
+                        Recevez des alertes instantanées lors des nouveaux patchs, invitations de salons LFG et analyses de match.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        sounds.playClick();
+                        const perm = await requestPushPermission();
+                        if (perm === "granted") {
+                          sendLocalNotification("SPYCAM Activé !", "Les notifications push sont bien configurées sur cet appareil.");
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md flex-shrink-0"
+                    >
+                      Activer / Tester
+                    </button>
+                  </div>
                 </div>
 
                 {/* Badges de Profil Section - Only rendered if user actually has badges */}

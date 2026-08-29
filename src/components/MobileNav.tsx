@@ -6,11 +6,13 @@ export interface MobileNavProps {
   activeTab: string;
   newsView: boolean;
   agentsView: boolean;
+  lobbiesView?: boolean;
   settingsOpen: boolean;
   onGoHome: () => void;
   onSelectTab: (tab: string) => void;
   onOpenNews: () => void;
   onOpenAgents: () => void;
+  onOpenLobbies?: () => void;
   onToggleSettings: () => void;
   onOpenMenuDrawer?: () => void;
 }
@@ -19,16 +21,18 @@ export default function MobileNav({
   activeTab,
   newsView,
   agentsView,
+  lobbiesView = false,
   settingsOpen,
   onGoHome,
   onSelectTab,
   onOpenNews,
   onOpenAgents,
+  onOpenLobbies,
   onToggleSettings,
   onOpenMenuDrawer,
 }: MobileNavProps) {
-  const isHomeActive = !newsView && !agentsView && !settingsOpen && activeTab === "performance";
-  const isMatchesActive = !newsView && !agentsView && !settingsOpen && activeTab === "matches";
+  const isHomeActive = !newsView && !agentsView && !lobbiesView && !settingsOpen && activeTab === "performance";
+  const isMatchesActive = !newsView && !agentsView && !lobbiesView && !settingsOpen && activeTab === "matches";
   const isAgentsStatsActive = !newsView && !agentsView && !settingsOpen && activeTab === "agents";
 
   return (
@@ -87,6 +91,23 @@ export default function MobileNav({
         </svg>
         <span className="text-[10px] tracking-tight">Agents</span>
       </button>
+
+      {/* Salons / LFG */}
+      {onOpenLobbies && (
+        <button
+          onMouseEnter={() => sounds.playHover()}
+          onClick={() => {
+            sounds.playTabSwitch();
+            onOpenLobbies();
+          }}
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
+            lobbiesView ? "text-[var(--color-val-red)] font-bold scale-105" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          <span className="text-lg leading-none">👥</span>
+          <span className="text-[10px] tracking-tight">Salons</span>
+        </button>
+      )}
 
       {/* Actualités */}
       <button
