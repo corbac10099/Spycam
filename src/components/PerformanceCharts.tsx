@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 
 export interface PerformanceChartsProps {
   matchHistory: any[];
@@ -34,7 +34,29 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const [activeMetric, setActiveMetric] = useState<"kd" | "acs" | "hs">("kd");
   const [matchLimit, setMatchLimit] = useState<number | "all">(20);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(800);
+  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const w = containerRef.current.clientWidth;
+        if (w > 0) setContainerWidth(w);
+      }
+    };
+    updateWidth();
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(entry.contentRect.width);
+        }
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const totalAvailable = matchHistory?.length || 0;
 
@@ -70,12 +92,12 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
     return null;
   }
 
-  // Dynamic responsive viewBox dimensions (2.7:1 ratio for prominent curves on both mobile and PC)
-  const width = 500;
+  // Dynamic responsive viewBox dimensions based on container width
+  const width = containerWidth || 800;
   const height = 180;
-  const padding = { top: 25, right: 15, bottom: 25, left: 15 };
-  const graphWidth = width - padding.left - padding.right;
-  const graphHeight = height - padding.top - padding.bottom;
+  const padding = { top: 25, right: 20, bottom: 25, left: 20 };
+  const graphWidth = Math.max(10, width - padding.left - padding.right);
+  const graphHeight = Math.max(10, height - padding.top - padding.bottom);
 
   let values: number[] = [];
   let formatVal = (v: number) => String(v);
@@ -202,10 +224,11 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
       </div>
 
       {/* Full-width SVG Chart with smooth mouse tracking */}
-      <div className="w-full relative">
+      <div ref={containerRef} className="w-full relative">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
           className="w-full h-36 sm:h-48 select-none cursor-crosshair"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
