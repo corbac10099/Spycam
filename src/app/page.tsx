@@ -1141,6 +1141,7 @@ function HomeContent() {
                                 canEdit={canEditProfile}
                                 hiddenStatsByPrivacy={appliedHiddenStats}
                                 userStorageKey={userKey}
+                                initialGridData={playerData?.player?.dashboardGrid}
                               />
                             </div>
                           );

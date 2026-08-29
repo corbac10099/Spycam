@@ -23,6 +23,7 @@ model User {
   videoLoopDelay  Int       @default(500)
   hiddenStats     String    @default("[]")
   enforcePublicStats Boolean @default(false)
+  dashboardGrid   String?
   riotGameName    String?
   riotConnected   Boolean   @default(false)
   riotPuuid       String?

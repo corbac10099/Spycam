@@ -809,6 +809,9 @@ export async function POST(request: Request) {
           bannerUrl: profileOwner.bannerUrl,
           bannerOffsetY: profileOwner.bannerOffsetY,
           theme: profileOwner.theme,
+          hiddenStats: profileOwner.hiddenStats,
+          enforcePublicStats: profileOwner.enforcePublicStats,
+          dashboardGrid: profileOwner.dashboardGrid || null,
         };
       }
     } catch (e) {
@@ -905,6 +908,7 @@ export async function POST(request: Request) {
         customTheme: customOwnerSettings?.theme || null,
         hiddenStats: customOwnerSettings?.hiddenStats || "[]",
         enforcePublicStats: customOwnerSettings?.enforcePublicStats || false,
+        dashboardGrid: customOwnerSettings?.dashboardGrid || null,
         mainAgent: mockData.mainAgent,
         stats: mockData.stats,
         agentStats: mockData.agentStats,

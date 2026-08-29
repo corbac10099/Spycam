@@ -28,7 +28,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const { theme, bannerUrl, bannerOffsetY, smartRating, isPublic, videoLoop, videoLoopDelay, hiddenStats, enforcePublicStats, language } = body;
+    const { theme, bannerUrl, bannerOffsetY, smartRating, isPublic, videoLoop, videoLoopDelay, hiddenStats, enforcePublicStats, language, dashboardGrid } = body;
     const updateData: any = {};
 
     if (theme !== undefined) updateData.theme = theme;
@@ -41,6 +41,9 @@ export async function PUT(req: Request) {
     if (hiddenStats !== undefined) updateData.hiddenStats = hiddenStats;
     if (enforcePublicStats !== undefined) updateData.enforcePublicStats = enforcePublicStats;
     if (language !== undefined) updateData.language = language;
+    if (dashboardGrid !== undefined) {
+      updateData.dashboardGrid = typeof dashboardGrid === 'string' ? dashboardGrid : JSON.stringify(dashboardGrid);
+    }
 
     // S'il n'y a rien à mettre à jour
     if (Object.keys(updateData).length === 0) {

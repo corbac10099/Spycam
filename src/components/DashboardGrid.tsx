@@ -21,6 +21,7 @@ export interface DashboardGridProps {
   canEdit: boolean;
   hiddenStatsByPrivacy?: string[];
   userStorageKey?: string;
+  initialGridData?: string | null;
 }
 
 const DEFAULT_COLS = 12;
@@ -115,6 +116,7 @@ export default function DashboardGrid({
   canEdit,
   hiddenStatsByPrivacy = [],
   userStorageKey = "default",
+  initialGridData,
 }: DashboardGridProps) {
   const storageKey = `spycam_grid_layout_v7_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +145,7 @@ export default function DashboardGrid({
     if (!gridContainerRef.current) return;
     const updateWidth = () => {
       if (gridContainerRef.current) {
+        // Inner width excluding padding (16px on left and right when editing)
         const totalW = gridContainerRef.current.clientWidth;
         const pad = isEditing ? 32 : 0;
         setUsableWidth(Math.max(200, totalW - pad));
@@ -162,8 +165,33 @@ export default function DashboardGrid({
 
   const step = useMemo(() => cellSize + GRID_GAP, [cellSize]);
 
-  // Load layout from localStorage
+  // Load layout from Neon DB or localStorage
   useEffect(() => {
+    // 1. If visiting a profile or have initialGridData from Neon DB:
+    if (initialGridData) {
+      try {
+        const parsed = typeof initialGridData === "string" ? JSON.parse(initialGridData) : initialGridData;
+        if (parsed && typeof parsed === "object") {
+          if (parsed.cols) setGridCols(parsed.cols);
+          if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+            const existingIds = new Set(parsed.items.map((item: any) => item.id));
+            const normalized = parsed.items.map((item: any) => ({
+              id: item.id,
+              x: item.x ?? 0,
+              y: item.y ?? 0,
+              colSpan: item.colSpan || (item.id === "chart" ? (parsed.cols || 12) : 3),
+              rowSpan: item.rowSpan || (item.id === "chart" ? 2 : 1),
+              visible: item.visible !== false,
+            }));
+            const missing = DEFAULT_LAYOUT.filter((item) => !existingIds.has(item.id));
+            setLayout([...normalized, ...missing]);
+            return;
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Fallback to localStorage
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -186,22 +214,31 @@ export default function DashboardGrid({
         }
       }
     } catch {}
-  }, [storageKey]);
+  }, [storageKey, initialGridData]);
 
-  // Save layout and grid config
+  // Save layout locally and sync to Neon DB
   const saveState = useCallback(
-    (newLayout: GridItemConfig[], cols = gridCols) => {
+    (newLayout: GridItemConfig[], cols = gridCols, syncToDatabase = false) => {
       setLayout(newLayout);
+      const payload = { cols, items: newLayout };
       try {
-        localStorage.setItem(storageKey, JSON.stringify({ cols, items: newLayout }));
+        localStorage.setItem(storageKey, JSON.stringify(payload));
       } catch {}
+
+      if (syncToDatabase && canEdit) {
+        fetch("/api/user/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dashboardGrid: JSON.stringify(payload) }),
+        }).catch((err) => console.warn("Erreur sauvegarde Neon:", err));
+      }
     },
-    [gridCols, storageKey]
+    [gridCols, storageKey, canEdit]
   );
 
   const handleResetLayout = () => {
     setGridCols(DEFAULT_COLS);
-    saveState(DEFAULT_LAYOUT, DEFAULT_COLS);
+    saveState(DEFAULT_LAYOUT, DEFAULT_COLS, true);
     setDrawerOpen(false);
   };
 
@@ -590,6 +627,7 @@ export default function DashboardGrid({
                   onClick={() => {
                     setIsEditing(false);
                     setDrawerOpen(false);
+                    saveState(layout, gridCols, true);
                     setSaveToast(true);
                     setTimeout(() => setSaveToast(false), 2500);
                   }}
