@@ -19,10 +19,34 @@ import {
   IconLock,
   IconVolume,
   IconBadgeVerified,
+  IconKeyboard,
+  IconCheck,
 } from "./icons/SpyIcons";
 import { BADGES_REGISTRY, parseBadges } from "./UserBadges";
 import { sounds } from "@/lib/soundEffects";
 import { requestPushPermission, sendLocalNotification } from "@/lib/pushNotifications";
+
+export const DEFAULT_SHORTCUTS: Record<string, string> = {
+  search: "/",
+  profile: "1",
+  agents: "2",
+  matches: "3",
+  lobbies: "4",
+  settings: "s",
+  eco: "e",
+  leaderboard: "l",
+};
+
+export const SHORTCUT_DEFINITIONS = [
+  { id: "search", label: "Focaliser la barre de recherche", defaultKey: "/" },
+  { id: "profile", label: "Onglet Mon Profil & Stats", defaultKey: "1" },
+  { id: "agents", label: "Onglet Wiki & Guides d'Agents", defaultKey: "2" },
+  { id: "matches", label: "Onglet Historique des Matchs", defaultKey: "3" },
+  { id: "lobbies", label: "Recherche de Salons & Vocal (LFG)", defaultKey: "4" },
+  { id: "settings", label: "Ouvrir ou fermer les Paramètres", defaultKey: "s" },
+  { id: "eco", label: "Basculer le Mode Éco (Basse consommation)", defaultKey: "e" },
+  { id: "leaderboard", label: "Afficher le Classement Régional", defaultKey: "l" },
+];
 
 export interface SettingsViewProps {
   onClose: () => void;
@@ -98,16 +122,15 @@ export default function SettingsView({
     { id: "deaths", label: "Morts", icon: <IconSkull size={16} />, desc: "Total des morts" },
     { id: "assists", label: "Passes décisives", icon: <IconHandshake size={16} />, desc: "Total des assists" },
     { id: "kd", label: "Ratio K/D", icon: <IconScale size={16} />, desc: "Ratio K/D" },
-    { id: "adr", label: "ADR Moyen", icon: <IconFlame size={16} />, desc: "Dégâts par manche" },
-    { id: "hs", label: "Tirs à la tête %", icon: <IconCrosshair size={16} />, desc: "Headshot %" },
-    { id: "wr", label: "Taux de victoire", icon: <IconTrophy size={16} />, desc: "Win Rate" },
-    { id: "acs", label: "ACS Moyen", icon: <IconFlame size={16} />, desc: "Combat Score" },
-    { id: "fb", label: "Premiers sangs", icon: <IconSword size={16} />, desc: "First bloods" },
-    { id: "ace", label: "ACE", icon: <IconCrown size={16} />, desc: "Total des ACEs" },
-    { id: "kast", label: "KAST %", icon: <IconShield size={16} />, desc: "K/A/S/T %" },
-    { id: "dd", label: "Différence de dégâts", icon: <IconSword size={16} />, desc: "DDΔ / Round" },
-    { id: "wins", label: "Victoires", icon: <IconTrophy size={16} />, desc: "Total victoires" },
-    { id: "matches", label: "Parties jouées", icon: <IconGamepad size={16} />, desc: "Total parties" },
+    { id: "headshot", label: "% Tirs à la Tête", icon: <IconCrosshair size={16} />, desc: "% Headshots" },
+    { id: "adr", label: "Dégâts / Round (ADR)", icon: <IconFlame size={16} />, desc: "Average Damage" },
+    { id: "firstbloods", label: "Premiers Sangs", icon: <IconSword size={16} />, desc: "First bloods" },
+    { id: "clutches", label: "Clutches Gagnés", icon: <IconCrown size={16} />, desc: "1vX réussis" },
+    { id: "flawless", label: "Rounds Parfaits", icon: <IconShield size={16} />, desc: "Flawless rounds" },
+    { id: "aces", label: "Aces Réalisés", icon: <IconSkull size={16} />, desc: "5 kills en un round" },
+    { id: "mvp", label: "Titres MVP", icon: <IconTrophy size={16} />, desc: "Match/Team MVP" },
+    { id: "matches", label: "Parties Jouées", icon: <IconGamepad size={16} />, desc: "Total matchs" },
+    { id: "winrate", label: "% Victoires", icon: <IconTrophy size={16} />, desc: "Winrate global" },
   ];
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -163,6 +186,26 @@ export default function SettingsView({
     }
     return 0.08;
   });
+
+  // Customizable Keyboard Shortcuts State
+  const [draftShortcutsEnabled, setDraftShortcutsEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("spycam_shortcuts_enabled");
+      if (stored !== null) return stored === "true";
+    }
+    return true;
+  });
+  const [draftShortcuts, setDraftShortcuts] = useState<Record<string, string>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("spycam_shortcuts_config");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return { ...DEFAULT_SHORTCUTS };
+  });
+  const [recordingShortcutId, setRecordingShortcutId] = useState<string | null>(null);
+
   const [draftHiddenStats, setDraftHiddenStats] = useState<string[]>(hiddenStats || []);
   const [privacyStatsExpanded, setPrivacyStatsExpanded] = useState<boolean>(false);
   const [badgesExpanded, setBadgesExpanded] = useState<boolean>(false);
@@ -190,6 +233,30 @@ export default function SettingsView({
   useEffect(() => {
     if (locale) setDraftLocale(locale);
   }, [locale]);
+
+  // Key recording listener
+  useEffect(() => {
+    if (!recordingShortcutId) return;
+
+    const handleKeyRecord = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        setRecordingShortcutId(null);
+        return;
+      }
+      const pressed = e.key.toLowerCase();
+      sounds.playLockIn();
+      setDraftShortcuts((prev) => ({
+        ...prev,
+        [recordingShortcutId]: pressed,
+      }));
+      setRecordingShortcutId(null);
+    };
+
+    window.addEventListener("keydown", handleKeyRecord, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyRecord, { capture: true });
+  }, [recordingShortcutId]);
 
   // Preview theme live
   useEffect(() => {
@@ -224,6 +291,8 @@ export default function SettingsView({
         localStorage.setItem("spycam_streamer_mode", String(draftStreamerMode));
         localStorage.setItem("spycam_sound_enabled", String(draftSoundEnabled));
         localStorage.setItem("spycam_sound_volume", String(draftSoundVolume));
+        localStorage.setItem("spycam_shortcuts_enabled", String(draftShortcutsEnabled));
+        localStorage.setItem("spycam_shortcuts_config", JSON.stringify(draftShortcuts));
         sounds.setEnabled(draftSoundEnabled);
         sounds.setVolume(draftSoundVolume);
         if (setStreamerMode) setStreamerMode(draftStreamerMode);
@@ -313,6 +382,7 @@ export default function SettingsView({
         <div className="w-full md:w-64 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar flex-shrink-0">
           {[
             { id: "features", label: "Fonctionnalités" },
+            { id: "shortcuts", label: "Raccourcis Clavier" },
             { id: "privacy", label: "Confidentialité" },
             { id: "appearance", label: "Apparence & Bannière" },
             { id: "language", label: "Langue & Traductions" },
@@ -399,10 +469,10 @@ export default function SettingsView({
                     </div>
                     <button
                       onClick={() => {
-                        const newVal = !draftSoundEnabled;
-                        setDraftSoundEnabled(newVal);
-                        sounds.setEnabled(newVal);
-                        if (newVal) sounds.playClick();
+                        sounds.playClick();
+                        const next = !draftSoundEnabled;
+                        setDraftSoundEnabled(next);
+                        sounds.setEnabled(next);
                       }}
                       className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 flex-shrink-0 ml-2 sm:ml-4 cursor-pointer ${
                         draftSoundEnabled ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
@@ -417,25 +487,28 @@ export default function SettingsView({
                   </div>
 
                   {draftSoundEnabled && (
-                    <div className="flex flex-col gap-2 pl-1 sm:pl-2 animate-in fade-in duration-200 mt-1">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-[var(--color-text-secondary)]">Volume des bruitages</span>
-                        <span className="text-[var(--color-val-red)] font-mono">{Math.round(draftSoundVolume * 100)}%</span>
+                    <div className="flex items-center gap-4 bg-[var(--color-background)]/50 p-3 rounded-xl border border-[var(--color-border)]">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-text-secondary)]">
+                        <IconVolume size={16} />
+                        <span>Volume :</span>
                       </div>
                       <input
                         type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
+                        min="0.01"
+                        max="0.3"
+                        step="0.01"
                         value={draftSoundVolume}
                         onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          setDraftSoundVolume(val);
-                          sounds.setVolume(val);
-                          sounds.playClick();
+                          const v = parseFloat(e.target.value);
+                          setDraftSoundVolume(v);
+                          sounds.setVolume(v);
                         }}
-                        className="w-full accent-[var(--color-val-red)] cursor-pointer"
+                        onMouseUp={() => sounds.playClick()}
+                        className="flex-1 accent-[var(--color-val-red)] cursor-pointer"
                       />
+                      <span className="text-xs font-mono font-bold text-[var(--color-text-primary)] w-10 text-right">
+                        {Math.round((draftSoundVolume / 0.3) * 100)}%
+                      </span>
                     </div>
                   )}
                 </div>
@@ -485,15 +558,12 @@ export default function SettingsView({
                 </div>
 
                 {/* Notifications Push Web */}
-                <div className="flex flex-col gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
-                  <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-3 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] flex items-center gap-2">
-                        <span>🔔</span>
-                        <span>Notifications Push Web (PC &amp; Mobile)</span>
-                      </h3>
+                      <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">Notifications Push Navigateur</h3>
                       <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5 sm:mt-1">
-                        Recevez des alertes instantanées lors des nouveaux patchs, invitations de salons LFG et analyses de match.
+                        Recevez des alertes sur le statut de vos matchs, nouveaux salons LFG et actualités
                       </p>
                     </div>
                     <button
@@ -641,6 +711,131 @@ export default function SettingsView({
                   );
                 })()}
               </div>
+            </div>
+          )}
+
+          {/* ==================== TAB 2 : RACCOURCIS CLAVIER (PERSONNALISABLES & DÉSACTIVABLES) ==================== */}
+          {settingsTab === "shortcuts" && (
+            <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8 space-y-6">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4 pb-5 border-b border-[var(--color-border)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/40 flex items-center justify-center text-[var(--color-val-red)] flex-shrink-0">
+                    <IconKeyboard size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)]">
+                      Raccourcis Clavier Personnalisables
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-0.5">
+                      Contrôlez et naviguez dans Spycam à la vitesse de l&apos;éclair. Vos touches sont enregistrées sur votre compte Neon.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Master Toggle */}
+                <div className="flex items-center gap-2.5 flex-shrink-0">
+                  <span className="text-xs font-bold text-[var(--color-text-secondary)] hidden sm:inline">
+                    {draftShortcutsEnabled ? "Activés" : "Désactivés"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playClick();
+                      setDraftShortcutsEnabled(!draftShortcutsEnabled);
+                    }}
+                    title={draftShortcutsEnabled ? "Désactiver les raccourcis" : "Activer les raccourcis"}
+                    className={`relative inline-flex h-6 w-11 sm:h-7 sm:w-13 items-center rounded-full transition-colors duration-300 cursor-pointer ${
+                      draftShortcutsEnabled ? "bg-[var(--color-val-red)]" : "bg-gray-400 dark:bg-[rgba(255,255,255,0.1)]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        draftShortcutsEnabled ? "translate-x-6 sm:translate-x-7" : "translate-x-1"
+                      }`}
+                    ></span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Banner */}
+              {!draftShortcutsEnabled ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-3">
+                  <IconLock size={18} className="flex-shrink-0" />
+                  <span>
+                    Les raccourcis clavier globaux sont actuellement <strong>désactivés</strong>. Activez le bouton ci-dessus pour utiliser les touches rapides.
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      Touches Assignées (Cliquez sur une touche pour la modifier) :
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playCancel();
+                        setDraftShortcuts({ ...DEFAULT_SHORTCUTS });
+                        setRecordingShortcutId(null);
+                      }}
+                      className="text-xs font-bold text-[var(--color-val-red)] hover:underline cursor-pointer"
+                    >
+                      Réinitialiser par défaut
+                    </button>
+                  </div>
+
+                  {/* Hotkeys Interactive List */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {SHORTCUT_DEFINITIONS.map((def) => {
+                      const currentKey = (draftShortcuts[def.id] || def.defaultKey).toUpperCase();
+                      const isRecording = recordingShortcutId === def.id;
+
+                      return (
+                        <div
+                          key={def.id}
+                          className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                            isRecording
+                              ? "bg-red-500/15 border-[var(--color-val-red)] ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] animate-pulse"
+                              : "bg-[var(--color-surface)] border-[var(--color-border)] hover:border-white/20 hover:bg-[var(--color-surface-hover)]"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs sm:text-sm font-bold text-[var(--color-text-primary)] truncate">
+                              {def.label}
+                            </h4>
+                            <span className="text-[10px] text-[var(--color-text-secondary)]">
+                              Touche par défaut : {def.defaultKey.toUpperCase()}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sounds.playClick();
+                              setRecordingShortcutId(isRecording ? null : def.id);
+                            }}
+                            title="Cliquez pour changer cette touche"
+                            className={`px-3 py-1.5 rounded-xl font-mono text-xs font-black transition-all cursor-pointer flex items-center justify-center min-w-[48px] ${
+                              isRecording
+                                ? "bg-[var(--color-val-red)] text-white shadow-lg shadow-[rgba(255,70,85,0.5)]"
+                                : "bg-black/40 border border-white/20 text-white hover:border-[var(--color-val-red)] hover:text-[var(--color-val-red)]"
+                            }`}
+                          >
+                            {isRecording ? "Appuyez..." : currentKey}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {recordingShortcutId && (
+                    <p className="text-center text-xs text-amber-400 animate-bounce pt-2">
+                      ⚡ Appuyez sur la touche désirée sur votre clavier (ou <strong>Échap</strong> pour annuler).
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -1416,18 +1416,19 @@ export default function LobbiesView({
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="relative flex-shrink-0">
+                          {isUserSpeaking && <div className="speaking-beam-ring" />}
                           {member.avatarUrl ? (
                             <img
                               src={member.avatarUrl}
                               alt={member.gameName}
-                              className={`w-8 h-8 rounded-full object-cover border transition-all ${
-                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400 animate-voice-speaking" : "border-white/20"
+                              className={`w-8 h-8 rounded-full object-cover border transition-all relative z-0 ${
+                                isUserSpeaking ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" : "border-white/20"
                               }`}
                             />
                           ) : (
                             <div
-                              className={`w-8 h-8 rounded-full bg-[var(--color-surface)] border flex items-center justify-center text-white font-black text-xs transition-all ${
-                                isUserSpeaking ? "border-emerald-400 ring-2 ring-emerald-400 animate-voice-speaking" : "border-white/20"
+                              className={`w-8 h-8 rounded-full bg-[var(--color-surface)] border flex items-center justify-center text-white font-black text-xs transition-all relative z-0 ${
+                                isUserSpeaking ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" : "border-white/20"
                               }`}
                             >
                               {member.gameName[0]?.toUpperCase()}
@@ -1528,26 +1529,27 @@ export default function LobbiesView({
               ) : (
                 /* ÉTAT EN APPEL : EXPANSION EN HAUTEUR, AVATARS CENTRÉS ET BARRE DE CONTRÔLES */
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
-                  {/* RONDS DES PERSONNES EN APPEL AVEC CONTOUR VERT FLUO QUAND ELLES PARLENT */}
+                  {/* RONDS DES PERSONNES EN APPEL AVEC CONTOUR VERT ET FAISCEAU TOURNANT QUAND ELLES PARLENT */}
                   <div className="flex items-center justify-center gap-6 py-2">
                     {/* Mon avatar dans le vocal */}
                     <div className="flex flex-col items-center gap-1.5 animate-pop-in">
                       <div className="relative">
+                        {isMyVoiceSpeaking && <div className="speaking-beam-ring" />}
                         {myAvatar ? (
                           <img
                             src={myAvatar}
                             alt={myName}
-                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 ${
+                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 relative z-0 ${
                               isMyVoiceSpeaking
-                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
+                                ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
                                 : "border-white/20"
                             }`}
                           />
                         ) : (
                           <div
-                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 ${
+                            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 relative z-0 ${
                               isMyVoiceSpeaking
-                                ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
+                                ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
                                 : "border-white/20"
                             }`}
                           >
@@ -1555,7 +1557,7 @@ export default function LobbiesView({
                           </div>
                         )}
                         {isMicMuted && (
-                          <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white">
+                          <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white z-20">
                             <IconMicOff size={10} />
                           </span>
                         )}
@@ -1575,21 +1577,22 @@ export default function LobbiesView({
                         return (
                           <div key={v.memberId} className="flex flex-col items-center gap-1.5 animate-pop-in">
                             <div className="relative">
+                              {isSpeaking && <div className="speaking-beam-ring" />}
                               {v.avatarUrl ? (
                                 <img
                                   src={v.avatarUrl}
                                   alt={v.gameName}
-                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 ${
+                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 transition-all duration-150 relative z-0 ${
                                     isSpeaking
-                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
+                                      ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
                                       : "border-white/20"
                                   }`}
                                 />
                               ) : (
                                 <div
-                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 ${
+                                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--color-surface)] border-2 flex items-center justify-center text-white font-black text-lg transition-all duration-150 relative z-0 ${
                                     isSpeaking
-                                      ? "border-emerald-400 ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.9)] scale-105 animate-voice-speaking"
+                                      ? "border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.8)] scale-105"
                                       : "border-white/20"
                                   }`}
                                 >
@@ -1597,7 +1600,7 @@ export default function LobbiesView({
                                 </div>
                               )}
                               {v.isMuted && (
-                                <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white">
+                                <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-red-600 border-2 border-black flex items-center justify-center text-white z-20">
                                   <IconMicOff size={10} />
                                 </span>
                               )}

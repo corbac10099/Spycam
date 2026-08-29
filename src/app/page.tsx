@@ -208,43 +208,72 @@ function HomeContent() {
         return;
       }
 
-      if (e.key === "1") {
+      // Check if user disabled keyboard shortcuts in settings
+      const shortcutsEnabled = typeof window !== "undefined" ? localStorage.getItem("spycam_shortcuts_enabled") !== "false" : true;
+      if (!shortcutsEnabled) return;
+
+      let shortcutsMap: Record<string, string> = {
+        search: "/",
+        profile: "1",
+        agents: "2",
+        matches: "3",
+        lobbies: "4",
+        settings: "s",
+        eco: "e",
+        leaderboard: "l",
+      };
+
+      try {
+        const stored = localStorage.getItem("spycam_shortcuts_config");
+        if (stored) {
+          shortcutsMap = { ...shortcutsMap, ...JSON.parse(stored) };
+        }
+      } catch {}
+
+      const key = e.key.toLowerCase();
+
+      if (key === (shortcutsMap.profile || "1").toLowerCase()) {
         sounds.playTabSwitch();
         setAgentsView(false);
         setNewsView(false);
         setLobbiesView(false);
         setActiveTab("performance");
-      } else if (e.key === "2") {
+      } else if (key === (shortcutsMap.agents || "2").toLowerCase()) {
         sounds.playTabSwitch();
         setNewsView(false);
         setLobbiesView(false);
         setAgentsView(true);
-      } else if (e.key === "3") {
+      } else if (key === (shortcutsMap.matches || "3").toLowerCase()) {
         sounds.playTabSwitch();
         setAgentsView(false);
         setNewsView(false);
         setLobbiesView(false);
         setActiveTab("matches");
-      } else if (e.key === "4") {
+      } else if (key === (shortcutsMap.lobbies || "4").toLowerCase()) {
         sounds.playTabSwitch();
         setAgentsView(false);
         setNewsView(false);
         setLobbiesView(true);
-      } else if (e.key === "/") {
+      } else if (key === (shortcutsMap.search || "/").toLowerCase()) {
         e.preventDefault();
         const searchInput = document.querySelector('input[placeholder*="Rechercher"]') as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
           searchInput.select();
         }
-      } else if (e.key.toLowerCase() === "s") {
+      } else if (key === (shortcutsMap.settings || "s").toLowerCase()) {
         sounds.playClick();
         setSettingsOpen((prev) => !prev);
-      } else if (e.key.toLowerCase() === "e") {
+      } else if (key === (shortcutsMap.eco || "e").toLowerCase()) {
         sounds.playClick();
         setEcoMode((prev) => !prev);
+      } else if (key === (shortcutsMap.leaderboard || "l").toLowerCase()) {
+        sounds.playTabSwitch();
+        setShowLeaderboardModal((prev) => !prev);
       } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
-        setShowHotkeysModal((prev) => !prev);
+        sounds.playClick();
+        setSettingsTab("shortcuts");
+        setSettingsOpen(true);
       } else if (e.key === "Escape") {
         setSettingsOpen(false);
         setShowHotkeysModal(false);

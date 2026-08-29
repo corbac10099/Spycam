@@ -6,7 +6,16 @@ import NotificationsDropdown from "./NotificationsDropdown";
 import LiveClock from "./LiveClock";
 
 import { sounds } from "@/lib/soundEffects";
-import { IconTrophy, IconSettings } from "./icons/SpyIcons";
+import {
+  IconTrophy,
+  IconSettings,
+  IconHome,
+  IconNews,
+  IconAgents,
+  IconUsers,
+  IconKeyboard,
+  IconLogOut,
+} from "./icons/SpyIcons";
 
 export interface HeaderProps {
   session: any;
@@ -133,122 +142,106 @@ export default function Header({
   }, []);
 
   return (
-    <header className="w-full z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md sticky top-0 mb-6 sm:mb-8 flex flex-col">
+    <header className="w-full z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md sticky top-0 mb-6 sm:mb-8 flex flex-col shadow-lg">
       {/* Top Navbar */}
-      <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 w-full">
-        {/* Left: Logo + Nav buttons */}
+      <div className="relative flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3.5 w-full">
+        {/* Left: Logo + Nav segmented group */}
         <div className="flex items-center gap-2 sm:gap-3 relative z-10">
           <div
             onClick={onGoHome}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center cursor-pointer select-none transition-transform hover:scale-105 active:scale-95 group"
+            className="flex items-center gap-2.5 cursor-pointer select-none transition-all hover:scale-105 active:scale-95 group"
             title="Spycam Accueil"
           >
-            <img
-              src="/spycam-icon.png"
-              alt="Spycam Logo"
-              className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,70,85,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(255,70,85,0.9)] transition-all"
-            />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center">
+              <img
+                src="/spycam-icon.png"
+                alt="Spycam Logo"
+                className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(255,70,85,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(255,70,85,0.9)] transition-all"
+              />
+            </div>
+            <span className="font-black text-base sm:text-lg text-[var(--color-text-primary)] tracking-widest hidden md:inline-block">
+              SPYCAM
+            </span>
           </div>
-          <span className="font-black text-lg text-[var(--color-text-primary)] tracking-widest hidden md:inline-block">
-            SPYCAM
-          </span>
 
-          {/* Home button (Desktop only) */}
-          {myRiotId && (
+          {/* Navigation Items Segmented Pill */}
+          <div className="hidden md:flex items-center gap-1.5 p-1 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md ml-2">
+            {/* Home button */}
+            {myRiotId && (
+              <button
+                onClick={() => {
+                  sounds.playTabSwitch();
+                  onGoHome();
+                }}
+                onMouseEnter={() => sounds.playHover()}
+                title="Mon Profil & Statistiques (1)"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                  !newsView && !agentsView && !lobbiesView && !settingsOpen
+                    ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)] scale-100"
+                    : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
+                }`}
+              >
+                <IconHome size={15} />
+                <span className="hidden xl:inline">Profil</span>
+              </button>
+            )}
+
+            {/* News button */}
             <button
               onClick={() => {
                 sounds.playTabSwitch();
-                onGoHome();
+                onOpenNews();
               }}
               onMouseEnter={() => sounds.playHover()}
-              title="Retour à mon profil"
-              className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
-                !newsView && !agentsView && !settingsOpen
-                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                  : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
+              title="Actualités Valorant"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                newsView && !agentsView
+                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
+                  : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
               }`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
-                <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              </svg>
+              <IconNews size={15} />
+              <span className="hidden xl:inline">Actualités</span>
             </button>
-          )}
 
-          {/* News button (Desktop only) */}
-          <button
-            onClick={() => {
-              sounds.playTabSwitch();
-              onOpenNews();
-            }}
-            onMouseEnter={() => sounds.playHover()}
-            title="Actualités"
-            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
-              newsView && !agentsView
-                ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
-              <path d="M18 14h-8" />
-              <path d="M15 18h-5" />
-              <path d="M10 6h8v4h-8V6Z" />
-            </svg>
-          </button>
-
-          {/* Agents Wiki button (Desktop only) */}
-          <button
-            onClick={() => {
-              sounds.playTabSwitch();
-              onOpenAgents();
-            }}
-            onMouseEnter={() => sounds.playHover()}
-            title="Wiki Agents"
-            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
-              agentsView
-                ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-            </svg>
-          </button>
-
-          {/* LFG Lobbies button (Desktop only) */}
-          {onOpenLobbies && (
+            {/* Agents Wiki button */}
             <button
               onClick={() => {
                 sounds.playTabSwitch();
-                onOpenLobbies();
+                onOpenAgents();
               }}
               onMouseEnter={() => sounds.playHover()}
-              title="Recherche de Salons / LFG"
-              className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer ${
-                lobbiesView
-                  ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
-                  : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
+              title="Wiki & Guides Agents (2)"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                agentsView
+                  ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
+                  : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
               }`}
             >
-              <span className="text-sm">👥</span>
+              <IconAgents size={15} />
+              <span className="hidden xl:inline">Agents</span>
             </button>
-          )}
 
-          {/* Hotkeys modal button (Desktop only) */}
-          {onOpenHotkeys && (
-            <button
-              onClick={() => {
-                sounds.playClick();
-                onOpenHotkeys();
-              }}
-              onMouseEnter={() => sounds.playHover()}
-              title="Raccourcis Clavier (?)"
-              className="hidden lg:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center transition-all duration-300 border cursor-pointer bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)] hover:text-[var(--color-val-red)]"
-            >
-              <span className="text-xs font-mono font-black">⌨️</span>
-            </button>
-          )}
+            {/* LFG Lobbies button */}
+            {onOpenLobbies && (
+              <button
+                onClick={() => {
+                  sounds.playTabSwitch();
+                  onOpenLobbies();
+                }}
+                onMouseEnter={() => sounds.playHover()}
+                title="Salons LFG & Vocal (4)"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                  lobbiesView
+                    ? "bg-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.5)]"
+                    : "text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.07]"
+                }`}
+              >
+                <IconUsers size={15} />
+                <span className="hidden xl:inline">Salons</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Center: Search Bar — absolutely centered in the header */}
@@ -397,7 +390,7 @@ export default function Header({
               }}
               onMouseEnter={() => sounds.playHover()}
               title="Classement Régional Riot"
-              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border text-xs font-bold cursor-pointer ${
+              className={`hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-all border text-xs font-bold cursor-pointer active:scale-95 ${
                 leaderboardOpen
                   ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
                   : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-white hover:text-[var(--color-val-red)]"
@@ -409,7 +402,7 @@ export default function Header({
           )}
 
           {session?.user && (
-            <span className="text-xs text-[var(--color-text-secondary)] hidden md:block max-w-[120px] truncate">
+            <span className="text-xs font-semibold text-[var(--color-text-secondary)] hidden md:block max-w-[120px] truncate">
               {(session.user as any).firstName || session.user.name || session.user.email}
             </span>
           )}
@@ -420,14 +413,10 @@ export default function Header({
               signOut({ callbackUrl: "/login" });
             }}
             onMouseEnter={() => sounds.playHover()}
-            className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-colors text-[var(--color-text-primary)] hover:text-white font-bold px-3 py-1.5 rounded-full items-center text-xs gap-1.5 border border-[var(--color-border)] cursor-pointer"
+            className="hidden sm:flex bg-[var(--color-surface-hover)] hover:bg-[var(--color-val-red)] transition-all text-[var(--color-text-primary)] hover:text-white font-bold px-3.5 py-1.5 rounded-full items-center text-xs gap-1.5 border border-[var(--color-border)] cursor-pointer active:scale-95"
             title="Déconnexion"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
+            <IconLogOut size={14} />
             <span>Déconnexion</span>
           </button>
 
@@ -437,8 +426,8 @@ export default function Header({
               onToggleSettings();
             }}
             onMouseEnter={() => sounds.playHover()}
-            title="Paramètres"
-            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-colors items-center justify-center border cursor-pointer ${
+            title="Paramètres & Raccourcis"
+            className={`hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all items-center justify-center border cursor-pointer active:scale-95 ${
               settingsOpen
                 ? "bg-[var(--color-val-red)] border-[var(--color-val-red)] text-white shadow-[0_0_15px_rgba(255,70,85,0.4)]"
                 : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border-[var(--color-border)] text-white hover:text-[var(--color-val-red)]"

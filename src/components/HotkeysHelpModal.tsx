@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import { sounds } from "@/lib/soundEffects";
+import { IconKeyboard } from "./icons/SpyIcons";
 
 export interface HotkeysHelpModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ export default function HotkeysHelpModal({
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-[var(--color-val-red)]/15 border border-[var(--color-val-red)]/40 flex items-center justify-center text-[var(--color-val-red)] font-black text-base shadow-sm">
-            ⌨️
+            <IconKeyboard size={20} />
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-[var(--color-text-primary)]">
