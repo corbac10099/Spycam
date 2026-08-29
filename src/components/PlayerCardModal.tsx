@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { IconTrophy, IconShare } from "./icons/SpyIcons";
 import { sounds } from "@/lib/soundEffects";
+import { UserBadges, parseBadges, BADGES_REGISTRY } from "./UserBadges";
 
 export interface PlayerCardModalProps {
   playerData: any;
@@ -16,10 +17,41 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
   const player = playerData?.player || {};
   const stats = playerData?.stats || player.stats || {};
   const rank = playerData?.rank || player.rank || "Ascendant 3";
-  const rankUrl = playerData?.rankUrl || player.rankUrl || "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/24/largeicon.png";
-  const mainAgent = playerData?.mainAgent || player.mainAgent || { name: "Jett", icon: "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/displayicon.png" };
-  const bannerUrl = player.bannerUrl || player.customBannerUrl || player.cardWideUrl || "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png";
-  const topWeapon = playerData?.weapons?.[0] || { name: "Vandal", icon: "https://media.valorant-api.com/weapons/9c82e19d-4575-0200-1a81-3eacf00cf872/displayicon.png" };
+  const rankUrl =
+    playerData?.rankUrl ||
+    player.rankUrl ||
+    "https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/24/largeicon.png";
+  const mainAgent = playerData?.mainAgent ||
+    player.mainAgent || {
+      name: "Jett",
+      icon: "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/displayicon.png",
+    };
+  const bannerUrl =
+    player.bannerUrl ||
+    player.customBannerUrl ||
+    player.cardWideUrl ||
+    "https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png";
+  const topWeapon = playerData?.weapons?.[0] || {
+    name: "Vandal",
+    icon: "https://media.valorant-api.com/weapons/9c82e19d-4575-0200-1a81-3eacf00cf872/displayicon.png",
+  };
+
+  // Badge preferences
+  const rawBadge = player.badge || playerData?.badge || null;
+  const showBadge = playerData?.showBadge ?? player.showBadge ?? true;
+  const hiddenBadges: string[] =
+    typeof window !== "undefined"
+      ? (() => {
+          try {
+            return JSON.parse(localStorage.getItem("spycam_hidden_badges") || "[]");
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+
+  const activeBadges = showBadge ? parseBadges(rawBadge).filter((b) => !hiddenBadges.includes(b)) : [];
+  const customBadgeUrl = player.customBadgeUrl || playerData?.customBadgeUrl;
 
   const getRankColor = (rankName: string) => {
     const r = (rankName || "").toLowerCase();
@@ -95,19 +127,55 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
       const nameWidth = ctx.measureText(nameText).width;
       ctx.fillStyle = "#94a3b8";
       ctx.font = "bold 24px monospace";
-      ctx.fillText(`#${player.tagLine || "EU1"}`, 50 + nameWidth + 12, 122);
+      const tagText = `#${player.tagLine || "EU1"}`;
+      ctx.fillText(tagText, 50 + nameWidth + 12, 122);
+      const tagWidth = ctx.measureText(tagText).width;
 
-      // Avatar/Agent Icon thumbnail next to name
-      const agentIcon = await loadImage(mainAgent.icon);
-      if (agentIcon) {
-        ctx.save();
-        ctx.beginPath();
-        const iconX = 50 + nameWidth + ctx.measureText(`#${player.tagLine || "EU1"}`).width + 24;
-        ctx.arc(iconX + 18, 114, 18, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(agentIcon, iconX, 96, 36, 36);
-        ctx.restore();
+      // Draw Badges if enabled and present
+      if (showBadge && activeBadges.length > 0) {
+        let badgeStartX = 50 + nameWidth + 12 + tagWidth + 16;
+        for (const badgeId of activeBadges) {
+          const badgeDef = BADGES_REGISTRY[badgeId];
+          if (badgeDef) {
+            ctx.save();
+            ctx.font = "bold 13px sans-serif";
+            const badgeLabel = badgeDef.label;
+            const badgeTextWidth = ctx.measureText(badgeLabel).width;
+            const pillW = badgeTextWidth + 24;
+            const pillH = 26;
+            const pillY = 100;
+
+            // Pill Background
+            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            ctx.beginPath();
+            ctx.roundRect(badgeStartX, pillY, pillW, pillH, 13);
+            ctx.fill();
+
+            // Pill Border
+            ctx.strokeStyle = badgeDef.colorClass.includes("sky")
+              ? "#38bdf8"
+              : badgeDef.colorClass.includes("amber")
+              ? "#fbbf24"
+              : badgeDef.colorClass.includes("pink")
+              ? "#f472b6"
+              : badgeDef.colorClass.includes("purple")
+              ? "#c084fc"
+              : badgeDef.colorClass.includes("emerald")
+              ? "#34d399"
+              : badgeDef.colorClass.includes("red")
+              ? "#f87171"
+              : "#fb923c";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Badge text
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.fillText(`★ ${badgeLabel}`, badgeStartX + 10, pillY + 18);
+            ctx.restore();
+
+            badgeStartX += pillW + 8;
+          }
+        }
       }
 
       // Rank Name under player name
@@ -118,7 +186,6 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
       // 4. Top Right Rank Emblem with glow
       const rankImg = await loadImage(rankUrl);
       if (rankImg) {
-        // Subtle aura circle
         ctx.save();
         const auraGrad = ctx.createRadialGradient(850, 115, 10, 850, 115, 90);
         auraGrad.addColorStop(0, "rgba(255, 70, 85, 0.35)");
@@ -210,7 +277,7 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-5 sm:p-6 shadow-2xl overflow-hidden flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        className="w-full max-w-2xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-5 sm:p-6 shadow-2xl overflow-hidden flex flex-col gap-4 animate-player-card-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
@@ -232,10 +299,10 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
           </button>
         </div>
 
-        {/* Exact Landscape Player Card Live Preview */}
+        {/* Exact Landscape Player Card Live Preview with Animated Glow */}
         <div
           ref={cardRef}
-          className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border border-white/20 shadow-2xl p-5 sm:p-7 flex flex-col justify-between select-none bg-black"
+          className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border border-white/20 shadow-2xl p-5 sm:p-7 flex flex-col justify-between select-none bg-black animate-card-glow"
         >
           {/* Background Image Banner */}
           <img
@@ -247,7 +314,7 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
 
           {/* Top Section */}
           <div className="relative z-10 flex items-start justify-between">
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[var(--color-val-red)] mb-1">
                 SPYCAM // CARD
               </span>
@@ -258,6 +325,17 @@ export default function PlayerCardModal({ playerData, onClose }: PlayerCardModal
                 <span className="text-xs sm:text-sm font-bold text-gray-400 font-mono">
                   #{player.tagLine || "EU1"}
                 </span>
+
+                {/* Unlocked Badges (if enabled) */}
+                {showBadge && (
+                  <UserBadges
+                    badges={rawBadge}
+                    showBadge={showBadge}
+                    hiddenBadges={hiddenBadges}
+                    size={16}
+                  />
+                )}
+
                 {mainAgent?.icon && (
                   <img
                     src={mainAgent.icon}
