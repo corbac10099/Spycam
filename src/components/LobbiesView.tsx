@@ -174,7 +174,17 @@ export default function LobbiesView({
   const [audioOutputs, setAudioOutputs] = useState<AudioDeviceInfo[]>([]);
   const [selectedInputId, setSelectedInputId] = useState<string>("default");
   const [selectedOutputId, setSelectedOutputId] = useState<string>("default");
+
+  // Inline dropdown states (direct rollout on arrow click)
+  const [showMicDropdown, setShowMicDropdown] = useState<boolean>(false);
+  const [showOutputDropdown, setShowOutputDropdown] = useState<boolean>(false);
+
+  // Advanced Audio Settings (Krisp-style Voice Isolation, Sensitivity, Quality, Ducking)
   const [showDeviceModal, setShowDeviceModal] = useState<boolean>(false);
+  const [voiceIsolation, setVoiceIsolation] = useState<boolean>(true);
+  const [micSensitivity, setMicSensitivity] = useState<number>(35); // threshold mapped 5 to 150
+  const [audioQuality, setAudioQuality] = useState<"eco" | "standard" | "studio">("standard");
+  const [autoDucking, setAutoDucking] = useState<boolean>(true);
 
   const loadAudioDevices = useCallback(async () => {
     const { inputs, outputs } = await VoiceManager.getAvailableAudioDevices();
@@ -197,6 +207,34 @@ export default function LobbiesView({
     setSelectedOutputId(sinkId);
     if (voiceManagerRef.current) {
       await voiceManagerRef.current.setOutputDevice(sinkId);
+    }
+  };
+
+  const handleToggleVoiceIsolation = (enabled: boolean) => {
+    setVoiceIsolation(enabled);
+    if (voiceManagerRef.current) {
+      voiceManagerRef.current.setVoiceIsolation(enabled);
+    }
+  };
+
+  const handleChangeSensitivity = (val: number) => {
+    setMicSensitivity(val);
+    if (voiceManagerRef.current) {
+      voiceManagerRef.current.setSpeakingThreshold(val / 1000);
+    }
+  };
+
+  const handleChangeAudioQuality = (quality: "eco" | "standard" | "studio") => {
+    setAudioQuality(quality);
+    if (voiceManagerRef.current) {
+      voiceManagerRef.current.setAudioQuality(quality);
+    }
+  };
+
+  const handleToggleAutoDucking = (enabled: boolean) => {
+    setAutoDucking(enabled);
+    if (voiceManagerRef.current) {
+      voiceManagerRef.current.setAutoDucking(enabled);
     }
   };
 
@@ -1455,13 +1493,15 @@ export default function LobbiesView({
 
           {/* ==================== COLONNE DROITE (VOCAL DISCORD-STYLE + CHAT) ==================== */}
           <div className="flex-1 glass-panel rounded-3xl p-4 sm:p-5 border border-[var(--color-border)] flex flex-col justify-between gap-4 shadow-xl">
-            {/* TOP CALL BAR (STYLE DISCORD) */}
-            <div className="rounded-2xl bg-[#0b0e14]/90 border border-white/10 p-3 sm:p-4 shadow-lg transition-all">
+            {/* TOP CALL BAR (ANIMATION D'EXPANSION PROGRESSIVE EN HAUTEUR) */}
+            <div className={`relative rounded-2xl bg-[#0b0e14]/90 border border-white/10 shadow-lg overflow-visible transition-all duration-500 ease-in-out ${
+              isInVoice ? "p-4 sm:p-5" : "p-3 sm:p-4"
+            }`}>
               {!isInVoice ? (
-                /* ÉTAT DÉCONNECTÉ : RECTANGLE AVEC CARRÉ VERT 📞 À DROITE */
-                <div className="flex items-center justify-between gap-3">
+                /* ÉTAT DÉCONNECTÉ : RECTANGLE COMPACT AVEC CARRÉ VERT 📞 À DROITE */
+                <div className="flex items-center justify-between gap-3 transition-opacity duration-300">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
                       <IconMic size={22} />
                     </div>
                     <div>
@@ -1484,8 +1524,8 @@ export default function LobbiesView({
                   </button>
                 </div>
               ) : (
-                /* ÉTAT EN APPEL : RONDS DES PERSONNES QUI PARLENT + CONTRÔLES DISCORD */
-                <div className="space-y-4 animate-voice-join">
+                /* ÉTAT EN APPEL : EXPANSION EN HAUTEUR, AVATARS CENTRÉS ET BARRE DE CONTRÔLES */
+                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
                   {/* RONDS DES PERSONNES EN APPEL AVEC CONTOUR VERT FLUO QUAND ELLES PARLENT */}
                   <div className="flex items-center justify-center gap-6 py-2">
                     {/* Mon avatar dans le vocal */}
@@ -1568,9 +1608,9 @@ export default function LobbiesView({
                       })}
                   </div>
 
-                  {/* DISCORD CALL CONTROL PILL BAR */}
-                  <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/10">
-                    {/* Micro button + dropdown */}
+                  {/* DISCORD CALL CONTROL PILL BAR AVEC DÉROULANT DIRECT */}
+                  <div className="flex items-center justify-center gap-2 pt-2 border-t border-white/10 relative">
+                    {/* Micro button + Direct Dropdown Menu on ▾ */}
                     <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
                       <button
                         onClick={() => {
@@ -1588,15 +1628,63 @@ export default function LobbiesView({
                         {isMicMuted ? <IconMicOff size={16} /> : <IconMic size={16} />}
                       </button>
                       <button
-                        onClick={() => setShowDeviceModal(true)}
-                        title="Sélectionner le périphérique micro"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sounds.playClick();
+                          setShowMicDropdown(!showMicDropdown);
+                          setShowOutputDropdown(false);
+                        }}
+                        title="Dérouler la liste des microphones"
                         className="px-1 text-gray-400 hover:text-white cursor-pointer"
                       >
-                        <IconChevronDown size={11} />
+                        <IconChevronDown size={11} className={`transition-transform duration-200 ${showMicDropdown ? "rotate-180 text-emerald-400" : ""}`} />
                       </button>
+
+                      {/* INLINE MICROPHONE DROPDOWN */}
+                      {showMicDropdown && (
+                        <div className="absolute bottom-full left-0 mb-2 w-64 glass-panel rounded-2xl p-2 border border-white/20 shadow-2xl bg-[#0b0e14]/95 backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                          <div className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] px-2.5 py-1 tracking-wider border-b border-white/10 mb-1 flex items-center justify-between">
+                            <span>Entrée Microphone</span>
+                            <IconMic size={10} className="text-emerald-400" />
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                            <button
+                              onClick={() => {
+                                handleSwitchInputDevice("default");
+                                setShowMicDropdown(false);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                                selectedInputId === "default"
+                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                  : "text-white hover:bg-white/10"
+                              }`}
+                            >
+                              <span className="truncate">Microphone par défaut</span>
+                              {selectedInputId === "default" && <IconCheck size={12} className="text-emerald-400 flex-shrink-0" />}
+                            </button>
+                            {audioInputs.map((d) => (
+                              <button
+                                key={d.deviceId}
+                                onClick={() => {
+                                  handleSwitchInputDevice(d.deviceId);
+                                  setShowMicDropdown(false);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                                  selectedInputId === d.deviceId
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                    : "text-white hover:bg-white/10"
+                                }`}
+                              >
+                                <span className="truncate">{d.label}</span>
+                                {selectedInputId === d.deviceId && <IconCheck size={12} className="text-emerald-400 flex-shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Casque / Deafen button + dropdown */}
+                    {/* Casque / Deafen button + Direct Dropdown Menu on ▾ */}
                     <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
                       <button
                         onClick={() => {
@@ -1613,18 +1701,71 @@ export default function LobbiesView({
                         {isDeafened ? <IconHeadphonesOff size={16} /> : <IconHeadphones size={16} />}
                       </button>
                       <button
-                        onClick={() => setShowDeviceModal(true)}
-                        title="Sélectionner le périphérique de sortie"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sounds.playClick();
+                          setShowOutputDropdown(!showOutputDropdown);
+                          setShowMicDropdown(false);
+                        }}
+                        title="Dérouler la liste des sorties audio"
                         className="px-1 text-gray-400 hover:text-white cursor-pointer"
                       >
-                        <IconChevronDown size={11} />
+                        <IconChevronDown size={11} className={`transition-transform duration-200 ${showOutputDropdown ? "rotate-180 text-sky-400" : ""}`} />
                       </button>
+
+                      {/* INLINE OUTPUT/HEADPHONES DROPDOWN */}
+                      {showOutputDropdown && (
+                        <div className="absolute bottom-full left-0 mb-2 w-64 glass-panel rounded-2xl p-2 border border-white/20 shadow-2xl bg-[#0b0e14]/95 backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                          <div className="text-[10px] font-black uppercase text-[var(--color-text-secondary)] px-2.5 py-1 tracking-wider border-b border-white/10 mb-1 flex items-center justify-between">
+                            <span>Sortie Audio / Casque</span>
+                            <IconHeadphones size={10} className="text-sky-400" />
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                            <button
+                              onClick={() => {
+                                handleSwitchOutputDevice("default");
+                                setShowOutputDropdown(false);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                                selectedOutputId === "default"
+                                  ? "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                                  : "text-white hover:bg-white/10"
+                              }`}
+                            >
+                              <span className="truncate">Sortie par défaut</span>
+                              {selectedOutputId === "default" && <IconCheck size={12} className="text-sky-400 flex-shrink-0" />}
+                            </button>
+                            {audioOutputs.map((d) => (
+                              <button
+                                key={d.deviceId}
+                                onClick={() => {
+                                  handleSwitchOutputDevice(d.deviceId);
+                                  setShowOutputDropdown(false);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                                  selectedOutputId === d.deviceId
+                                    ? "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                                    : "text-white hover:bg-white/10"
+                                }`}
+                              >
+                                <span className="truncate">{d.label}</span>
+                                {selectedOutputId === d.deviceId && <IconCheck size={12} className="text-sky-400 flex-shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Paramètres audio */}
+                    {/* Paramètres audio avancés (⚙️) */}
                     <button
-                      onClick={() => setShowDeviceModal(true)}
-                      title="Paramètres périphériques audio"
+                      onClick={() => {
+                        sounds.playClick();
+                        setShowDeviceModal(true);
+                        setShowMicDropdown(false);
+                        setShowOutputDropdown(false);
+                      }}
+                      title="Paramètres avancés : Isolation vocale AI, sensibilité & qualité audio"
                       className="p-2.5 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-white transition-all cursor-pointer"
                     >
                       <IconSettings size={16} />
@@ -1712,16 +1853,23 @@ export default function LobbiesView({
             </div>
           </div>
 
-          {/* MODAL SÉLECTION PÉRIPHÉRIQUES AUDIO (STYLE DISCORD) */}
+          {/* ==================== MODAL PARAMÈTRES AUDIO AVANCÉS (ISOLATION VOCALE AI, QUALITÉ, SENSIBILITÉ) ==================== */}
           {showDeviceModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-              <div className="w-full max-w-md glass-panel rounded-3xl p-6 border border-white/15 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <IconSettings size={18} className="text-white" />
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                      Paramètres Périphériques Audio
-                    </h3>
+              <div className="w-full max-w-lg glass-panel rounded-3xl p-6 sm:p-7 border border-white/15 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--color-val-red)]/20 border border-[var(--color-val-red)]/40 flex items-center justify-center">
+                      <IconSettings size={18} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                        Paramètres Vocaux Avancés
+                      </h3>
+                      <p className="text-[11px] text-[var(--color-text-secondary)]">
+                        Traitement DSP, isolation de voix et qualité du flux audio
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => setShowDeviceModal(false)}
@@ -1731,54 +1879,184 @@ export default function LobbiesView({
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Microphone Input */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
-                      <IconMic size={14} className="text-emerald-400" />
-                      <span>Microphone (Entrée)</span>
-                    </label>
-                    <select
-                      value={selectedInputId}
-                      onChange={(e) => handleSwitchInputDevice(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#0f1923] border border-white/20 text-xs text-white focus:outline-none focus:border-emerald-400"
-                    >
-                      <option value="default">Microphone par défaut</option>
-                      {audioInputs.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </select>
+                <div className="space-y-5">
+                  {/* 1. ISOLATION DE LA VOIX AI (STYLE KRISP - GRATUIT & LOCAL) */}
+                  <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                          <IconMic size={16} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-white uppercase tracking-wide">
+                              Isolation Vocale Spycam AI
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase border border-emerald-500/30">
+                              Gratuit • DSP Local
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-emerald-200/80">
+                            Supprime les bruits de clavier, ventilateurs et résonances de pièce.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Switch toggle */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleVoiceIsolation(!voiceIsolation)}
+                        className={`w-12 h-6 rounded-full transition-all duration-200 relative p-0.5 cursor-pointer ${
+                          voiceIsolation ? "bg-emerald-500" : "bg-white/20"
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200 ${
+                            voiceIsolation ? "translate-x-6" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Speaker Output */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
-                      <IconHeadphones size={14} className="text-sky-400" />
-                      <span>Casque / Haut-parleurs (Sortie)</span>
-                    </label>
-                    <select
-                      value={selectedOutputId}
-                      onChange={(e) => handleSwitchOutputDevice(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#0f1923] border border-white/20 text-xs text-white focus:outline-none focus:border-emerald-400"
-                    >
-                      <option value="default">Haut-parleurs / Casque par défaut</option>
-                      {audioOutputs.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>
-                          {d.label}
-                        </option>
+                  {/* 2. SENSIBILITÉ DU MICROPHONE & NOISE GATE */}
+                  <div className="space-y-2 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+                    <div className="flex items-center justify-between text-xs">
+                      <label className="font-bold text-white flex items-center gap-2">
+                        <span>Seuil de Détection de la Voix (Noise Gate)</span>
+                      </label>
+                      <span className="text-[11px] font-mono text-emerald-400 font-bold">{micSensitivity}%</span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={5}
+                      max={120}
+                      step={5}
+                      value={micSensitivity}
+                      onChange={(e) => handleChangeSensitivity(Number(e.target.value))}
+                      className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                    />
+
+                    {/* Live volume level meter */}
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between text-[10px] text-gray-400">
+                        <span>Test du niveau de votre voix</span>
+                        <span className={isMyVoiceSpeaking ? "text-emerald-400 font-bold" : "text-gray-400"}>
+                          {isMyVoiceSpeaking ? "Signal Actif (Parole)" : "Silence / Bruit filtré"}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-black/40 border border-white/10 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-100 ${
+                            isMyVoiceSpeaking
+                              ? "bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.8)]"
+                              : "bg-white/20"
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(5, voiceVolumeLevel * 200))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. QUALITÉ DU FLUX AUDIO */}
+                  <div className="space-y-2 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+                    <label className="text-xs font-bold text-white block">Qualité du Canal Audio</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "eco", label: "Éco", sub: "32 kbps (Faible débit)" },
+                        { id: "standard", label: "Standard", sub: "64 kbps (Recommandé)" },
+                        { id: "studio", label: "Studio HD", sub: "128 kbps (Ultra clair)" },
+                      ].map((q) => (
+                        <button
+                          key={q.id}
+                          type="button"
+                          onClick={() => handleChangeAudioQuality(q.id as any)}
+                          className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                            audioQuality === q.id
+                              ? "bg-[var(--color-val-red)]/20 border-[var(--color-val-red)] text-white shadow-md"
+                              : "bg-white/[0.02] border-white/10 text-gray-300 hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          <div className="text-xs font-bold">{q.label}</div>
+                          <div className="text-[9px] text-[var(--color-text-secondary)]">{q.sub}</div>
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                  </div>
+
+                  {/* 4. ATTÉNUATION AUTOMATIQUE (DUCKING) */}
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-white">Atténuation Automatique (Ducking)</div>
+                      <p className="text-[10px] text-[var(--color-text-secondary)]">
+                        Baisse automatiquement le son des coéquipiers (-50%) lorsque vous prenez la parole.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAutoDucking(!autoDucking)}
+                      className={`w-12 h-6 rounded-full transition-all duration-200 relative p-0.5 cursor-pointer ${
+                        autoDucking ? "bg-emerald-500" : "bg-white/20"
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200 ${
+                          autoDucking ? "translate-x-6" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* 5. CHOIX DES PÉRIPHÉRIQUES MATÉRIELS */}
+                  <div className="space-y-3 pt-2 border-t border-white/10">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
+                        <IconMic size={14} className="text-emerald-400" />
+                        <span>Périphérique Microphone</span>
+                      </label>
+                      <select
+                        value={selectedInputId}
+                        onChange={(e) => handleSwitchInputDevice(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#0f1923] border border-white/20 text-xs text-white focus:outline-none focus:border-emerald-400"
+                      >
+                        <option value="default">Microphone par défaut</option>
+                        {audioInputs.map((d) => (
+                          <option key={d.deviceId} value={d.deviceId}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-gray-300 flex items-center gap-2">
+                        <IconHeadphones size={14} className="text-sky-400" />
+                        <span>Périphérique Sortie / Casque</span>
+                      </label>
+                      <select
+                        value={selectedOutputId}
+                        onChange={(e) => handleSwitchOutputDevice(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#0f1923] border border-white/20 text-xs text-white focus:outline-none focus:border-emerald-400"
+                      >
+                        <option value="default">Haut-parleurs / Casque par défaut</option>
+                        {audioOutputs.map((d) => (
+                          <option key={d.deviceId} value={d.deviceId}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
                 <div className="pt-2 flex justify-end">
                   <button
                     onClick={() => setShowDeviceModal(false)}
-                    className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs uppercase cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-emerald-500/20"
                   >
-                    Valider
+                    Valider &amp; Fermer
                   </button>
                 </div>
               </div>

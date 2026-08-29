@@ -46,14 +46,56 @@ export class VoiceManager {
   // Signaling poll timer
   private signalInterval: NodeJS.Timeout | null = null;
 
+  // Advanced Audio Settings (Krisp-style Voice Isolation & DSP)
+  private isVoiceIsolationEnabled: boolean = true;
+  private audioQualityPreset: "eco" | "standard" | "studio" = "standard";
+  private isAutoDuckingEnabled: boolean = true;
+  private highpassFilter: BiquadFilterNode | null = null;
+  private bandpassFilter: BiquadFilterNode | null = null;
+  private compressor: DynamicsCompressorNode | null = null;
+
   // Speaking detection threshold in RMS
-  private speakingThreshold = 0.04;
+  private speakingThreshold = 0.035;
   private silenceTimer: NodeJS.Timeout | null = null;
 
   constructor(lobbyId: string, myPeerId: string, callbacks: VoiceManagerCallbacks) {
     this.lobbyId = lobbyId;
     this.myPeerId = myPeerId;
     this.callbacks = callbacks;
+  }
+
+  public setVoiceIsolation(enabled: boolean) {
+    this.isVoiceIsolationEnabled = enabled;
+    if (this.highpassFilter) {
+      this.highpassFilter.frequency.value = enabled ? 85 : 10;
+    }
+    if (this.compressor) {
+      this.compressor.threshold.value = enabled ? -35 : -50;
+      this.compressor.ratio.value = enabled ? 12 : 3;
+    }
+  }
+
+  public setSpeakingThreshold(threshold: number) {
+    this.speakingThreshold = Math.max(0.005, Math.min(0.2, threshold));
+  }
+
+  public setAutoDucking(enabled: boolean) {
+    this.isAutoDuckingEnabled = enabled;
+  }
+
+  public setAudioQuality(preset: "eco" | "standard" | "studio") {
+    this.audioQualityPreset = preset;
+  }
+
+  public getSettings() {
+    return {
+      voiceIsolation: this.isVoiceIsolationEnabled,
+      speakingThreshold: this.speakingThreshold,
+      autoDucking: this.isAutoDuckingEnabled,
+      audioQuality: this.audioQualityPreset,
+      currentInputDeviceId: this.currentInputDeviceId,
+      currentOutputDeviceId: this.currentOutputDeviceId,
+    };
   }
 
   public static async getAvailableAudioDevices(): Promise<{
@@ -125,10 +167,33 @@ export class VoiceManager {
       }
 
       const source = this.audioCtx.createMediaStreamSource(this.stream);
+
+      // Krisp-style DSP Filter chain
+      this.highpassFilter = this.audioCtx.createBiquadFilter();
+      this.highpassFilter.type = "highpass";
+      this.highpassFilter.frequency.value = this.isVoiceIsolationEnabled ? 85 : 10;
+
+      this.bandpassFilter = this.audioCtx.createBiquadFilter();
+      this.bandpassFilter.type = "peaking";
+      this.bandpassFilter.frequency.value = 2400;
+      this.bandpassFilter.gain.value = 2.5;
+
+      this.compressor = this.audioCtx.createDynamicsCompressor();
+      this.compressor.threshold.value = this.isVoiceIsolationEnabled ? -35 : -50;
+      this.compressor.knee.value = 10;
+      this.compressor.ratio.value = this.isVoiceIsolationEnabled ? 12 : 3;
+      this.compressor.attack.value = 0.003;
+      this.compressor.release.value = 0.25;
+
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.4;
-      source.connect(this.analyser);
+
+      // Connect DSP chain
+      source.connect(this.highpassFilter);
+      this.highpassFilter.connect(this.bandpassFilter);
+      this.bandpassFilter.connect(this.compressor);
+      this.compressor.connect(this.analyser);
 
       this.startVolumeMonitoring();
       this.startSpeechRecognition();
@@ -236,12 +301,22 @@ export class VoiceManager {
         if (!this.isSpeaking) {
           this.isSpeaking = true;
           this.callbacks.onSpeakingChange(true, rms);
+          if (this.isAutoDuckingEnabled) {
+            this.remoteAudios.forEach((audio) => {
+              audio.volume = 0.45;
+            });
+          }
         }
       } else {
         if (this.isSpeaking && !this.silenceTimer) {
           this.silenceTimer = setTimeout(() => {
             this.isSpeaking = false;
             this.callbacks.onSpeakingChange(false, 0);
+            if (this.isAutoDuckingEnabled) {
+              this.remoteAudios.forEach((audio) => {
+                audio.volume = 1.0;
+              });
+            }
             this.silenceTimer = null;
           }, 250);
         }
