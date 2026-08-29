@@ -81,7 +81,11 @@ export default function FloatingVoiceBar({
         <div className="flex items-center gap-1.5 pl-2 border-l border-white/10">
           <button
             onClick={() => {
-              sounds.playClick();
+              if (!isMicMuted) {
+                sounds.playVoiceMute();
+              } else {
+                sounds.playVoiceUnmute();
+              }
               onToggleMute();
             }}
             title={isMicMuted ? "Activer le micro" : "Couper le micro"}
@@ -108,7 +112,7 @@ export default function FloatingVoiceBar({
           {/* Bouton carré rouge pour raccrocher */}
           <button
             onClick={() => {
-              sounds.playClick();
+              sounds.playVoiceLeave();
               onLeaveVoice();
             }}
             title="Raccrocher"

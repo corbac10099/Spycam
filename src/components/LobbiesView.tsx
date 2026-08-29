@@ -425,7 +425,7 @@ export default function LobbiesView({
       voiceManagerRef.current = vm;
       setIsInVoice(true);
       setIsMicMuted(false);
-      sounds.playClick();
+      sounds.playVoiceJoin();
 
       if (activeLobby) {
         try {
@@ -453,7 +453,7 @@ export default function LobbiesView({
 
   // Raccrocher 🔴 (Quitter le canal vocal)
   const handleLeaveVoice = async () => {
-    sounds.playClick();
+    sounds.playVoiceLeave();
     if (voiceManagerRef.current) {
       voiceManagerRef.current.stop();
       voiceManagerRef.current = null;
@@ -1715,8 +1715,12 @@ export default function LobbiesView({
                     <div className="relative flex items-center bg-white/[0.07] hover:bg-white/[0.12] rounded-xl border border-white/10 p-1">
                       <button
                         onClick={() => {
-                          sounds.playClick();
                           const nextMute = !isMicMuted;
+                          if (nextMute) {
+                            sounds.playVoiceMute();
+                          } else {
+                            sounds.playVoiceUnmute();
+                          }
                           setIsMicMuted(nextMute);
                           voiceManagerRef.current?.setMute(nextMute);
                           syncVoiceStateToBackend(false, nextMute);

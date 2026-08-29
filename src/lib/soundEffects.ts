@@ -388,6 +388,140 @@ class SoundEngine {
       });
     } catch {}
   }
+
+  // 13. Discord-style Voice Channel Connected Sound (Rising harmonious chord)
+  public playVoiceJoin() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // Tone 1: 440 Hz (A4)
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(440, now);
+      gain1.gain.setValueAtTime(this.volume * 0.45, now);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.13);
+
+      // Tone 2: 659.25 Hz (E5)
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(659.25, now + 0.075);
+      gain2.gain.setValueAtTime(this.volume * 0.5, now + 0.075);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(now + 0.075);
+      osc2.stop(now + 0.23);
+
+      // Tone 3: 880 Hz (A5 - resolving bright chord)
+      const osc3 = this.ctx.createOscillator();
+      const gain3 = this.ctx.createGain();
+      osc3.type = "sine";
+      osc3.frequency.setValueAtTime(880, now + 0.15);
+      gain3.gain.setValueAtTime(this.volume * 0.55, now + 0.15);
+      gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+      osc3.connect(gain3);
+      gain3.connect(this.ctx.destination);
+      osc3.start(now + 0.15);
+      osc3.stop(now + 0.39);
+    } catch {}
+  }
+
+  // 14. Discord-style Voice Channel Disconnected Sound (Descending warm chime)
+  public playVoiceLeave() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // Tone 1: 659.25 Hz (E5)
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(659.25, now);
+      gain1.gain.setValueAtTime(this.volume * 0.45, now);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.12);
+
+      // Tone 2: 440 Hz (A4)
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(440, now + 0.07);
+      gain2.gain.setValueAtTime(this.volume * 0.48, now + 0.07);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.20);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(now + 0.07);
+      osc2.stop(now + 0.21);
+
+      // Tone 3: 329.63 Hz (E4 - resolving warm base note)
+      const osc3 = this.ctx.createOscillator();
+      const gain3 = this.ctx.createGain();
+      osc3.type = "sine";
+      osc3.frequency.setValueAtTime(329.63, now + 0.14);
+      gain3.gain.setValueAtTime(this.volume * 0.42, now + 0.14);
+      gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      osc3.connect(gain3);
+      gain3.connect(this.ctx.destination);
+      osc3.start(now + 0.14);
+      osc3.stop(now + 0.36);
+    } catch {}
+  }
+
+  // 15. Mic Mute toggle sound
+  public playVoiceMute() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.07);
+      gain.gain.setValueAtTime(this.volume * 0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.085);
+    } catch {}
+  }
+
+  // 16. Mic Unmute toggle sound
+  public playVoiceUnmute() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(350, now);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.07);
+      gain.gain.setValueAtTime(this.volume * 0.38, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.085);
+    } catch {}
+  }
 }
 
 export const sounds = new SoundEngine();
