@@ -421,8 +421,8 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
         </svg>
       </div>
 
-      {/* Legend & Summary */}
-      {height >= 95 && (
+      {/* Legend & Summary (hidden when chart is flat or compact) */}
+      {height >= 140 && (
         <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between pt-1.5 mt-0.5 border-t border-[var(--color-border)] text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] gap-1.5 flex-shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <span className="flex items-center gap-1">

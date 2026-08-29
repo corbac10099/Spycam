@@ -6,6 +6,8 @@ import PerformanceCharts from "./PerformanceCharts";
 
 export interface GridItemConfig {
   id: string;
+  x: number;
+  y: number;
   colSpan: number;
   rowSpan: number;
   visible: boolean;
@@ -22,25 +24,26 @@ export interface DashboardGridProps {
 }
 
 const DEFAULT_COLS = 12;
-const DEFAULT_ROWS = 8;
-const DEFAULT_ROW_HEIGHT = 100; // in px
+const DEFAULT_ROWS = 7;
+const DEFAULT_ROW_HEIGHT = 100;
+const GRID_GAP = 12;
 
 const DEFAULT_LAYOUT: GridItemConfig[] = [
-  { id: "chart", colSpan: 12, rowSpan: 2, visible: true },
-  { id: "kills", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "deaths", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "assists", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "kd", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "adr", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "hs", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "wr", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "acs", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "fb", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "ace", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "kast", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "dd", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "wins", colSpan: 3, rowSpan: 1, visible: true },
-  { id: "matches", colSpan: 3, rowSpan: 1, visible: true },
+  { id: "chart", x: 1, y: 1, colSpan: 12, rowSpan: 2, visible: true },
+  { id: "kills", x: 1, y: 3, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "deaths", x: 4, y: 3, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "assists", x: 7, y: 3, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "kd", x: 10, y: 3, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "adr", x: 1, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "hs", x: 4, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "wr", x: 7, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "acs", x: 10, y: 4, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "fb", x: 1, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "ace", x: 4, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "kast", x: 7, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "dd", x: 10, y: 5, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "wins", x: 1, y: 6, colSpan: 3, rowSpan: 1, visible: true },
+  { id: "matches", x: 4, y: 6, colSpan: 3, rowSpan: 1, visible: true },
 ];
 
 const ITEM_LABELS: Record<string, { label: string; icon?: string; desc: string }> = {
@@ -70,7 +73,7 @@ export default function DashboardGrid({
   hiddenStatsByPrivacy = [],
   userStorageKey = "default",
 }: DashboardGridProps) {
-  const storageKey = `spycam_grid_layout_v3_${userStorageKey}`;
+  const storageKey = `spycam_grid_layout_v4_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   const [gridCols, setGridCols] = useState<number>(DEFAULT_COLS);
@@ -82,6 +85,27 @@ export default function DashboardGrid({
   const [resizeHint, setResizeHint] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [saveToast, setSaveToast] = useState<boolean>(false);
+  const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({
+    width: 900,
+    height: 700,
+  });
+
+  // Track container dimensions for SVG grid dots
+  useEffect(() => {
+    if (!gridContainerRef.current) return;
+    const updateSize = () => {
+      if (gridContainerRef.current) {
+        setContainerDimensions({
+          width: gridContainerRef.current.clientWidth,
+          height: gridContainerRef.current.clientHeight,
+        });
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(gridContainerRef.current);
+    return () => observer.disconnect();
+  }, [gridCols, gridRows, layout, isEditing]);
 
   // Load layout and grid density settings from localStorage
   useEffect(() => {
@@ -94,9 +118,11 @@ export default function DashboardGrid({
           if (parsed.rows) setGridRows(parsed.rows);
           if (Array.isArray(parsed.items) && parsed.items.length > 0) {
             const existingIds = new Set(parsed.items.map((item: any) => item.id));
-            const normalized = parsed.items.map((item: any) => ({
+            const normalized = parsed.items.map((item: any, idx: number) => ({
               id: item.id,
-              colSpan: item.colSpan || (item.id === "chart" ? 12 : 3),
+              x: item.x || (item.id === "chart" ? 1 : ((idx % 4) * 3 + 1)),
+              y: item.y || (item.id === "chart" ? 1 : (Math.floor(idx / 4) + 3)),
+              colSpan: item.colSpan || (item.id === "chart" ? (parsed.cols || 12) : 3),
               rowSpan: item.rowSpan || (item.id === "chart" ? 2 : 1),
               visible: item.visible !== false,
             }));
@@ -141,42 +167,41 @@ export default function DashboardGrid({
     saveState(updated);
   };
 
-  // Drag & Drop handlers with Live Shifting (Samsung App Grid Style)
+  // Free Drag & Drop anywhere on the 2D grid
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData("text/plain", id);
     e.dataTransfer.effectAllowed = "move";
     setDraggedId(id);
   };
 
-  const handleDragEnter = (targetIndex: number) => {
-    if (!draggedId) return;
-    const visibleItems = layout.filter((i) => i.visible);
-    const fromDrawer = layout.find((i) => i.id === draggedId && !i.visible);
-
-    if (fromDrawer) {
-      // Item from drawer: live insert into grid
-      const newVisible = [...visibleItems.filter((i) => i.id !== draggedId)];
-      const restored = { ...fromDrawer, visible: true };
-      newVisible.splice(targetIndex, 0, restored);
-      const remainingHidden = layout.filter((i) => !i.visible && i.id !== draggedId);
-      setLayout([...newVisible, ...remainingHidden]);
-      return;
-    }
-
-    const currentIndex = visibleItems.findIndex((i) => i.id === draggedId);
-    if (currentIndex === -1 || currentIndex === targetIndex) return;
-
-    // Shift other cards in real time smoothly!
-    const newVisible = [...visibleItems];
-    const [moved] = newVisible.splice(currentIndex, 1);
-    newVisible.splice(targetIndex, 0, moved);
-    const hiddenItems = layout.filter((i) => !i.visible);
-    setLayout([...newVisible, ...hiddenItems]);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleGridDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    if (!draggedId || !gridContainerRef.current) return;
+
+    const rect = gridContainerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const cellWidth = rect.width / gridCols;
+    const cellHeight = DEFAULT_ROW_HEIGHT + GRID_GAP;
+
+    const draggedItem = layout.find((i) => i.id === draggedId);
+    if (!draggedItem) return;
+
+    const spanW = Math.min(draggedItem.colSpan, gridCols);
+    const spanH = draggedItem.rowSpan;
+
+    const targetX = Math.max(1, Math.min(gridCols - spanW + 1, Math.floor(mouseX / cellWidth) + 1));
+    const targetY = Math.max(1, Math.min(gridRows - spanH + 1, Math.floor(mouseY / cellHeight) + 1));
+
+    if (draggedItem.x !== targetX || draggedItem.y !== targetY || !draggedItem.visible) {
+      setLayout((prev) =>
+        prev.map((item) =>
+          item.id === draggedId ? { ...item, x: targetX, y: targetY, visible: true } : item
+        )
+      );
+    }
   };
 
   const handleDragEnd = () => {
@@ -190,7 +215,7 @@ export default function DashboardGrid({
     saveState(layout);
   };
 
-  // Interactive Modular Edge Resizing (Hold & Drag handles snapped to grid points)
+  // Interactive Live Edge Resizing (With strict minimum sizes to prevent text clipping)
   const handleResizeStart = (
     e: React.MouseEvent,
     itemId: string,
@@ -209,11 +234,19 @@ export default function DashboardGrid({
     const colWidth = Math.max(20, containerWidth / gridCols);
     const rowHeight = DEFAULT_ROW_HEIGHT;
 
+    // Minimum constraints
+    const minCol = itemId === "chart" ? Math.max(3, Math.round(gridCols / 4)) : 2;
+    const minRow = 1;
+
+    const currentItem = layout.find((i) => i.id === itemId);
+    const startPosX = currentItem?.x || 1;
+
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (direction === "horizontal") {
         const deltaX = moveEvent.clientX - startX;
         const colDelta = Math.round(deltaX / colWidth);
-        const targetColSpan = Math.max(1, Math.min(gridCols, currentColSpan + colDelta));
+        const maxAvailableCols = gridCols - startPosX + 1;
+        const targetColSpan = Math.max(minCol, Math.min(maxAvailableCols, currentColSpan + colDelta));
 
         setResizeHint(`${targetColSpan} / ${gridCols} cols × ${currentRowSpan} ligne(s)`);
         setLayout((prev) =>
@@ -222,7 +255,7 @@ export default function DashboardGrid({
       } else {
         const deltaY = moveEvent.clientY - startY;
         const rowDelta = Math.round(deltaY / rowHeight);
-        const targetRowSpan = Math.max(1, Math.min(gridRows, currentRowSpan + rowDelta));
+        const targetRowSpan = Math.max(minRow, Math.min(gridRows, currentRowSpan + rowDelta));
 
         setResizeHint(`${currentColSpan} cols × ${targetRowSpan} ligne(s)`);
         setLayout((prev) =>
@@ -265,6 +298,15 @@ export default function DashboardGrid({
   const hiddenDrawerItems = useMemo(() => {
     return layout.filter((item) => !item.visible);
   }, [layout]);
+
+  // Calculate highest row used to ensure grid height is spacious
+  const maxRowUsed = useMemo(() => {
+    let max = gridRows;
+    activeItems.forEach((i) => {
+      max = Math.max(max, (i.y || 1) + (i.rowSpan || 1) - 1);
+    });
+    return max;
+  }, [activeItems, gridRows]);
 
   // Render individual widget content
   const renderItemContent = (id: string) => {
@@ -376,7 +418,7 @@ export default function DashboardGrid({
                   </span>
                 </div>
 
-                {/* Controls for Grid Columns and Rows Density */}
+                {/* Density Inputs */}
                 <div className="flex items-center gap-2 bg-[var(--color-surface)]/80 border border-[var(--color-border)] px-2.5 py-1 rounded-xl backdrop-blur-md">
                   <div className="flex items-center gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-secondary)]">
@@ -512,40 +554,62 @@ export default function DashboardGrid({
         </div>
       )}
 
-      {/* Main Grid Container with Exact Dot-Grid Spacing & Dense Packing */}
+      {/* Main Free 2D Coordinate Grid Container with Crisp SVG Dots Backdrop */}
       <div
         ref={gridContainerRef}
-        onDragOver={handleDragOver}
+        onDragOver={handleGridDragOver}
         onDrop={handleDrop}
         style={{
-          backgroundImage: isEditing
-            ? `radial-gradient(rgba(255, 70, 85, 0.45) 1.5px, transparent 1.5px)`
-            : undefined,
-          backgroundSize: isEditing
-            ? `calc((100% - ${(gridCols - 1) * 12}px) / ${gridCols} + 12px) ${DEFAULT_ROW_HEIGHT}px`
-            : undefined,
-          backgroundPosition: "0 0",
+          minHeight: `${Math.max(gridRows, maxRowUsed) * (DEFAULT_ROW_HEIGHT + GRID_GAP)}px`,
         }}
         className={`w-full transition-all duration-300 relative ${
-          isEditing
-            ? "p-3 sm:p-5 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/20"
-            : ""
+          isEditing ? "p-3 sm:p-5 rounded-3xl border-2 border-dashed border-[var(--color-val-red)]/40 bg-black/30" : ""
         }`}
       >
+        {/* Exact Non-Stretched SVG Grid Dots Matrix */}
+        {isEditing && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none rounded-3xl z-0"
+            style={{ overflow: "hidden" }}
+          >
+            {Array.from({ length: Math.max(gridRows, maxRowUsed) + 1 }).map((_, r) =>
+              Array.from({ length: gridCols + 1 }).map((_, c) => {
+                const stepX = containerDimensions.width / gridCols;
+                const stepY = DEFAULT_ROW_HEIGHT + GRID_GAP;
+                const cx = Math.min(containerDimensions.width - 4, Math.max(4, c * stepX));
+                const cy = Math.min(containerDimensions.height - 4, Math.max(4, r * stepY + 12));
+
+                return (
+                  <circle
+                    key={`${r}-${c}`}
+                    cx={cx}
+                    cy={cy}
+                    r="1.8"
+                    fill="rgba(255, 70, 85, 0.45)"
+                  />
+                );
+              })
+            )}
+          </svg>
+        )}
+
+        {/* Dynamic 2D CSS Grid */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
             gridAutoRows: `${DEFAULT_ROW_HEIGHT}px`,
-            gridAutoFlow: "dense",
-            gap: "12px",
+            gap: `${GRID_GAP}px`,
           }}
-          className="w-full"
+          className="w-full relative z-10"
         >
-          {activeItems.map((item, index) => {
+          {activeItems.map((item) => {
             const isDragged = draggedId === item.id;
             const isResizing = resizingItemId === item.id;
-            const actualColSpan = Math.min(item.colSpan, gridCols);
+
+            const posX = Math.max(1, Math.min(gridCols, item.x || 1));
+            const posY = Math.max(1, item.y || 1);
+            const actualColSpan = Math.min(item.colSpan, gridCols - posX + 1);
             const actualRowSpan = Math.max(1, item.rowSpan);
 
             return (
@@ -553,30 +617,30 @@ export default function DashboardGrid({
                 key={item.id}
                 draggable={isEditing && !resizingItemId}
                 onDragStart={(e) => handleDragStart(e, item.id)}
-                onDragEnter={() => handleDragEnter(index)}
-                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
                 style={{
-                  gridColumn: `span ${actualColSpan}`,
-                  gridRow: `span ${actualRowSpan}`,
+                  gridColumn: `${posX} / span ${actualColSpan}`,
+                  gridRow: `${posY} / span ${actualRowSpan}`,
                 }}
-                className={`relative group/item transition-all duration-300 ease-out select-none flex flex-col ${
+                className={`relative group/item transition-all duration-200 ease-out select-none flex flex-col min-h-0 overflow-hidden ${
                   isDragged ? "opacity-30 scale-95 ring-2 ring-[var(--color-val-red)]/50 rounded-2xl" : "opacity-100"
                 } ${
                   isResizing ? "ring-2 ring-[var(--color-val-red)] shadow-[0_0_20px_rgba(255,70,85,0.4)] rounded-2xl" : ""
-                } ${isEditing ? "cursor-grab active:cursor-grabbing hover:shadow-lg" : ""}`}
+                } ${isEditing ? "cursor-grab active:cursor-grabbing hover:shadow-xl" : ""}`}
               >
-                {/* Visual Content (flex child filling 100% height and width) */}
-                <div className="w-full h-full flex-1 flex flex-col">{renderItemContent(item.id)}</div>
+                {/* Visual Content (fills 100% height and width without overflow) */}
+                <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden">
+                  {renderItemContent(item.id)}
+                </div>
 
                 {/* Edit Mode Overlays & Edge Resize Bars */}
                 {isEditing && (
                   <>
-                    {/* Size Badge Indicator at top left */}
-                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/80 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center gap-1 border border-white/15 select-none pointer-events-none shadow-md">
+                    {/* Size & Position Indicator at top left */}
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/item:opacity-100 transition-opacity bg-black/85 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center gap-1 border border-white/15 select-none pointer-events-none shadow-md">
                       <span className="text-[10px] text-[var(--color-val-red)]">⋮⋮</span>
                       <span className="text-[9px] font-black uppercase tracking-wider text-white">
-                        {actualColSpan}c × {actualRowSpan}l
+                        {actualColSpan}c × {actualRowSpan}l (col {posX}, l {posY})
                       </span>
                     </div>
 
