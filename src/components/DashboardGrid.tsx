@@ -214,13 +214,28 @@ export default function DashboardGrid({
     const scale = clampedCols / prevCols;
     setGridCols(clampedCols);
 
-    const scaledLayout = layout.map((item) => ({
-      ...item,
-      x: Math.min(clampedCols - 1, Math.round(item.x * scale)),
-      y: Math.round(item.y * scale),
-      colSpan: Math.max(1, Math.min(clampedCols, Math.round(item.colSpan * scale))),
-      rowSpan: Math.max(1, Math.round(item.rowSpan * scale)),
-    }));
+    const totalGaps = (clampedCols - 1) * GRID_GAP;
+    const newCellSize = Math.max(15, (usableWidth - totalGaps) / clampedCols);
+    const newStep = newCellSize + GRID_GAP;
+
+    const scaledLayout = layout.map((item) => {
+      const isChart = item.id === "chart";
+      const minRow = isChart ? Math.max(2, Math.ceil(130 / newStep)) : Math.max(1, Math.ceil(75 / newStep));
+      const minCol = isChart ? Math.max(4, Math.ceil(240 / newStep)) : Math.max(1, Math.ceil(90 / newStep));
+
+      const scaledCol = Math.max(minCol, Math.min(clampedCols, Math.round(item.colSpan * scale)));
+      const scaledRow = Math.max(minRow, Math.round(item.rowSpan * scale));
+      const scaledX = Math.min(clampedCols - scaledCol, Math.round(item.x * scale));
+      const scaledY = Math.round(item.y * scale);
+
+      return {
+        ...item,
+        x: Math.max(0, scaledX),
+        y: Math.max(0, scaledY),
+        colSpan: scaledCol,
+        rowSpan: scaledRow,
+      };
+    });
 
     saveState(scaledLayout, clampedCols);
   };

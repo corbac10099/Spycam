@@ -221,7 +221,7 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
               className={`px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer ${
                 activeMetric === m.id
                   ? "bg-[var(--color-val-red)] text-white shadow-md shadow-[var(--color-val-red)]/30"
-                  : "text-[var(--color-text-secondary)] hover:text-var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
               }`}
             >
               {m.label}
