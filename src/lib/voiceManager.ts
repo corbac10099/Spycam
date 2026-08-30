@@ -1,5 +1,4 @@
-// Full WebRTC Peer-to-Peer Voice Mesh & Activity Detection Manager
-// Transmits live microphone audio directly between players' browsers using free public Google STUN servers.
+import { getPusherClient } from "./pusherClient";
 
 export interface VoiceManagerCallbacks {
   onSpeakingChange: (isSpeaking: boolean, volumeLevel: number) => void;
@@ -34,6 +33,7 @@ export class VoiceManager {
   private isDeafened: boolean = false;
   private callbacks: VoiceManagerCallbacks;
   private recognition: any = null;
+  private pusherChannel: any = null;
 
   // Selected Devices
   private currentInputDeviceId: string = "default";
@@ -230,6 +230,7 @@ export class VoiceManager {
 
       this.startVolumeMonitoring();
       this.startSpeechRecognition();
+      this.initPusherChannel();
       this.startSignalingLoop();
 
       return true;
@@ -472,8 +473,62 @@ export class VoiceManager {
     } catch {}
   }
 
+  private initPusherChannel() {
+    try {
+      const pusher = getPusherClient();
+      if (!pusher) return;
+
+      const channelName = `lobby-${this.lobbyId}`;
+      this.pusherChannel = pusher.subscribe(channelName);
+
+      this.pusherChannel.bind("voice-signal", (sig: any) => {
+        if (sig && sig.toId === this.myPeerId && sig.fromId !== this.myPeerId) {
+          this.handleIncomingSignal(sig);
+        }
+      });
+
+      this.pusherChannel.bind("voice-member-join", (data: any) => {
+        if (data && data.voiceMembers) {
+          this.syncRemotePeers(data.voiceMembers);
+        }
+      });
+
+      this.pusherChannel.bind("voice-member-leave", (data: any) => {
+        if (data && data.gameName && data.tagLine) {
+          const remoteId = `${data.gameName}_${data.tagLine}`;
+          this.closePeer(remoteId);
+        }
+      });
+
+      this.pusherChannel.bind("voice-member-state", (data: any) => {
+        if (data && data.gameName && data.tagLine) {
+          const remoteId = `${data.gameName}_${data.tagLine}`;
+          if (typeof data.isSpeaking === "boolean") {
+            this.callbacks.onRemoteSpeakingChange?.(remoteId, data.isSpeaking);
+          }
+        }
+      });
+    } catch (err) {
+      console.warn("[VoiceManager] Pusher init error:", err);
+    }
+  }
+
   private async sendSignal(toId: string, type: "offer" | "answer" | "ice", data: any) {
     try {
+      // 1. Instant WebSocket broadcast via dedicated signaling endpoint
+      fetch("/api/voice/signal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lobbyId: this.lobbyId,
+          fromId: this.myPeerId,
+          toId,
+          type,
+          data,
+        }),
+      }).catch(() => {});
+
+      // 2. Also send to standard lobby endpoint as fallback
       await fetch(`/api/lobbies/${this.lobbyId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -502,7 +557,7 @@ export class VoiceManager {
           this.syncRemotePeers(data.lobby.voiceMembers);
         }
       } catch {}
-    }, 1200);
+    }, 600);
   }
 
   private async handleIncomingSignal(sig: { fromId: string; type: string; data: any }) {
@@ -614,6 +669,15 @@ export class VoiceManager {
     if (this.signalInterval) {
       clearInterval(this.signalInterval);
       this.signalInterval = null;
+    }
+    if (this.pusherChannel) {
+      try {
+        const pusher = getPusherClient();
+        if (pusher) {
+          pusher.unsubscribe(`lobby-${this.lobbyId}`);
+        }
+      } catch {}
+      this.pusherChannel = null;
     }
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);

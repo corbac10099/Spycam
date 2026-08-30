@@ -8,6 +8,7 @@ import {
   addVoiceTranscriptToNeon,
   deleteLobbyFromNeon,
 } from '@/lib/lobbyDb';
+import { triggerPusherEvent } from '@/lib/pusherServer';
 
 export interface WebRTCSignal {
   id: string;
@@ -86,6 +87,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           timestamp: Date.now(),
         };
 
+        // Realtime Pusher broadcast
+        await triggerPusherEvent(`private-lobby-${id}`, 'voice-signal', signal);
+        await triggerPusherEvent(`lobby-${id}`, 'voice-signal', signal);
+
         global._spycam_voice_signals[id].push(signal);
         const thirtySecAgo = Date.now() - 30000;
         global._spycam_voice_signals[id] = global._spycam_voice_signals[id].filter((s) => s.timestamp > thirtySecAgo);
@@ -143,6 +148,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       };
       currentLobby.chat.push(joinMsg);
 
+      await triggerPusherEvent(`private-lobby-${id}`, 'member-join', { member: newMember, lobby: currentLobby });
+      await triggerPusherEvent(`lobby-${id}`, 'member-join', { member: newMember, lobby: currentLobby });
+
       return NextResponse.json({ success: true, lobby: currentLobby, member: newMember });
     }
 
@@ -172,6 +180,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       // Save to Neon DB
       await addChatMessageToNeon(id, msg);
+
+      await triggerPusherEvent(`private-lobby-${id}`, 'chat-message', msg);
+      await triggerPusherEvent(`lobby-${id}`, 'chat-message', msg);
 
       return NextResponse.json({ success: true, message: msg, chat: currentLobby.chat, isToxic: modResult.isToxic });
     }
@@ -212,6 +223,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         currentLobby.chat.push(sysMsg);
       }
 
+      await triggerPusherEvent(`private-lobby-${id}`, 'voice-member-join', { voiceMembers: currentLobby.voiceMembers });
+      await triggerPusherEvent(`lobby-${id}`, 'voice-member-join', { voiceMembers: currentLobby.voiceMembers });
+
       return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers });
     }
 
@@ -233,6 +247,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           timestamp: Date.now(),
         };
         currentLobby.chat.push(leaveSys);
+
+        await triggerPusherEvent(`private-lobby-${id}`, 'voice-member-leave', { gameName, tagLine, voiceMembers: currentLobby.voiceMembers });
+        await triggerPusherEvent(`lobby-${id}`, 'voice-member-leave', { gameName, tagLine, voiceMembers: currentLobby.voiceMembers });
       }
 
       return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers || [] });
@@ -248,6 +265,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (member) {
           if (typeof isSpeaking === 'boolean') member.isSpeaking = isSpeaking;
           if (typeof isMuted === 'boolean') member.isMuted = isMuted;
+
+          await triggerPusherEvent(`private-lobby-${id}`, 'voice-member-state', { gameName, tagLine, isSpeaking, isMuted });
+          await triggerPusherEvent(`lobby-${id}`, 'voice-member-state', { gameName, tagLine, isSpeaking, isMuted });
         }
       }
       return NextResponse.json({ success: true, voiceMembers: currentLobby.voiceMembers || [] });

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from
 import { sounds } from "@/lib/soundEffects";
 import { LobbyItem, LobbyMember, VoiceMember, ChatMessage, getTierName } from "@/app/api/lobbies/route";
 import { VoiceManager, AudioDeviceInfo } from "@/lib/voiceManager";
+import { getPusherClient } from "@/lib/pusherClient";
 import { filterToxicText } from "@/lib/moderation";
 import {
   IconPhone,
@@ -334,9 +335,42 @@ export default function LobbiesView({
     fetchLobbies();
   }, []);
 
-  // Polling for active salon updates
+  // Real-time Pusher & fallback polling for active salon updates
   useEffect(() => {
     if (currentView !== "salon" || !activeLobby) return;
+
+    let pusherChannel: any = null;
+    try {
+      const pusher = getPusherClient();
+      if (pusher) {
+        pusherChannel = pusher.subscribe(`lobby-${activeLobby.id}`);
+        pusherChannel.bind("chat-message", (msg: any) => {
+          setActiveLobby((prev) => {
+            if (!prev) return null;
+            if (prev.chat.some((m) => m.id === msg.id)) return prev;
+            return { ...prev, chat: [...prev.chat, msg] };
+          });
+        });
+
+        pusherChannel.bind("member-join", (data: any) => {
+          if (data && data.lobby) {
+            setActiveLobby(data.lobby);
+          }
+        });
+
+        pusherChannel.bind("voice-member-join", (data: any) => {
+          if (data && data.voiceMembers) {
+            setActiveLobby((prev) => (prev ? { ...prev, voiceMembers: data.voiceMembers } : null));
+          }
+        });
+
+        pusherChannel.bind("voice-member-leave", (data: any) => {
+          if (data && data.voiceMembers) {
+            setActiveLobby((prev) => (prev ? { ...prev, voiceMembers: data.voiceMembers } : null));
+          }
+        });
+      }
+    } catch {}
 
     const interval = setInterval(async () => {
       try {
@@ -346,10 +380,17 @@ export default function LobbiesView({
           setActiveLobby(data.lobby);
         }
       } catch {}
-    }, 3000);
+    }, 4000);
 
-    return () => clearInterval(interval);
-  }, [currentView, activeLobby]);
+    return () => {
+      clearInterval(interval);
+      if (pusherChannel && activeLobby) {
+        try {
+          getPusherClient()?.unsubscribe(`lobby-${activeLobby.id}`);
+        } catch {}
+      }
+    };
+  }, [currentView, activeLobby?.id]);
 
   // Scroll ONLY the internal chat container when a new message arrives (never window)
   useEffect(() => {
