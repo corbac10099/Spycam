@@ -24,6 +24,7 @@ model User {
   hiddenStats     String    @default("[]")
   enforcePublicStats Boolean @default(false)
   dashboardGrid   String?
+  voiceSettings   String?   // JSON string storing { inputDeviceId, outputDeviceId, voiceIsolation, autoDucking, speakingThreshold, audioQuality }
   badge           String?   // "verified", "pro", "creator", "vip", "dev", "moderator"
   showBadge       Boolean   @default(true)
   riotGameName    String?

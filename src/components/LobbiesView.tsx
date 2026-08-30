@@ -260,8 +260,64 @@ export default function LobbiesView({
   const [showDeviceModal, setShowDeviceModal] = useState<boolean>(false);
   const [voiceIsolation, setVoiceIsolation] = useState<boolean>(true);
   const [micSensitivity, setMicSensitivity] = useState<number>(35); // threshold mapped 5 to 150
-  const [audioQuality, setAudioQuality] = useState<"eco" | "standard" | "studio">("standard");
+  const [audioQuality, setAudioQuality] = useState<"eco" | "standard" | "studio">("studio");
   const [autoDucking, setAutoDucking] = useState<boolean>(true);
+
+  const isInVoiceRef = useRef<boolean>(false);
+  useEffect(() => {
+    isInVoiceRef.current = isInVoice;
+  }, [isInVoice]);
+
+  // Save voice preferences to localStorage and Neon DB
+  const saveVoiceSettingsToDB = useCallback(async (settingsToSave: {
+    inputId?: string;
+    outputId?: string;
+    voiceIsolation?: boolean;
+    micSensitivity?: number;
+    audioQuality?: "eco" | "standard" | "studio";
+    autoDucking?: boolean;
+  }) => {
+    if (typeof window !== "undefined") {
+      try {
+        const existing = localStorage.getItem("spycam_voice_settings");
+        const parsed = existing ? JSON.parse(existing) : {};
+        const merged = { ...parsed, ...settingsToSave };
+        localStorage.setItem("spycam_voice_settings", JSON.stringify(merged));
+      } catch {}
+    }
+    try {
+      const guestId = typeof window !== "undefined" ? sessionStorage.getItem("spycam_guest_id") : null;
+      await fetch("/api/user/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(guestId ? { "x-guest-id": guestId } : {}),
+        },
+        body: JSON.stringify({
+          guestId: guestId || undefined,
+          voiceSettings: settingsToSave,
+        }),
+      });
+    } catch {}
+  }, []);
+
+  // Load saved voice preferences on mount (from localStorage and Neon DB)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("spycam_voice_settings");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.inputId) setSelectedInputId(parsed.inputId);
+          if (parsed.outputId) setSelectedOutputId(parsed.outputId);
+          if (typeof parsed.voiceIsolation === "boolean") setVoiceIsolation(parsed.voiceIsolation);
+          if (typeof parsed.micSensitivity === "number") setMicSensitivity(parsed.micSensitivity);
+          if (parsed.audioQuality) setAudioQuality(parsed.audioQuality);
+          if (typeof parsed.autoDucking === "boolean") setAutoDucking(parsed.autoDucking);
+        }
+      } catch {}
+    }
+  }, []);
 
   const loadAudioDevices = useCallback(async () => {
     const { inputs, outputs } = await VoiceManager.getAvailableAudioDevices();
@@ -275,6 +331,7 @@ export default function LobbiesView({
 
   const handleSwitchInputDevice = async (deviceId: string) => {
     setSelectedInputId(deviceId);
+    saveVoiceSettingsToDB({ inputId: deviceId });
     if (voiceManagerRef.current) {
       await voiceManagerRef.current.setInputDevice(deviceId);
     }
@@ -282,6 +339,7 @@ export default function LobbiesView({
 
   const handleSwitchOutputDevice = async (sinkId: string) => {
     setSelectedOutputId(sinkId);
+    saveVoiceSettingsToDB({ outputId: sinkId });
     if (voiceManagerRef.current) {
       await voiceManagerRef.current.setOutputDevice(sinkId);
     }
@@ -289,6 +347,7 @@ export default function LobbiesView({
 
   const handleToggleVoiceIsolation = (enabled: boolean) => {
     setVoiceIsolation(enabled);
+    saveVoiceSettingsToDB({ voiceIsolation: enabled });
     if (voiceManagerRef.current) {
       voiceManagerRef.current.setVoiceIsolation(enabled);
     }
@@ -296,6 +355,7 @@ export default function LobbiesView({
 
   const handleChangeSensitivity = (val: number) => {
     setMicSensitivity(val);
+    saveVoiceSettingsToDB({ micSensitivity: val });
     if (voiceManagerRef.current) {
       voiceManagerRef.current.setSpeakingThreshold(val / 1000);
     }
@@ -303,6 +363,7 @@ export default function LobbiesView({
 
   const handleChangeAudioQuality = (quality: "eco" | "standard" | "studio") => {
     setAudioQuality(quality);
+    saveVoiceSettingsToDB({ audioQuality: quality });
     if (voiceManagerRef.current) {
       voiceManagerRef.current.setAudioQuality(quality);
     }
@@ -310,6 +371,7 @@ export default function LobbiesView({
 
   const handleToggleAutoDucking = (enabled: boolean) => {
     setAutoDucking(enabled);
+    saveVoiceSettingsToDB({ autoDucking: enabled });
     if (voiceManagerRef.current) {
       voiceManagerRef.current.setAutoDucking(enabled);
     }
@@ -362,11 +424,19 @@ export default function LobbiesView({
           if (data && data.voiceMembers) {
             setActiveLobby((prev) => (prev ? { ...prev, voiceMembers: data.voiceMembers } : null));
           }
+          // Play Discord join sound for everyone in voice when a player joins
+          if (isInVoiceRef.current) {
+            sounds.playVoiceJoin();
+          }
         });
 
         pusherChannel.bind("voice-member-leave", (data: any) => {
           if (data && data.voiceMembers) {
             setActiveLobby((prev) => (prev ? { ...prev, voiceMembers: data.voiceMembers } : null));
+          }
+          // Play Discord leave sound for everyone in voice when a player leaves
+          if (isInVoiceRef.current && (data.gameName !== myName || data.tagLine !== myTag)) {
+            sounds.playVoiceLeave();
           }
         });
       }
@@ -390,7 +460,7 @@ export default function LobbiesView({
         } catch {}
       }
     };
-  }, [currentView, activeLobby?.id]);
+  }, [currentView, activeLobby?.id, myName, myTag]);
 
   // Scroll ONLY the internal chat container when a new message arrives (never window)
   useEffect(() => {
@@ -460,6 +530,12 @@ export default function LobbiesView({
         setVoiceError(err);
       },
     });
+
+    // Apply all user's persisted audio preferences immediately
+    vm.setVoiceIsolation(voiceIsolation);
+    vm.setSpeakingThreshold(micSensitivity / 1000);
+    vm.setAudioQuality(audioQuality);
+    vm.setAutoDucking(autoDucking);
 
     const success = await vm.start(selectedInputId, selectedOutputId);
     if (success) {
