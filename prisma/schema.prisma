@@ -200,3 +200,26 @@ model LobbyVoiceTranscript {
   @@index([lobbyId])
 }
 
+model LobbyArchive {
+  id               String   @id @default(cuid())
+  lobbyId          String
+  leaderName       String
+  leaderTag        String
+  mode             String
+  region           String   @default("EU / Paris")
+  lobbyLevel       String   @default("Or")
+  lobbyLevelTier   Int      @default(12)
+  totalMembers     Int      @default(1)
+  membersList      String   @default("[]") // JSON string of participating members
+  closedReason     String   @default("empty") // "empty", "leader_closed", "expired"
+  createdAt        DateTime // Original lobby creation time
+  closedAt         DateTime @default(now())
+  messagesCount    Int      @default(0)
+  transcriptsCount Int      @default(0)
+  recordsData      String   @default("[]") // JSON of all chat messages and voice transcripts with timestamps, senders and present viewers
+
+  @@index([lobbyId])
+  @@index([closedAt])
+}
+
+

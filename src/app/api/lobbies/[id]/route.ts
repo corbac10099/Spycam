@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LobbyMember, ChatMessage, VoiceMember, VoiceTranscriptLog } from '../route';
+import { LobbyMember, ChatMessage, VoiceMember, VoiceTranscriptLog, getTierName } from '../route';
 import { filterToxicText } from '@/lib/moderation';
 import {
   getLobbyByIdFromNeon,
@@ -136,8 +136,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       currentLobby.members.push(newMember);
       currentLobby.currentSlots = currentLobby.members.length;
 
+      // Recalculate dynamic lobby average MMR & level
+      const avgTier = Math.round(
+        currentLobby.members.reduce((acc: number, m: any) => acc + (m.rankTier ?? 12), 0) / currentLobby.members.length
+      );
+      currentLobby.lobbyLevelTier = avgTier;
+      currentLobby.lobbyLevel = getTierName(avgTier);
+
       // Update in Neon DB
-      await updateLobbyInNeon(id, { members: currentLobby.members });
+      await updateLobbyInNeon(id, {
+        members: currentLobby.members,
+        lobbyLevel: currentLobby.lobbyLevel,
+        lobbyLevelTier: avgTier,
+      });
 
       const joinMsg: ChatMessage = {
         id: `msg_${Date.now()}`,
@@ -279,7 +290,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (content && content.trim()) {
         const mod = filterToxicText(content.trim());
         const logEntry: VoiceTranscriptLog = {
-          id: `vt_${Date.now()}`,
+          id: `vt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           senderName: senderName || 'Joueur',
           senderTag: senderTag || 'EUW',
           content: mod.cleanText,
@@ -296,6 +307,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         // Save transcript to Neon DB
         await addVoiceTranscriptToNeon(id, logEntry);
+
+        // Real-time broadcast transcript to all members in lobby
+        await triggerPusherEvent(`private-lobby-${id}`, 'voice-transcript', logEntry);
+        await triggerPusherEvent(`lobby-${id}`, 'voice-transcript', logEntry);
       }
       return NextResponse.json({ success: true });
     }
@@ -313,15 +328,42 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
       currentLobby.currentSlots = currentLobby.members.length;
 
-      if (currentLobby.members.length === 0 || (currentLobby.leaderName.toLowerCase() === gameName?.toLowerCase() && currentLobby.leaderTag.toLowerCase() === tagLine?.toLowerCase())) {
+      // If no members remain, auto-archive and close the lobby in Neon DB
+      if (currentLobby.members.length === 0) {
         if (global._spycam_lobbies) {
           global._spycam_lobbies = global._spycam_lobbies.filter((l) => l.id !== id);
         }
-        await deleteLobbyFromNeon(id);
-        return NextResponse.json({ success: true, removed: true });
+        await deleteLobbyFromNeon(id, 'empty');
+        await triggerPusherEvent(`private-lobby-${id}`, 'lobby-closed', { reason: 'empty' });
+        await triggerPusherEvent(`lobby-${id}`, 'lobby-closed', { reason: 'empty' });
+        return NextResponse.json({ success: true, removed: true, lobbyClosed: true });
       }
 
-      await updateLobbyInNeon(id, { members: currentLobby.members, voiceMembers: currentLobby.voiceMembers });
+      // If leader left, promote the next member as leader
+      if (currentLobby.leaderName.toLowerCase() === gameName?.toLowerCase() && currentLobby.leaderTag.toLowerCase() === tagLine?.toLowerCase()) {
+        const nextLeader = currentLobby.members[0];
+        nextLeader.isLeader = true;
+        currentLobby.leaderName = nextLeader.gameName;
+        currentLobby.leaderTag = nextLeader.tagLine;
+        currentLobby.leaderRank = nextLeader.rank;
+        currentLobby.leaderRankUrl = nextLeader.rankUrl;
+        currentLobby.leaderRankTier = nextLeader.rankTier;
+        currentLobby.leaderAvatar = nextLeader.avatarUrl;
+      }
+
+      // Recalculate dynamic lobby average MMR & level
+      const avgTier = Math.round(
+        currentLobby.members.reduce((acc: number, m: any) => acc + (m.rankTier ?? 12), 0) / currentLobby.members.length
+      );
+      currentLobby.lobbyLevelTier = avgTier;
+      currentLobby.lobbyLevel = getTierName(avgTier);
+
+      await updateLobbyInNeon(id, {
+        members: currentLobby.members,
+        voiceMembers: currentLobby.voiceMembers,
+        lobbyLevel: currentLobby.lobbyLevel,
+        lobbyLevelTier: avgTier,
+      });
 
       const leaveMsg: ChatMessage = {
         id: `msg_${Date.now()}`,
@@ -331,6 +373,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         timestamp: Date.now(),
       };
       currentLobby.chat.push(leaveMsg);
+
+      await triggerPusherEvent(`private-lobby-${id}`, 'member-leave', { gameName, tagLine, lobby: currentLobby });
+      await triggerPusherEvent(`lobby-${id}`, 'member-leave', { gameName, tagLine, lobby: currentLobby });
 
       return NextResponse.json({ success: true, lobby: currentLobby });
     }
@@ -346,6 +391,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (global._spycam_lobbies) {
     global._spycam_lobbies = global._spycam_lobbies.filter((l) => l.id !== id);
   }
-  await deleteLobbyFromNeon(id);
+  await deleteLobbyFromNeon(id, 'leader_closed');
+  await triggerPusherEvent(`private-lobby-${id}`, 'lobby-closed', { reason: 'leader_closed' });
+  await triggerPusherEvent(`lobby-${id}`, 'lobby-closed', { reason: 'leader_closed' });
   return NextResponse.json({ success: true });
 }

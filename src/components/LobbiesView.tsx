@@ -78,6 +78,35 @@ export function getPlayerAvatar(name: string = "player", customUrl?: string): st
   return RANDOM_VALORANT_AVATARS[idx];
 }
 
+/**
+ * Deduce remaining open roles needed in a lobby after subtracting joined members
+ */
+export function getRemainingRoles(lobby: LobbyItem): string[] {
+  if (!lobby.roleNeeded || lobby.roleNeeded.length === 0 || lobby.roleNeeded.includes("Tous Rôles")) {
+    return ["Tous Rôles"];
+  }
+  const takenRoles: string[] = [];
+  for (const member of lobby.members || []) {
+    if (Array.isArray(member.roles)) {
+      for (const r of member.roles) {
+        if (r && r !== "Tous Rôles") takenRoles.push(r);
+      }
+    }
+  }
+
+  const remaining: string[] = [];
+  for (const needed of lobby.roleNeeded) {
+    const idx = takenRoles.indexOf(needed);
+    if (idx !== -1) {
+      takenRoles.splice(idx, 1);
+    } else {
+      remaining.push(needed);
+    }
+  }
+
+  return remaining.length > 0 ? remaining : ["Tous Rôles"];
+}
+
 export const VALORANT_ROLE_ICONS: Record<string, string> = {
   "Duelliste": "https://media.valorant-api.com/agents/roles/dbe8757e-9e92-4ed4-b39f-9dfc589691d4/displayicon.png",
   "Initiateur": "https://media.valorant-api.com/agents/roles/1b47567f-8f7b-444b-aae3-b0c634622d10/displayicon.png",
@@ -439,6 +468,32 @@ export default function LobbiesView({
             sounds.playVoiceLeave();
           }
         });
+
+        pusherChannel.bind("member-leave", (data: any) => {
+          if (data && data.lobby) {
+            setActiveLobby(data.lobby);
+          }
+        });
+
+        pusherChannel.bind("voice-transcript", (log: any) => {
+          setActiveLobby((prev) => {
+            if (!prev) return null;
+            const existing = prev.voiceTranscripts || [];
+            if (existing.some((t) => t.id === log.id)) return prev;
+            return { ...prev, voiceTranscripts: [...existing, log] };
+          });
+        });
+
+        pusherChannel.bind("lobby-closed", () => {
+          if (voiceManagerRef.current) {
+            voiceManagerRef.current.stop();
+            voiceManagerRef.current = null;
+          }
+          setIsInVoice(false);
+          setActiveLobby(null);
+          setCurrentView("landing");
+          fetchLobbies();
+        });
       }
     } catch {}
 
@@ -448,6 +503,16 @@ export default function LobbiesView({
         const data = await res.json();
         if (data.success && data.lobby) {
           setActiveLobby(data.lobby);
+        } else if (data.lobbyClosed || res.status === 404) {
+          // Salon fermé ou archivé
+          if (voiceManagerRef.current) {
+            voiceManagerRef.current.stop();
+            voiceManagerRef.current = null;
+          }
+          setIsInVoice(false);
+          setActiveLobby(null);
+          setCurrentView("landing");
+          fetchLobbies();
         }
       } catch {}
     }, 4000);
@@ -461,6 +526,38 @@ export default function LobbiesView({
       }
     };
   }, [currentView, activeLobby?.id, myName, myTag]);
+
+  // Auto-leave lobby on page unload/close (navigator.sendBeacon)
+  useEffect(() => {
+    if (!activeLobby) return;
+
+    const handleUnload = () => {
+      const payload = JSON.stringify({
+        action: "leave",
+        gameName: myName,
+        tagLine: myTag,
+      });
+      if (navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon(`/api/lobbies/${activeLobby.id}`, blob);
+      } else {
+        fetch(`/api/lobbies/${activeLobby.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener("pagehide", handleUnload);
+    window.addEventListener("beforeunload", handleUnload);
+
+    return () => {
+      window.removeEventListener("pagehide", handleUnload);
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [activeLobby?.id, myName, myTag]);
 
   // Scroll ONLY the internal chat container when a new message arrives (never window)
   useEffect(() => {
@@ -832,7 +929,7 @@ export default function LobbiesView({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Filter lobbies
+  // Filter lobbies with dynamic remaining roles deduction
   const filteredLobbies = lobbies.filter((l) => {
     if (filterMode !== "all") {
       if (filterMode === "others") {
@@ -841,8 +938,10 @@ export default function LobbiesView({
         return false;
       }
     }
-    if (filterRole !== "all" && !l.roleNeeded.includes(filterRole) && !l.roleNeeded.includes("Tous Rôles"))
+    const remainingRoles = getRemainingRoles(l);
+    if (filterRole !== "all" && !remainingRoles.includes(filterRole) && !remainingRoles.includes("Tous Rôles")) {
       return false;
+    }
     if (filterSlots !== "all") {
       const remaining = l.maxSlots - l.currentSlots;
       if (filterSlots === "1" && remaining !== 1) return false;
@@ -856,6 +955,14 @@ export default function LobbiesView({
       if (!matchLeader && !matchRank && !matchNote) return false;
     }
     return true;
+  });
+
+  // Sort lobbies by proximity to user's rank MMR first, then by newest
+  const sortedLobbies = [...filteredLobbies].sort((a, b) => {
+    const diffA = Math.abs((a.lobbyLevelTier ?? 12) - (myRankTier ?? 12));
+    const diffB = Math.abs((b.lobbyLevelTier ?? 12) - (myRankTier ?? 12));
+    if (diffA !== diffB) return diffA - diffB;
+    return b.createdAt - a.createdAt;
   });
 
   return (
@@ -1472,7 +1579,7 @@ export default function LobbiesView({
               <div className="w-10 h-10 border-2 border-[var(--color-val-red)] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
               <p className="text-xs font-bold text-[var(--color-text-secondary)] uppercase">Recherche des salons...</p>
             </div>
-          ) : filteredLobbies.length === 0 ? (
+          ) : sortedLobbies.length === 0 ? (
             <div className="glass-panel rounded-3xl p-12 text-center border border-[var(--color-border)] space-y-3">
               <IconUsers size={36} className="text-gray-500 mx-auto" />
               <h3 className="text-base font-bold text-white uppercase">Aucun salon ne correspond actuellement</h3>
@@ -1489,7 +1596,7 @@ export default function LobbiesView({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredLobbies.map((lobby) => (
+              {sortedLobbies.map((lobby) => (
                 <div
                   key={lobby.id}
                   className="glass-panel rounded-3xl p-5 border border-[var(--color-border)] hover:border-[var(--color-val-red)]/60 transition-all flex flex-col justify-between gap-4 shadow-xl hover:shadow-2xl relative overflow-hidden group"
@@ -1561,11 +1668,11 @@ export default function LobbiesView({
                       </div>
                     </div>
 
-                    {/* Roles Needed */}
+                    {/* Roles Needed (Dynamic Remaining Open Roles) */}
                     <div className="space-y-1">
                       <span className="text-[10px] font-black uppercase text-[var(--color-text-secondary)]">Recherche :</span>
                       <div className="flex flex-wrap gap-1">
-                        {lobby.roleNeeded.map((r, i) => (
+                        {getRemainingRoles(lobby).map((r, i) => (
                           <span key={i} className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
                             {r}
                           </span>
@@ -2008,6 +2115,27 @@ export default function LobbiesView({
 
             {/* CHAT MESSAGES FEED */}
             <div className="flex-1 flex flex-col justify-between min-h-[380px]">
+              {/* LIVE AI VOICE TRANSCRIPTS PREVIEW */}
+              {activeLobby.voiceTranscripts && activeLobby.voiceTranscripts.length > 0 && (
+                <div className="mb-2.5 p-2.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 space-y-1.5 animate-in fade-in">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase text-purple-300">
+                    <span className="flex items-center gap-1.5">
+                      <IconSparkles size={12} className="text-purple-400" />
+                      <span>Transcriptions Vocales (IA)</span>
+                    </span>
+                    <span className="text-[9px] text-purple-400/80 font-medium">Audit temps réel</span>
+                  </div>
+                  <div className="space-y-1 max-h-20 overflow-y-auto custom-scrollbar pr-1">
+                    {activeLobby.voiceTranscripts.slice(-3).map((vt) => (
+                      <div key={vt.id} className="text-[11px] text-gray-300 flex items-start gap-1.5 leading-snug">
+                        <span className="font-bold text-purple-300 shrink-0">🎙️ {vt.senderName} :</span>
+                        <span className="italic text-white/90">&ldquo;{vt.content}&rdquo;</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[calc(100vh-420px)] min-h-[260px] space-y-3 pr-2 custom-scrollbar">
                 {activeLobby.chat?.length === 0 ? (
                   <div className="text-center py-16 text-[var(--color-text-secondary)] text-xs">

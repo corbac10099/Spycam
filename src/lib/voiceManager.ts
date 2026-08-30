@@ -664,31 +664,58 @@ export class VoiceManager {
       try {
         this.recognition = new SpeechRecognitionClass();
         this.recognition.continuous = true;
-        this.recognition.interimResults = false;
+        this.recognition.interimResults = true;
         this.recognition.lang = "fr-FR";
+        this.recognition.maxAlternatives = 1;
+
+        let accumulatedSentence = "";
+        let debounceTimer: any = null;
 
         this.recognition.onresult = (event: any) => {
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              const text = event.results[i][0].transcript.trim();
-              if (text && this.callbacks.onTranscript) {
-                this.callbacks.onTranscript(text);
+            const transcript = event.results[i][0]?.transcript?.trim();
+            if (transcript) {
+              if (event.results[i].isFinal) {
+                if (this.callbacks.onTranscript) {
+                  this.callbacks.onTranscript(transcript);
+                }
+                accumulatedSentence = "";
+              } else {
+                accumulatedSentence = transcript;
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                  if (accumulatedSentence && this.callbacks.onTranscript) {
+                    this.callbacks.onTranscript(accumulatedSentence);
+                    accumulatedSentence = "";
+                  }
+                }, 1800);
               }
             }
           }
         };
 
-        this.recognition.onerror = () => {};
+        this.recognition.onerror = (err: any) => {
+          if (err.error !== "no-speech") {
+            console.warn("[VoiceManager] Speech recognition notice:", err.error);
+          }
+        };
+
         this.recognition.onend = () => {
           if (this.stream && !this.isMuted) {
-            try {
-              this.recognition.start();
-            } catch {}
+            setTimeout(() => {
+              try {
+                if (this.recognition && this.stream && !this.isMuted) {
+                  this.recognition.start();
+                }
+              } catch {}
+            }, 350);
           }
         };
 
         this.recognition.start();
-      } catch {}
+      } catch (err) {
+        console.warn("[VoiceManager] Speech recognition start error:", err);
+      }
     }
   }
 
@@ -704,9 +731,18 @@ export class VoiceManager {
         track.enabled = !muted;
       });
     }
-    if (muted && this.isSpeaking) {
-      this.isSpeaking = false;
-      this.callbacks.onSpeakingChange(false, 0);
+    if (muted) {
+      if (this.recognition) {
+        try { this.recognition.stop(); } catch {}
+      }
+      if (this.isSpeaking) {
+        this.isSpeaking = false;
+        this.callbacks.onSpeakingChange(false, 0);
+      }
+    } else {
+      if (this.recognition && this.stream) {
+        try { this.recognition.start(); } catch {}
+      }
     }
   }
 

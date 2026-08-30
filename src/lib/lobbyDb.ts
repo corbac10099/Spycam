@@ -255,14 +255,87 @@ export async function addVoiceTranscriptToNeon(lobbyId: string, transcript: Voic
 }
 
 /**
- * Delete a Lobby from Neon DB
+ * Archive a closed/empty Lobby with all its chat messages, voice transcripts, timestamps and member audit trail, then delete the active record from Neon DB
  */
-export async function deleteLobbyFromNeon(id: string): Promise<void> {
+export async function archiveAndCloseLobbyInNeon(id: string, reason: string = 'empty'): Promise<void> {
   try {
-    await (prisma as any).lobby.delete({
+    const lobbyRecord = await (prisma as any).lobby.findUnique({
       where: { id },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' } },
+        transcripts: { orderBy: { createdAt: 'asc' } },
+      },
     });
+
+    if (lobbyRecord) {
+      let members: any[] = [];
+      try {
+        members = typeof lobbyRecord.membersData === 'string' ? JSON.parse(lobbyRecord.membersData) : lobbyRecord.membersData || [];
+      } catch {
+        members = [];
+      }
+
+      const allRecords = [
+        ...(lobbyRecord.messages || []).map((m: any) => ({
+          type: 'chat',
+          id: m.id,
+          senderName: m.senderName,
+          senderTag: m.senderTag,
+          senderAvatar: m.senderAvatar,
+          content: m.content,
+          isToxic: !!m.isToxic,
+          timestamp: new Date(m.createdAt).toISOString(),
+          presentMembers: members.map((mem: any) => `${mem.gameName}#${mem.tagLine}`),
+        })),
+        ...(lobbyRecord.transcripts || []).map((t: any) => ({
+          type: 'voice_transcript',
+          id: t.id,
+          senderName: t.senderName,
+          senderTag: t.senderTag,
+          content: t.content,
+          isToxic: !!t.isToxic,
+          timestamp: new Date(t.createdAt).toISOString(),
+          presentMembers: members.map((mem: any) => `${mem.gameName}#${mem.tagLine}`),
+        })),
+      ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      await (prisma as any).lobbyArchive.create({
+        data: {
+          lobbyId: lobbyRecord.id,
+          leaderName: lobbyRecord.leaderName,
+          leaderTag: lobbyRecord.leaderTag,
+          mode: lobbyRecord.mode,
+          region: lobbyRecord.region || 'EU / Paris',
+          lobbyLevel: lobbyRecord.lobbyLevel || 'Or',
+          lobbyLevelTier: lobbyRecord.lobbyLevelTier || 12,
+          totalMembers: Math.max(members.length, lobbyRecord.currentSlots || 1),
+          membersList: JSON.stringify(members),
+          closedReason: reason,
+          createdAt: lobbyRecord.createdAt,
+          closedAt: new Date(),
+          messagesCount: lobbyRecord.messages?.length || 0,
+          transcriptsCount: lobbyRecord.transcripts?.length || 0,
+          recordsData: JSON.stringify(allRecords),
+        },
+      });
+
+      // Delete active lobby record (cascade removes active messages & transcripts)
+      await (prisma as any).lobby.delete({
+        where: { id },
+      });
+    }
   } catch (err) {
-    console.warn('[NeonDB] Error deleting lobby from Neon:', err);
+    console.warn('[NeonDB] Error archiving lobby in Neon:', err);
+    try {
+      await (prisma as any).lobby.delete({ where: { id } });
+    } catch {}
   }
 }
+
+/**
+ * Delete a Lobby from Neon DB (with auto-archive)
+ */
+export async function deleteLobbyFromNeon(id: string, reason: string = 'empty'): Promise<void> {
+  await archiveAndCloseLobbyInNeon(id, reason);
+}
+
