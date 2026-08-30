@@ -44,6 +44,7 @@ export class VoiceManager {
   private callbacks: VoiceManagerCallbacks;
   private recognition: any = null;
   private pusherChannel: any = null;
+  private rnnoiseNode: any = null;
 
   // Selected Devices
   private currentInputDeviceId: string = "default";
@@ -80,6 +81,20 @@ export class VoiceManager {
 
   public setVoiceIsolation(enabled: boolean) {
     this.isVoiceIsolationEnabled = enabled;
+    if (this.sourceNode && this.highpassFilter) {
+      try {
+        this.sourceNode.disconnect();
+        if (this.rnnoiseNode) {
+          try { this.rnnoiseNode.disconnect(); } catch {}
+        }
+        if (enabled && this.rnnoiseNode) {
+          this.sourceNode.connect(this.rnnoiseNode);
+          this.rnnoiseNode.connect(this.highpassFilter);
+        } else {
+          this.sourceNode.connect(this.highpassFilter);
+        }
+      } catch {}
+    }
     if (this.highpassFilter) {
       this.highpassFilter.frequency.value = enabled ? 75 : 10;
     }
@@ -89,9 +104,6 @@ export class VoiceManager {
     if (this.compressor) {
       this.compressor.threshold.value = enabled ? -24 : -40;
       this.compressor.ratio.value = enabled ? 2.5 : 1.5;
-    }
-    if (this.noiseGateGain && this.audioCtx) {
-      this.noiseGateGain.gain.setTargetAtTime(1.0, this.audioCtx.currentTime, 0.01);
     }
   }
 
@@ -192,6 +204,24 @@ export class VoiceManager {
 
       this.sourceNode = this.audioCtx.createMediaStreamSource(this.stream);
 
+      // Load RNNoise Neural AI Noise Isolation (Krisp-grade deep learning model)
+      try {
+        if (typeof window !== "undefined" && this.audioCtx.audioWorklet) {
+          const { loadRnnoise, RnnoiseWorkletNode } = await import("@sapphi-red/web-noise-suppressor");
+          await this.audioCtx.audioWorklet.addModule("/wasm/rnnoise/workletProcessor.js");
+          const wasmBinary = await loadRnnoise({
+            url: "/wasm/rnnoise/rnnoise.wasm",
+            simdUrl: "/wasm/rnnoise/rnnoise_simd.wasm",
+          });
+          this.rnnoiseNode = new RnnoiseWorkletNode(this.audioCtx, {
+            maxChannels: 1,
+            wasmBinary,
+          });
+        }
+      } catch (e) {
+        console.warn("[VoiceManager] RNNoise AI model loading fallback to DSP:", e);
+      }
+
       // Krisp-style Studio Vocal DSP Filter chain
       // 1. Highpass: Cuts desk bumps, handling noise, AC hum (<75Hz)
       this.highpassFilter = this.audioCtx.createBiquadFilter();
@@ -227,9 +257,13 @@ export class VoiceManager {
       this.audioDestination = this.audioCtx.createMediaStreamDestination();
       this.processedStream = this.audioDestination.stream;
 
-      // Connect DSP chain:
-      // source -> highpass -> bandpass -> compressor -> analyser
-      this.sourceNode.connect(this.highpassFilter);
+      // Connect DSP chain with RNNoise Neural AI Noise Isolation:
+      if (this.rnnoiseNode && this.isVoiceIsolationEnabled) {
+        this.sourceNode.connect(this.rnnoiseNode);
+        this.rnnoiseNode.connect(this.highpassFilter);
+      } else {
+        this.sourceNode.connect(this.highpassFilter);
+      }
       this.highpassFilter.connect(this.bandpassFilter);
       this.bandpassFilter.connect(this.compressor);
       this.compressor.connect(this.analyser);
@@ -718,6 +752,13 @@ export class VoiceManager {
       audio.remove();
     });
     this.remoteAudios.clear();
+
+    if (this.rnnoiseNode) {
+      try {
+        this.rnnoiseNode.destroy();
+      } catch {}
+      this.rnnoiseNode = null;
+    }
 
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
