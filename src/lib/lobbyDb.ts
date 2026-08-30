@@ -92,11 +92,15 @@ export async function getLobbiesFromNeon(): Promise<LobbyItem[]> {
           orderBy: { createdAt: 'asc' },
           take: 50,
         },
+        transcripts: {
+          orderBy: { createdAt: 'asc' },
+          take: 50,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return records.map((r: any) => formatDbLobby(r, r.messages || []));
+    return records.map((r: any) => formatDbLobby(r, r.messages || [], r.transcripts || []));
   } catch (err) {
     console.warn('[NeonDB] Error fetching lobbies from Neon, using memory store fallback:', err);
     return global._spycam_lobbies || [];

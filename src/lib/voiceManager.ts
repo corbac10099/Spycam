@@ -655,67 +655,89 @@ export class VoiceManager {
     this.callbacks.onRemoteSpeakingChange?.(peerId, false);
   }
 
+  private isRecognizing: boolean = false;
+
   private startSpeechRecognition() {
     if (typeof window === "undefined") return;
     const SpeechRecognitionClass =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognitionClass) {
-      try {
-        this.recognition = new SpeechRecognitionClass();
-        this.recognition.continuous = true;
-        this.recognition.interimResults = true;
-        this.recognition.lang = "fr-FR";
-        this.recognition.maxAlternatives = 1;
+    if (!SpeechRecognitionClass) {
+      console.warn("[VoiceManager] SpeechRecognition API is not available on this browser/platform.");
+      return;
+    }
 
-        let accumulatedSentence = "";
-        let debounceTimer: any = null;
-
-        this.recognition.onresult = (event: any) => {
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0]?.transcript?.trim();
-            if (transcript) {
-              if (event.results[i].isFinal) {
-                if (this.callbacks.onTranscript) {
-                  this.callbacks.onTranscript(transcript);
-                }
-                accumulatedSentence = "";
-              } else {
-                accumulatedSentence = transcript;
-                if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                  if (accumulatedSentence && this.callbacks.onTranscript) {
-                    this.callbacks.onTranscript(accumulatedSentence);
-                    accumulatedSentence = "";
-                  }
-                }, 1800);
-              }
-            }
-          }
-        };
-
-        this.recognition.onerror = (err: any) => {
-          if (err.error !== "no-speech") {
-            console.warn("[VoiceManager] Speech recognition notice:", err.error);
-          }
-        };
-
-        this.recognition.onend = () => {
-          if (this.stream && !this.isMuted) {
-            setTimeout(() => {
-              try {
-                if (this.recognition && this.stream && !this.isMuted) {
-                  this.recognition.start();
-                }
-              } catch {}
-            }, 350);
-          }
-        };
-
-        this.recognition.start();
-      } catch (err) {
-        console.warn("[VoiceManager] Speech recognition start error:", err);
+    try {
+      if (this.recognition) {
+        try { this.recognition.abort(); } catch {}
       }
+
+      this.recognition = new SpeechRecognitionClass();
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+      this.recognition.lang = "fr-FR";
+      this.recognition.maxAlternatives = 1;
+
+      let lastEmitted = "";
+      let pendingSentence = "";
+      let emitTimer: any = null;
+
+      this.recognition.onstart = () => {
+        this.isRecognizing = true;
+        console.log("[VoiceManager] 🎙️ Speech recognition active & listening (fr-FR)...");
+      };
+
+      this.recognition.onresult = (event: any) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          const text = res[0]?.transcript?.trim();
+          if (!text) continue;
+
+          if (res.isFinal) {
+            if (text !== lastEmitted && text.length >= 2) {
+              lastEmitted = text;
+              this.callbacks.onTranscript?.(text);
+            }
+            pendingSentence = "";
+            if (emitTimer) clearTimeout(emitTimer);
+          } else {
+            pendingSentence = text;
+            if (emitTimer) clearTimeout(emitTimer);
+            emitTimer = setTimeout(() => {
+              if (pendingSentence && pendingSentence !== lastEmitted && pendingSentence.length >= 3) {
+                lastEmitted = pendingSentence;
+                this.callbacks.onTranscript?.(pendingSentence);
+                pendingSentence = "";
+              }
+            }, 1200);
+          }
+        }
+      };
+
+      this.recognition.onerror = (err: any) => {
+        if (err.error !== "no-speech") {
+          console.warn("[VoiceManager] Speech recognition warning:", err.error);
+        }
+      };
+
+      this.recognition.onend = () => {
+        this.isRecognizing = false;
+        if (this.stream && !this.isMuted) {
+          setTimeout(() => {
+            try {
+              if (this.recognition && this.stream && !this.isMuted && !this.isRecognizing) {
+                this.recognition.start();
+              }
+            } catch {}
+          }, 300);
+        }
+      };
+
+      if (!this.isRecognizing) {
+        this.recognition.start();
+      }
+    } catch (err) {
+      console.warn("[VoiceManager] Speech recognition launch error:", err);
     }
   }
 
@@ -732,7 +754,7 @@ export class VoiceManager {
       });
     }
     if (muted) {
-      if (this.recognition) {
+      if (this.recognition && this.isRecognizing) {
         try { this.recognition.stop(); } catch {}
       }
       if (this.isSpeaking) {
@@ -740,7 +762,7 @@ export class VoiceManager {
         this.callbacks.onSpeakingChange(false, 0);
       }
     } else {
-      if (this.recognition && this.stream) {
+      if (this.recognition && this.stream && !this.isRecognizing) {
         try { this.recognition.start(); } catch {}
       }
     }

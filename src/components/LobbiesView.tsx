@@ -297,6 +297,11 @@ export default function LobbiesView({
     isInVoiceRef.current = isInVoice;
   }, [isInVoice]);
 
+  const activeLobbyRef = useRef<LobbyItem | null>(null);
+  useEffect(() => {
+    activeLobbyRef.current = activeLobby;
+  }, [activeLobby]);
+
   // Save voice preferences to localStorage and Neon DB
   const saveVoiceSettingsToDB = useCallback(async (settingsToSave: {
     inputId?: string;
@@ -609,19 +614,22 @@ export default function LobbiesView({
         setRemoteSpeakingMap((prev) => ({ ...prev, [peerId]: isSpeaking }));
       },
       onTranscript: async (transcriptText) => {
-        if (!activeLobby) return;
+        const targetLobbyId = activeLobbyRef.current?.id || activeLobby.id;
+        if (!targetLobbyId || !transcriptText || !transcriptText.trim()) return;
         try {
-          await fetch(`/api/lobbies/${activeLobby.id}`, {
+          await fetch(`/api/lobbies/${targetLobbyId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               action: "voice-transcript",
               senderName: myName,
               senderTag: myTag,
-              content: transcriptText,
+              content: transcriptText.trim(),
             }),
           });
-        } catch {}
+        } catch (err) {
+          console.error("[VoiceManager] Failed to post voice transcript to Neon DB:", err);
+        }
       },
       onError: (err) => {
         setVoiceError(err);
