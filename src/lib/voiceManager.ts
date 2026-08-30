@@ -21,6 +21,16 @@ const ICE_SERVERS: RTCConfiguration = {
   ],
 };
 
+function enhanceOpusSDP(sdp: string): string {
+  if (!sdp) return sdp;
+  return sdp.replace(/a=fmtp:(\d+) (.*)/g, (match, pt, params) => {
+    if (params.includes("minptime") || params.includes("useinbandfec") || sdp.includes(`a=rtpmap:${pt} opus/48000`)) {
+      return `a=fmtp:${pt} minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1;maxaveragebitrate=128000;cbr=0`;
+    }
+    return match;
+  });
+}
+
 export class VoiceManager {
   private lobbyId: string;
   private myPeerId: string;
@@ -46,9 +56,9 @@ export class VoiceManager {
   // Signaling poll timer
   private signalInterval: NodeJS.Timeout | null = null;
 
-  // Advanced Audio Settings (Krisp-style Voice Isolation & DSP)
+  // Krisp-style Studio Audio Isolation & Voice DSP
   private isVoiceIsolationEnabled: boolean = true;
-  private audioQualityPreset: "eco" | "standard" | "studio" = "standard";
+  private audioQualityPreset: "eco" | "standard" | "studio" = "studio";
   private isAutoDuckingEnabled: boolean = true;
   private highpassFilter: BiquadFilterNode | null = null;
   private bandpassFilter: BiquadFilterNode | null = null;
@@ -59,7 +69,7 @@ export class VoiceManager {
   private sourceNode: MediaStreamAudioSourceNode | null = null;
 
   // Speaking detection threshold in RMS
-  private speakingThreshold = 0.035;
+  private speakingThreshold = 0.025;
   private silenceTimer: NodeJS.Timeout | null = null;
 
   constructor(lobbyId: string, myPeerId: string, callbacks: VoiceManagerCallbacks) {
@@ -71,21 +81,17 @@ export class VoiceManager {
   public setVoiceIsolation(enabled: boolean) {
     this.isVoiceIsolationEnabled = enabled;
     if (this.highpassFilter) {
-      this.highpassFilter.frequency.value = enabled ? 85 : 10;
+      this.highpassFilter.frequency.value = enabled ? 75 : 10;
     }
     if (this.bandpassFilter) {
-      this.bandpassFilter.gain.value = enabled ? 3.0 : 0.0;
+      this.bandpassFilter.gain.value = enabled ? 2.5 : 0.0;
     }
     if (this.compressor) {
-      this.compressor.threshold.value = enabled ? -36 : -50;
-      this.compressor.ratio.value = enabled ? 12 : 3;
+      this.compressor.threshold.value = enabled ? -24 : -40;
+      this.compressor.ratio.value = enabled ? 2.5 : 1.5;
     }
     if (this.noiseGateGain && this.audioCtx) {
-      if (!enabled || this.isSpeaking) {
-        this.noiseGateGain.gain.setTargetAtTime(1.0, this.audioCtx.currentTime, 0.01);
-      } else {
-        this.noiseGateGain.gain.setTargetAtTime(0.001, this.audioCtx.currentTime, 0.035);
-      }
+      this.noiseGateGain.gain.setTargetAtTime(1.0, this.audioCtx.currentTime, 0.01);
     }
   }
 
@@ -160,10 +166,14 @@ export class VoiceManager {
     if (outputDeviceId) this.currentOutputDeviceId = outputDeviceId;
 
     try {
+      // Crystal Clear Studio Audio Constraints (48kHz fullband, auto-gain, echo cancelling)
       const audioConstraints: MediaTrackConstraints = {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl: { ideal: true },
+        sampleRate: { ideal: 48000 },
+        sampleSize: { ideal: 16 },
+        channelCount: { ideal: 1 },
       };
 
       if (this.currentInputDeviceId && this.currentInputDeviceId !== "default") {
@@ -175,43 +185,43 @@ export class VoiceManager {
       });
 
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      this.audioCtx = new AudioContextClass();
+      this.audioCtx = new AudioContextClass({ sampleRate: 48000 });
       if (this.audioCtx.state === "suspended") {
         await this.audioCtx.resume();
       }
 
       this.sourceNode = this.audioCtx.createMediaStreamSource(this.stream);
 
-      // Krisp-style DSP Filter chain
-      // 1. Highpass: Cuts desk bumps, PC fan hum, room AC (<85Hz)
+      // Krisp-style Studio Vocal DSP Filter chain
+      // 1. Highpass: Cuts desk bumps, handling noise, AC hum (<75Hz)
       this.highpassFilter = this.audioCtx.createBiquadFilter();
       this.highpassFilter.type = "highpass";
-      this.highpassFilter.frequency.value = this.isVoiceIsolationEnabled ? 85 : 10;
+      this.highpassFilter.frequency.value = this.isVoiceIsolationEnabled ? 75 : 10;
       this.highpassFilter.Q.value = 0.7;
 
-      // 2. Vocal Clarity Peaking: Enhances speech intelligibility (2.4kHz)
+      // 2. Vocal Clarity & Presence Boost (2.8kHz)
       this.bandpassFilter = this.audioCtx.createBiquadFilter();
       this.bandpassFilter.type = "peaking";
-      this.bandpassFilter.frequency.value = 2400;
-      this.bandpassFilter.gain.value = this.isVoiceIsolationEnabled ? 3.0 : 0.0;
-      this.bandpassFilter.Q.value = 1.0;
+      this.bandpassFilter.frequency.value = 2800;
+      this.bandpassFilter.gain.value = this.isVoiceIsolationEnabled ? 2.5 : 0.0;
+      this.bandpassFilter.Q.value = 1.2;
 
-      // 3. Dynamic Compressor: Equalizes volume peaks
+      // 3. Studio Broadcast Compressor (smooth, warm, no distortion)
       this.compressor = this.audioCtx.createDynamicsCompressor();
-      this.compressor.threshold.value = this.isVoiceIsolationEnabled ? -36 : -50;
-      this.compressor.knee.value = 12;
-      this.compressor.ratio.value = this.isVoiceIsolationEnabled ? 12 : 3;
-      this.compressor.attack.value = 0.003;
-      this.compressor.release.value = 0.25;
+      this.compressor.threshold.value = this.isVoiceIsolationEnabled ? -24 : -40;
+      this.compressor.knee.value = 10;
+      this.compressor.ratio.value = this.isVoiceIsolationEnabled ? 2.5 : 1.5;
+      this.compressor.attack.value = 0.008;
+      this.compressor.release.value = 0.12;
 
-      // 4. Noise Gate Gain Node: Completely silences background noise when not talking
+      // 4. Smooth Gain Node
       this.noiseGateGain = this.audioCtx.createGain();
-      this.noiseGateGain.gain.value = this.isVoiceIsolationEnabled ? 0.001 : 1.0;
+      this.noiseGateGain.gain.value = 1.0;
 
       // 5. Analyser for speech detection & VU-meter
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
-      this.analyser.smoothingTimeConstant = 0.3;
+      this.analyser.smoothingTimeConstant = 0.25;
 
       // 6. MediaStreamDestination for WebRTC peer transmission
       this.audioDestination = this.audioCtx.createMediaStreamDestination();
@@ -433,8 +443,12 @@ export class VoiceManager {
 
     if (isInitiator) {
       pc.createOffer({ offerToReceiveAudio: true })
-        .then((offer) => pc.setLocalDescription(offer))
-        .then(() => {
+        .then(async (offer) => {
+          const enhancedOffer = new RTCSessionDescription({
+            type: offer.type,
+            sdp: enhanceOpusSDP(offer.sdp || ""),
+          });
+          await pc.setLocalDescription(enhancedOffer);
           this.sendSignal(remotePeerId, "offer", pc.localDescription);
         })
         .catch((err) => console.warn("[WebRTC] Offer error:", err));
@@ -572,8 +586,12 @@ export class VoiceManager {
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(data));
         const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        this.sendSignal(fromId, "answer", answer);
+        const enhancedAnswer = new RTCSessionDescription({
+          type: answer.type,
+          sdp: enhanceOpusSDP(answer.sdp || ""),
+        });
+        await pc.setLocalDescription(enhancedAnswer);
+        this.sendSignal(fromId, "answer", pc.localDescription);
       }
     } else if (type === "answer") {
       if (pc && pc.signalingState === "have-local-offer") {
