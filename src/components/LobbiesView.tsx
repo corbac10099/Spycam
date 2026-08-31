@@ -536,7 +536,12 @@ export default function LobbiesView({
   useEffect(() => {
     if (!activeLobby) return;
 
-    const handleUnload = () => {
+    let hasLeft = false;
+
+    const doLeave = () => {
+      if (hasLeft) return;
+      hasLeft = true;
+
       const payload = JSON.stringify({
         action: "leave",
         gameName: myName,
@@ -553,6 +558,16 @@ export default function LobbiesView({
           keepalive: true,
         }).catch(() => {});
       }
+
+      // Also cleanup VoiceManager if active
+      if (voiceManagerRef.current) {
+        try { voiceManagerRef.current.stop(); } catch {}
+        voiceManagerRef.current = null;
+      }
+    };
+
+    const handleUnload = () => {
+      doLeave();
     };
 
     window.addEventListener("pagehide", handleUnload);
@@ -1295,7 +1310,7 @@ export default function LobbiesView({
 
                           <button
                             type="button"
-                            onClick={() => setCreateTeammates((prev) => prev.filter((m) => m.id !== mate.id))}
+                            onClick={() => { sounds.playCancel(); setCreateTeammates((prev) => prev.filter((m) => m.id !== mate.id)); }}
                             className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded bg-red-500/10 border border-red-500/20 cursor-pointer"
                           >
                             ✕
@@ -1321,7 +1336,7 @@ export default function LobbiesView({
                         <button
                           key={num}
                           type="button"
-                          onClick={() => setCreateSlotsNeeded(num)}
+                          onClick={() => { sounds.playClick(); setCreateSlotsNeeded(num); }}
                           className={`py-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
                             createSlotsNeeded === num
                               ? "bg-[var(--color-val-red)] text-white border-[var(--color-val-red)]"
@@ -1449,7 +1464,7 @@ export default function LobbiesView({
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setCurrentView("landing")}
+                  onClick={() => { sounds.playCancel(); setCurrentView("landing"); }}
                   className="px-5 py-3 rounded-xl bg-[var(--color-surface)] text-[var(--color-text-secondary)] text-xs font-bold uppercase cursor-pointer"
                 >
                   Annuler
@@ -1595,7 +1610,7 @@ export default function LobbiesView({
                 Soyez le premier à ouvrir un salon adapté à votre rang !
               </p>
               <button
-                onClick={() => setCurrentView("create")}
+                onClick={() => { sounds.playClick(); setCurrentView("create"); }}
                 className="px-5 py-2.5 rounded-xl bg-[var(--color-val-red)] text-white text-xs font-black uppercase tracking-wider mt-2 cursor-pointer shadow-lg inline-flex items-center gap-1.5"
               >
                 <IconPlus size={14} />
@@ -1699,7 +1714,7 @@ export default function LobbiesView({
                   {/* JOIN BUTTON */}
                   <div className="pt-2 border-t border-[var(--color-border)]">
                     <button
-                      onClick={() => handleJoinLobby(lobby)}
+                      onClick={() => { sounds.playClick(); handleJoinLobby(lobby); }}
                       className="w-full py-2.5 rounded-xl bg-[var(--color-val-red)] hover:bg-[#ff5e6c] text-white font-black text-xs uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Rejoindre le Salon</span>
@@ -1822,7 +1837,7 @@ export default function LobbiesView({
                       </div>
 
                       <button
-                        onClick={() => handleCopyRiotId(`${member.gameName}#${member.tagLine}`)}
+                        onClick={() => { sounds.playClick(); handleCopyRiotId(`${member.gameName}#${member.tagLine}`); }}
                         title="Copier Riot ID"
                         className="p-1.5 rounded-lg bg-black/30 hover:bg-[var(--color-val-red)] text-white text-[10px] transition-all cursor-pointer"
                       >
@@ -1836,7 +1851,7 @@ export default function LobbiesView({
 
             {/* Bottom: Quitter le salon */}
             <button
-              onClick={handleLeaveSalon}
+              onClick={() => { sounds.playCancel(); handleLeaveSalon(); }}
               className="w-full py-2.5 rounded-2xl bg-red-500/10 hover:bg-red-500 border border-red-500/20 hover:border-red-500 text-red-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
             >
               Quitter le salon ✕
@@ -2123,26 +2138,6 @@ export default function LobbiesView({
 
             {/* CHAT MESSAGES FEED */}
             <div className="flex-1 flex flex-col justify-between min-h-[380px]">
-              {/* LIVE AI VOICE TRANSCRIPTS PREVIEW */}
-              {activeLobby.voiceTranscripts && activeLobby.voiceTranscripts.length > 0 && (
-                <div className="mb-2.5 p-2.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 space-y-1.5 animate-in fade-in">
-                  <div className="flex items-center justify-between text-[10px] font-black uppercase text-purple-300">
-                    <span className="flex items-center gap-1.5">
-                      <IconSparkles size={12} className="text-purple-400" />
-                      <span>Transcriptions Vocales (IA)</span>
-                    </span>
-                    <span className="text-[9px] text-purple-400/80 font-medium">Audit temps réel</span>
-                  </div>
-                  <div className="space-y-1 max-h-20 overflow-y-auto custom-scrollbar pr-1">
-                    {activeLobby.voiceTranscripts.slice(-3).map((vt) => (
-                      <div key={vt.id} className="text-[11px] text-gray-300 flex items-start gap-1.5 leading-snug">
-                        <span className="font-bold text-purple-300 shrink-0">🎙️ {vt.senderName} :</span>
-                        <span className="italic text-white/90">&ldquo;{vt.content}&rdquo;</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto max-h-[calc(100vh-420px)] min-h-[260px] space-y-3 pr-2 custom-scrollbar">
                 {activeLobby.chat?.length === 0 ? (

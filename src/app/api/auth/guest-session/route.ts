@@ -50,13 +50,19 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
+      // Count existing guest accounts to generate unique Shadow name
+      const existingGuestCount = await prisma.user.count({
+        where: { email: { endsWith: "@temp.spycam.gg" } },
+      });
+      const shadowNumber = existingGuestCount + 1;
+
       user = await prisma.user.create({
         data: {
           email: guestEmail,
           firstName: "Invité",
           lastName: "Bêta",
-          riotGameName: "Shadow",
-          riotPuuid: "debug-beta-guest-puuid",
+          riotGameName: `Shadow${shadowNumber}`,
+          riotPuuid: `debug-beta-guest-puuid-${shadowNumber}`,
           onboardingDone: false,
           theme: "dark",
           language: "fr",
