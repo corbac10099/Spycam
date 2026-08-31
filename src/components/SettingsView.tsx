@@ -21,10 +21,14 @@ import {
   IconBadgeVerified,
   IconKeyboard,
   IconCheck,
+  IconFileText,
+  IconInfo,
 } from "./icons/SpyIcons";
 import { BADGES_REGISTRY, parseBadges } from "./UserBadges";
 import { sounds } from "@/lib/soundEffects";
 import { requestPushPermission, sendLocalNotification } from "@/lib/pushNotifications";
+import SgsAccountSettings from "./SgsAccountSettings";
+import SgsLegalModal from "./SgsLegalModal";
 
 export const DEFAULT_SHORTCUTS: Record<string, string> = {
   search: "/",
@@ -229,6 +233,8 @@ export default function SettingsView({
   const [draftBannerOffsetY, setDraftBannerOffsetY] = useState(bannerOffsetY);
   const [draftIsPublic, setDraftIsPublic] = useState(isPublic ?? true);
   const [draftLocale, setDraftLocale] = useState<string>(locale || "french");
+  const [legalModalOpen, setLegalModalOpen] = useState<boolean>(false);
+  const [legalModalTab, setLegalModalTab] = useState<"cgu" | "mentions" | "privacy" | "riot">("cgu");
 
   useEffect(() => {
     if (locale) setDraftLocale(locale);
@@ -381,11 +387,13 @@ export default function SettingsView({
         {/* Sidebar / Top Tabs Bar on mobile */}
         <div className="w-full md:w-64 flex flex-row md:flex-col gap-1.5 sm:gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar flex-shrink-0">
           {[
+            { id: "account", label: "Compte SGS & Connexions" },
             { id: "features", label: "Fonctionnalités" },
             { id: "shortcuts", label: "Raccourcis Clavier" },
             { id: "privacy", label: "Confidentialité" },
             { id: "appearance", label: "Apparence & Bannière" },
             { id: "language", label: "Langue & Traductions" },
+            { id: "legal", label: "Mentions Légales & CGU" },
             { id: "about", label: "À propos" },
           ].map((tab) => (
             <button
@@ -409,6 +417,10 @@ export default function SettingsView({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
+          {settingsTab === "account" && (
+            <SgsAccountSettings />
+          )}
+
           {settingsTab === "features" && (
             <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8">
               <div className="flex flex-col gap-4 sm:gap-6">
@@ -1351,6 +1363,67 @@ export default function SettingsView({
             </div>
           )}
 
+          {settingsTab === "legal" && (
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 md:p-8 space-y-6">
+              <div>
+                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-[var(--color-val-red)] text-white">SGS Conformité</span>
+                <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] mt-1">Mentions Légales & Conditions Générales</h3>
+                <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-1 leading-relaxed">
+                  Consultez l&apos;ensemble des conditions d&apos;utilisation, informations d&apos;hébergement et clauses officielles de conformité Riot Games.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => { sounds.playClick(); setLegalModalTab("cgu"); setLegalModalOpen(true); }}
+                  className="p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2 text-white font-bold text-xs uppercase mb-1">
+                    <IconFileText size={16} className="text-[var(--color-val-red)]" />
+                    <span>Conditions d&apos;Utilisation (CGU)</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">Règles d&apos;utilisation, modération des salons et engagements.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { sounds.playClick(); setLegalModalTab("mentions"); setLegalModalOpen(true); }}
+                  className="p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2 text-white font-bold text-xs uppercase mb-1">
+                    <IconInfo size={16} className="text-[var(--color-val-red)]" />
+                    <span>Mentions Légales & Hébergeurs</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">Informations légales, Vercel, Neon DB et Cloudflare.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { sounds.playClick(); setLegalModalTab("privacy"); setLegalModalOpen(true); }}
+                  className="p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2 text-white font-bold text-xs uppercase mb-1">
+                    <IconLock size={16} className="text-[var(--color-val-red)]" />
+                    <span>Confidentialité (RGPD)</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">Collecte des données, droits d&apos;accès et suppression.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { sounds.playClick(); setLegalModalTab("riot"); setLegalModalOpen(true); }}
+                  className="p-4 rounded-xl bg-red-950/20 hover:bg-red-950/40 border border-red-500/30 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2 text-red-300 font-bold text-xs uppercase mb-1">
+                    <span>⚔️ Règles Riot Games</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">Politique officielle &ldquo;Legal Jibber-Jabber&rdquo;.</p>
+                </button>
+              </div>
+            </div>
+          )}
+
           {settingsTab === "about" && (
             <div className="glass-panel rounded-2xl p-3.5 sm:p-6 md:p-8">
               <h3 className="font-bold text-sm sm:text-lg text-[var(--color-text-primary)] mb-1 sm:mb-2">Valorant Performance Tracker</h3>
@@ -1388,6 +1461,13 @@ export default function SettingsView({
           </div>
         </div>
       </div>
+
+      {/* SGS Centralized Legal Modal */}
+      <SgsLegalModal
+        isOpen={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        defaultTab={legalModalTab}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +20,14 @@ export async function GET() {
       select: {
         id: true,
         email: true,
+        name: true,
         firstName: true,
         lastName: true,
+        sgsRole: true,
         riotGameName: true,
+        riotConnected: true,
+        googleConnected: true,
+        googleEmail: true,
         badge: true,
         showBadge: true,
         isPublic: true,
@@ -35,6 +40,25 @@ export async function GET() {
     return setCORSHeaders(NextResponse.json(users));
   } catch (err: any) {
     console.error("[Users List CMS Error]", err);
+    return setCORSHeaders(NextResponse.json({ error: err.message }, { status: 500 }));
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    if (!userId) {
+      return setCORSHeaders(NextResponse.json({ error: "userId requis" }, { status: 400 }));
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return setCORSHeaders(NextResponse.json({ success: true, message: "Utilisateur supprimé" }));
+  } catch (err: any) {
+    console.error("[Delete User CMS Error]", err);
     return setCORSHeaders(NextResponse.json({ error: err.message }, { status: 500 }));
   }
 }

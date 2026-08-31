@@ -28,6 +28,7 @@ import { registerServiceWorker } from "@/lib/pushNotifications";
 import FloatingVoiceBar from "@/components/FloatingVoiceBar";
 import { VoiceManager } from "@/lib/voiceManager";
 import { LobbyItem } from "@/app/api/lobbies/route";
+import SgsLegalModal from "@/components/SgsLegalModal";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -528,6 +529,8 @@ export function HomeContent({
   const [showLeaderboardModal, setShowLeaderboardModal] = useState<boolean>(false);
   const [showCardModal, setShowCardModal] = useState<boolean>(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState<boolean>(false);
+  const [showLegalModal, setShowLegalModal] = useState<boolean>(false);
+  const [legalModalTab, setLegalModalTab] = useState<"cgu" | "mentions" | "privacy" | "riot">("cgu");
 
   const toggleFullscreen = () => {
     if (typeof document !== "undefined") {
@@ -1822,10 +1825,49 @@ export function HomeContent({
         )}
       </main>
 
-      {/* Legal Disclaimer */}
-      <footer className="w-full text-center px-4 py-8 max-w-4xl mx-auto opacity-40 text-[10px] md:text-xs text-[var(--color-text-secondary)] leading-relaxed mb-12 md:mb-0">
-        Spycam n&apos;est pas affilié à Riot Games et ne reflète pas les opinions de Riot Games ni de toute personne impliquée dans la production ou la gestion des propriétés de Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
+      {/* SGS & Riot Games Legal Footer */}
+      <footer className="w-full border-t border-white/5 bg-black/40 px-4 py-8 max-w-5xl mx-auto text-[11px] text-[var(--color-text-secondary)] leading-relaxed mb-12 md:mb-0 space-y-4">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold">
+          <button
+            onClick={() => { sounds.playClick(); setLegalModalTab("cgu"); setShowLegalModal(true); }}
+            className="hover:text-white transition-colors cursor-pointer"
+          >
+            Conditions d&apos;Utilisation (CGU)
+          </button>
+          <span className="text-white/20">•</span>
+          <button
+            onClick={() => { sounds.playClick(); setLegalModalTab("mentions"); setShowLegalModal(true); }}
+            className="hover:text-white transition-colors cursor-pointer"
+          >
+            Mentions Légales & Hébergeur
+          </button>
+          <span className="text-white/20">•</span>
+          <button
+            onClick={() => { sounds.playClick(); setLegalModalTab("privacy"); setShowLegalModal(true); }}
+            className="hover:text-white transition-colors cursor-pointer"
+          >
+            Confidentialité & RGPD
+          </button>
+          <span className="text-white/20">•</span>
+          <button
+            onClick={() => { sounds.playClick(); setLegalModalTab("riot"); setShowLegalModal(true); }}
+            className="text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+          >
+            ⚔️ Règles Riot Games
+          </button>
+        </div>
+
+        <p className="text-[10px] text-center max-w-3xl mx-auto text-gray-500 leading-relaxed">
+          Spycam est une application éditée sous l&apos;écosystème <strong className="text-gray-400 font-semibold">SGS (Smart Gaming Suite)</strong>. Créé selon la politique &ldquo;Legal Jibber Jabber&rdquo; de Riot Games avec des ressources appartenant à Riot Games. Riot Games ne cautionne ni ne sponsorise ce projet. VALORANT et Riot Games sont des marques commerciales ou des marques déposées de Riot Games, Inc.
+        </p>
       </footer>
+
+      {/* SGS Centralized Legal Modal */}
+      <SgsLegalModal
+        isOpen={showLegalModal}
+        onClose={() => setShowLegalModal(false)}
+        defaultTab={legalModalTab}
+      />
     </>
   );
 }

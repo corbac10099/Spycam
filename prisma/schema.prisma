@@ -10,9 +10,12 @@ datasource db {
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
+  name            String?
   firstName       String?
   lastName        String?
+  avatarUrl       String?
   password        String?   // null for OAuth users
+  sgsRole         String    @default("user") // "user", "admin", "moderator", "dev"
   language        String    @default("fr")
   theme           String    @default("dark")
   bannerUrl       String?
@@ -30,6 +33,8 @@ model User {
   riotGameName    String?
   riotConnected   Boolean   @default(false)
   riotPuuid       String?
+  googleConnected Boolean   @default(false)
+  googleEmail     String?
   onboardingDone  Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -220,6 +225,39 @@ model LobbyArchive {
 
   @@index([lobbyId])
   @@index([closedAt])
+}
+
+// ==========================================
+// SGS Global Hub & Legal Management
+// ==========================================
+
+model SgsLegalSettings {
+  id              String   @id @default("sgs_default_legal")
+  companyName     String   @default("SGS (Smart Gaming Suite)")
+  contactEmail    String   @default("contact@sgs.gg")
+  contactAddress  String?  @default("Paris, France")
+  hostName        String   @default("Vercel Inc.")
+  hostAddress     String   @default("440 N Barranca Ave #4133, Covina, CA 91723, USA")
+  dbHost          String   @default("Neon Tech Inc., San Francisco, USA")
+  storageHost     String   @default("Cloudflare Inc., San Francisco, USA")
+  cguText         String   @default("")
+  mentionsLegales String   @default("")
+  privacyPolicy   String   @default("")
+  riotDisclaimer  String   @default("")
+  updatedAt       DateTime @updatedAt
+}
+
+model SgsService {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  url         String
+  iconUrl     String?
+  status      String   @default("active") // "active", "beta", "maintenance", "soon"
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 
