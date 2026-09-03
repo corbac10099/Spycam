@@ -459,7 +459,7 @@ export default function Header({
             <button
               onClick={() => {
                 sounds.playClick();
-                signOut({ callbackUrl: "/login" });
+                signOut({ callbackUrl: "/" });
               }}
               onMouseEnter={() => sounds.playHover()}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-neutral-400 hover:text-red-400 hover:bg-red-500/10 cursor-pointer select-none transition-all duration-200 active:scale-95 whitespace-nowrap"

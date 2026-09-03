@@ -7,9 +7,17 @@ function RegisterRedirect() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const sgsUrl = process.env.NEXT_PUBLIC_SGS_URL || (window.location.hostname.includes("localhost") ? "http://localhost:3001" : window.location.origin);
+    const sgsUrl =
+      process.env.NEXT_PUBLIC_SGS_URL ||
+      (window.location.hostname.includes("localhost")
+        ? "http://localhost:3001"
+        : "https://sgs-brown.vercel.app");
     const callback = searchParams.get("callbackUrl") || window.location.origin;
-    window.location.replace(`${sgsUrl}/register?callbackUrl=${encodeURIComponent(callback)}`);
+    const targetUrl = `${sgsUrl}/register?callbackUrl=${encodeURIComponent(callback)}`;
+
+    if (window.location.href !== targetUrl && sgsUrl !== window.location.origin) {
+      window.location.replace(targetUrl);
+    }
   }, [searchParams]);
 
   return (
