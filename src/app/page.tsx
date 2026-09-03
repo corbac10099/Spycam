@@ -29,6 +29,7 @@ import FloatingVoiceBar from "@/components/FloatingVoiceBar";
 import { VoiceManager } from "@/lib/voiceManager";
 import { LobbyItem } from "@/app/api/lobbies/route";
 import SgsLegalModal from "@/components/SgsLegalModal";
+import LoginModal from "@/components/LoginModal";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -49,6 +50,7 @@ export function HomeContent({
   // Guest / Beta Demo Mode — connected to Neon DB temporary user
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
   const [guestUser, setGuestUser] = useState<any>(null);
+  const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
 
   const initGuestSession = useCallback(async (redirectToOnboarding = false) => {
     try {
@@ -1103,7 +1105,12 @@ export function HomeContent({
 
   // Unauthenticated visitors without demo mode see the Landing Page
   if (status === "unauthenticated" && !isDemo) {
-    return <LandingPage onEnterBeta={handleEnterBeta} onOpenLogin={() => router.push("/login")} />;
+    return (
+      <>
+        <LandingPage onEnterBeta={handleEnterBeta} onOpenLogin={() => setLoginModalOpen(true)} />
+        <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+      </>
+    );
   }
 
   return (
@@ -1121,10 +1128,10 @@ export function HomeContent({
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push("/login")}
+              onClick={() => setLoginModalOpen(true)}
               className="px-3 py-1 rounded-full bg-[var(--color-val-red)] hover:bg-[#ff5865] text-white font-bold text-[11px] uppercase tracking-wider transition-colors cursor-pointer"
             >
-              Créer un compte
+              Créer un compte / Se connecter
             </button>
             <button
               onClick={handleExitBeta}
@@ -1867,6 +1874,12 @@ export function HomeContent({
         isOpen={showLegalModal}
         onClose={() => setShowLegalModal(false)}
         defaultTab={legalModalTab}
+      />
+
+      {/* Direct SGS Login / Register Modal */}
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
       />
     </>
   );
