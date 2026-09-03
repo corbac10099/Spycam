@@ -32,9 +32,10 @@ export default function LoginModal({ isOpen, onClose, defaultMode = "login" }: L
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load saved SGS account from localStorage
+  // Load saved SGS account from localStorage, URL hints, or SSO probe
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // 1. Lire depuis localStorage
       try {
         const raw = localStorage.getItem("sgs_saved_account");
         if (raw) {
@@ -44,6 +45,42 @@ export default function LoginModal({ isOpen, onClose, defaultMode = "login" }: L
           }
         }
       } catch {}
+
+      // 2. Lire depuis l'URL (?sgs_hint=...) si l'utilisateur vient de SGS
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hint = urlParams.get("sgs_hint");
+        if (hint) {
+          const parsed = JSON.parse(decodeURIComponent(hint));
+          if (parsed?.name && parsed?.email) {
+            setSavedAccount(parsed);
+            localStorage.setItem("sgs_saved_account", JSON.stringify(parsed));
+            urlParams.delete("sgs_hint");
+            const newSearch = urlParams.toString();
+            const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+            window.history.replaceState({}, "", newUrl);
+          }
+        }
+      } catch {}
+
+      // 3. Écouter les messages de l'iframe sso-probe SGS
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === "SGS_ACTIVE_SESSION" && event.data?.user) {
+          const u = event.data.user;
+          const accountData: SavedSgsAccount = {
+            name: u.name || u.email.split("@")[0] || "Joueur",
+            email: u.email,
+            image: u.image || undefined,
+          };
+          setSavedAccount(accountData);
+          try {
+            localStorage.setItem("sgs_saved_account", JSON.stringify(accountData));
+          } catch {}
+        }
+      };
+
+      window.addEventListener("message", handleMessage);
+      return () => window.removeEventListener("message", handleMessage);
     }
   }, [isOpen]);
 
@@ -104,23 +141,14 @@ export default function LoginModal({ isOpen, onClose, defaultMode = "login" }: L
     }
   };
 
-  // Handle Quick Login with Saved SGS Account
-  const handleQuickSgsSignIn = async () => {
+  // Handle Quick Login with Saved SGS Account (1-Click SSO Handshake)
+  const handleQuickSgsSignIn = () => {
     sounds.playClick();
     if (!savedAccount) return;
-
-    if (savedAccount.provider === "google") {
-      await handleGoogleSignIn();
-      return;
-    }
-
-    setEmail(savedAccount.email);
-    if (password) {
-      await handleCredentialsSubmit();
-    } else {
-      const passInput = document.getElementById("sgs-modal-password");
-      passInput?.focus();
-    }
+    setLoading(true);
+    const sgsUrl = process.env.NEXT_PUBLIC_SGS_URL || (window.location.hostname.includes("localhost") ? "http://localhost:3001" : "https://sgs-brown.vercel.app");
+    const returnTo = window.location.origin;
+    window.location.href = `${sgsUrl}/api/auth/sso?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   // Handle Email / Password Login or Register
@@ -474,6 +502,15 @@ export default function LoginModal({ isOpen, onClose, defaultMode = "login" }: L
           )}
         </div>
       </div>
+
+      {/* Hidden SSO Probe Iframe to detect active session on SGS */}
+      <iframe
+        src={process.env.NEXT_PUBLIC_SGS_URL ? `${process.env.NEXT_PUBLIC_SGS_URL}/sso-probe` : "https://sgs-brown.vercel.app/sso-probe"}
+        className="hidden"
+        style={{ display: "none", width: 0, height: 0, border: 0 }}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
     </div>
   );
 }

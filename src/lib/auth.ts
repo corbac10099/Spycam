@@ -3,17 +3,47 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    // Email / Password
+    // Email / Password & SGS SSO Handshake Token
     CredentialsProvider({
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Mot de passe', type: 'password' },
+        ssoToken: { label: 'SSO Token', type: 'text' },
       },
       async authorize(credentials) {
+        // 1. Branche SGS SSO Token (Connexion 1-Clic depuis un compte SGS existant)
+        if (credentials?.ssoToken && credentials?.email) {
+          try {
+            const secret = process.env.NEXTAUTH_SECRET || 'sgs-sso-secret-fallback';
+            const [payloadStr, sig] = credentials.ssoToken.split('.');
+            const expectedSig = crypto.createHmac('sha256', secret).update(payloadStr).digest('base64url');
+
+            if (sig === expectedSig) {
+              const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf-8'));
+              if (Date.now() <= payload.exp && payload.email?.toLowerCase() === credentials.email.toLowerCase()) {
+                const user = await prisma.user.findUnique({
+                  where: { email: credentials.email.toLowerCase() },
+                });
+                if (user) {
+                  return {
+                    id: user.id,
+                    email: user.email,
+                    name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email.split('@')[0],
+                  };
+                }
+              }
+            }
+          } catch (e) {
+            console.error('[SSO AUTHORIZE ERROR]', e);
+          }
+          return null;
+        }
+
         if (!credentials?.email || !credentials?.password) return null;
 
         // Riot Games reviewer demo account bypass & auto-creation
