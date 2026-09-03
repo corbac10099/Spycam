@@ -1,12 +1,8 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
-
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password).digest("hex");
-}
+import bcrypt from "bcryptjs";
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,7 +33,7 @@ export async function GET(req: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.riotGameName || "Joueur",
+        name: user.name || (user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "") || user.riotGameName || "Joueur",
         firstName: user.firstName,
         lastName: user.lastName,
         sgsRole: user.sgsRole,
@@ -79,29 +75,34 @@ export async function PUT(req: NextRequest) {
     const updateData: any = {};
 
     if (name !== undefined) {
-      updateData.name = name;
+      updateData.name = name.trim();
     }
 
-    // Changing password
+    // Changing password with bcrypt
     if (newPassword) {
+      if (newPassword.length < 6) {
+        return NextResponse.json({ error: "Le mot de passe doit contenir au moins 6 caractères" }, { status: 400 });
+      }
+
       if (user.password && currentPassword) {
-        const hashedCurrent = hashPassword(currentPassword);
-        if (hashedCurrent !== user.password) {
+        const isValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isValid) {
           return NextResponse.json({ error: "Mot de passe actuel incorrect" }, { status: 400 });
         }
       }
-      updateData.password = hashPassword(newPassword);
+      updateData.password = await bcrypt.hash(newPassword, 12);
     }
 
     // Changing email
-    if (newEmail && newEmail !== user.email) {
+    if (newEmail && newEmail.toLowerCase().trim() !== user.email) {
+      const cleanNewEmail = newEmail.toLowerCase().trim();
       const existing = await prisma.user.findUnique({
-        where: { email: newEmail },
+        where: { email: cleanNewEmail },
       });
       if (existing) {
         return NextResponse.json({ error: "Cette adresse email est déjà utilisée" }, { status: 400 });
       }
-      updateData.email = newEmail;
+      updateData.email = cleanNewEmail;
     }
 
     const updatedUser = await prisma.user.update({
@@ -141,14 +142,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
     }
 
-    const { action, provider, data } = body;
+    const { action, data } = body;
 
     if (action === "link-riot") {
       const { riotGameName, riotPuuid } = data || {};
+      if (!riotGameName || !riotGameName.trim()) {
+        return NextResponse.json({ error: "Nom Riot ID requis (ex: Joueur#TAG)" }, { status: 400 });
+      }
+
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          riotGameName: riotGameName || user.riotGameName,
+          riotGameName: riotGameName.trim(),
           riotPuuid: riotPuuid || user.riotPuuid,
           riotConnected: true,
         },
@@ -217,7 +222,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
     }
 
-    // Delete user and all cascade relations (accounts, sessions, etc.)
+    // Delete user and all cascade relations
     await prisma.user.delete({
       where: { id: user.id },
     });
