@@ -101,6 +101,15 @@ const ITEM_LABELS: Record<string, { label: string; desc: string }> = {
   matches: { label: "Parties", desc: "Nombre total de parties" },
 };
 
+// Return strictly enforced minimum dimensions according to content needs
+export function getMinItemDimensions(itemId: string): { minCol: number; minRow: number } {
+  if (itemId === "chart") return { minCol: 8, minRow: 3 };
+  if (itemId === "weapons") return { minCol: 7, minRow: 3 };
+  if (["fb", "ace", "kast", "dd"].includes(itemId)) return { minCol: 3, minRow: 1 };
+  // Standard stat cards (K/D, ACS, HS %, etc.) need at least 5 cols (~160px) to prevent truncation
+  return { minCol: 5, minRow: 1 };
+}
+
 // Check if two items overlap in 2D
 function itemsOverlap(a: GridItemConfig, b: GridItemConfig): boolean {
   const aRight = a.x + a.colSpan;
@@ -245,14 +254,17 @@ export default function DashboardGrid({
         if (parsed && typeof parsed === "object") {
           if (Array.isArray(parsed.items) && parsed.items.length > 0) {
             const existingIds = new Set(parsed.items.map((item: any) => item.id));
-            const normalized = parsed.items.map((item: any) => ({
-              id: item.id,
-              x: item.x ?? 0,
-              y: item.y ?? 0,
-              colSpan: item.colSpan || (item.id === "chart" ? DEFAULT_COLS : 5),
-              rowSpan: item.rowSpan || (item.id === "chart" ? 4 : 1),
-              visible: item.visible !== false,
-            }));
+            const normalized = parsed.items.map((item: any) => {
+              const { minCol, minRow } = getMinItemDimensions(item.id);
+              return {
+                id: item.id,
+                x: item.x ?? 0,
+                y: item.y ?? 0,
+                colSpan: Math.max(minCol, item.colSpan || (item.id === "chart" ? DEFAULT_COLS : 5)),
+                rowSpan: Math.max(minRow, item.rowSpan || (item.id === "chart" ? 4 : 1)),
+                visible: item.visible !== false,
+              };
+            });
             const missing = DEFAULT_LAYOUT.filter((item) => !existingIds.has(item.id));
             setLayout([...normalized, ...missing]);
             return;
@@ -269,14 +281,17 @@ export default function DashboardGrid({
         if (parsed && typeof parsed === "object") {
           if (Array.isArray(parsed.items) && parsed.items.length > 0) {
             const existingIds = new Set(parsed.items.map((item: any) => item.id));
-            const normalized = parsed.items.map((item: any) => ({
-              id: item.id,
-              x: item.x ?? 0,
-              y: item.y ?? 0,
-              colSpan: item.colSpan || (item.id === "chart" ? DEFAULT_COLS : 5),
-              rowSpan: item.rowSpan || (item.id === "chart" ? 4 : 1),
-              visible: item.visible !== false,
-            }));
+            const normalized = parsed.items.map((item: any) => {
+              const { minCol, minRow } = getMinItemDimensions(item.id);
+              return {
+                id: item.id,
+                x: item.x ?? 0,
+                y: item.y ?? 0,
+                colSpan: Math.max(minCol, item.colSpan || (item.id === "chart" ? DEFAULT_COLS : 5)),
+                rowSpan: Math.max(minRow, item.rowSpan || (item.id === "chart" ? 4 : 1)),
+                visible: item.visible !== false,
+              };
+            });
             const missing = DEFAULT_LAYOUT.filter((item) => !existingIds.has(item.id));
             setLayout([...normalized, ...missing]);
           }
@@ -520,9 +535,7 @@ export default function DashboardGrid({
     const startX = e.clientX;
     const startY = e.clientY;
 
-    const isLarge = itemId === "chart" || itemId === "weapons";
-    const minCol = isLarge ? 4 : 1;
-    const minRow = isLarge ? 2 : 1;
+    const { minCol, minRow } = getMinItemDimensions(itemId);
     const currentItem = layout.find((i) => i.id === itemId);
     const startPosX = currentItem?.x ?? 0;
 
@@ -598,9 +611,7 @@ export default function DashboardGrid({
     const startX = touch.clientX;
     const startY = touch.clientY;
 
-    const isLarge = itemId === "chart" || itemId === "weapons";
-    const minCol = isLarge ? 4 : 1;
-    const minRow = isLarge ? 2 : 1;
+    const { minCol, minRow } = getMinItemDimensions(itemId);
     const currentItem = layout.find((i) => i.id === itemId);
     const startPosX = currentItem?.x ?? 0;
 

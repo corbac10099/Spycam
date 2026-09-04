@@ -517,7 +517,23 @@ export function HomeContent({
   const [enforcePublicStats, setEnforcePublicStats] = useState(false);
 
   // New Features State
-  const [streamerMode, setStreamerMode] = useState<boolean>(false);
+  const [streamerMode, setStreamerMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("spycam_streamer_mode") === "true";
+      } catch (_) {}
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("spycam_streamer_mode", String(streamerMode));
+      } catch (_) {}
+    }
+  }, [streamerMode]);
+
   const [showBadgeState, setShowBadgeState] = useState<boolean>(true);
   const [hiddenBadges, setHiddenBadges] = useState<string[]>(() => {
     if (typeof window !== "undefined") {

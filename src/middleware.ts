@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -15,24 +15,10 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Sous-domaine Spycam détecté (ex: spycam.sgs.gg, spycam.sgs-tan.vercel.app, spycam.localhost:3000)
-  if (host.startsWith("spycam.")) {
-    // Si l'utilisateur est sur le sous-domaine spycam et demande la racine, servir le tracker
-    if (pathname === "/sgs") {
-      url.pathname = "/";
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
-  }
-
-  // Domaine Principal SGS détecté (ex: sgs.gg, sgs-tan.vercel.app, sgs.localhost:3000)
-  // Si le domaine commence par sgs. ou est le domaine racine configuré
-  const isSgsHost = host.startsWith("sgs.") || host.includes("sgs-");
-
-  if (isSgsHost && pathname === "/") {
-    // Réécrire la page d'accueil vers le Hub SGS sans changer l'URL du navigateur
-    url.pathname = "/sgs";
-    return NextResponse.rewrite(url);
+  // Rediriger la route legacy /sgs vers le site officiel SGS
+  if (pathname === "/sgs") {
+    const sgsUrl = process.env.NEXT_PUBLIC_SGS_URL || "https://sgs-brown.vercel.app";
+    return NextResponse.redirect(new URL(sgsUrl));
   }
 
   return NextResponse.next();

@@ -36,14 +36,14 @@ function StatCardComponent({
       } ${ratingClass} ${className}`}
     >
       <div className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-1 sm:mb-1.5 min-w-0">
-        <div className="flex items-center gap-1 truncate">
-          <span className="truncate">{label}</span>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate whitespace-nowrap">{label}</span>
           {hasWarning && <Tooltip message={warning} />}
         </div>
       </div>
-      <div className="flex items-baseline gap-1">
+      <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
         <span
-          className={`text-lg xs:text-xl sm:text-2xl md:text-3xl font-black tracking-tight ${
+          className={`text-base xs:text-lg sm:text-xl md:text-2xl font-black tracking-tight truncate ${
             highlight
               ? "text-[var(--color-val-red)] drop-shadow-[0_0_12px_rgba(255,70,85,0.3)]"
               : "text-[var(--color-text-primary)]"
@@ -51,7 +51,7 @@ function StatCardComponent({
         >
           {value}
         </span>
-        {suffix && <span className="text-[10px] xs:text-xs sm:text-sm font-bold text-[var(--color-text-secondary)]">{suffix}</span>}
+        {suffix && <span className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-[var(--color-text-secondary)] shrink-0">{suffix}</span>}
       </div>
       {sub && <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] font-medium mt-0.5 truncate">{sub}</span>}
     </div>

@@ -35,6 +35,24 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
   const [matchLimit, setMatchLimit] = useState<number | "all">(20);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [svgDimensions, setSvgDimensions] = useState<{ width: number; height: number }>({
+    width: 900,
+    height: 220,
+  });
+
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        if (w > 100 && h > 60) {
+          setSvgDimensions({ width: Math.round(w), height: Math.round(h) });
+        }
+      }
+    });
+    observer.observe(svgRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const totalAvailable = matchHistory?.length || 0;
 
@@ -70,9 +88,9 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
     return null;
   }
 
-  // Stable virtual coordinate system (1000 x 260) - completely prevents layout jitter/glitch
-  const width = 1000;
-  const height = 260;
+  // Dynamic 1:1 pixel coordinate system matching physical element size - prevents text compression/stretching
+  const width = Math.max(320, svgDimensions.width);
+  const height = Math.max(120, svgDimensions.height);
 
   const padding = {
     top: 25,
@@ -214,7 +232,6 @@ function PerformanceChartsComponent({ matchHistory }: PerformanceChartsProps) {
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
           className="w-full h-full select-none cursor-crosshair block"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
