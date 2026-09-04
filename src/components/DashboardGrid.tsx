@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import StatCard from "./StatCard";
 import PerformanceCharts from "./PerformanceCharts";
 import WeaponHitmap from "./WeaponHitmap";
+import PerformanceScoreCard from "./PerformanceScoreCard";
+import { PerformanceScoreResult } from "@/lib/valorant/performanceScore";
 import {
   IconCrosshair,
   IconSkull,
@@ -39,6 +41,8 @@ export interface DashboardGridProps {
   hiddenStatsByPrivacy?: string[];
   userStorageKey?: string;
   initialGridData?: string | null;
+  performanceScoreResult?: PerformanceScoreResult | null;
+  onOpenPerformanceModal?: () => void;
 }
 
 const DEFAULT_COLS = 29;
@@ -46,7 +50,8 @@ const GRID_GAP = 8;
 
 const DEFAULT_LAYOUT: GridItemConfig[] = [
   { id: "chart", x: 0, y: 0, colSpan: 29, rowSpan: 4, visible: true },
-  { id: "weapons", x: 0, y: 4, colSpan: 9, rowSpan: 5, visible: true },
+  { id: "performanceScore", x: 0, y: 4, colSpan: 9, rowSpan: 2, visible: true },
+  { id: "weapons", x: 0, y: 6, colSpan: 9, rowSpan: 4, visible: true },
   { id: "kills", x: 9, y: 4, colSpan: 10, rowSpan: 1, visible: true },
   { id: "deaths", x: 19, y: 4, colSpan: 10, rowSpan: 1, visible: true },
   { id: "assists", x: 9, y: 5, colSpan: 10, rowSpan: 1, visible: true },
@@ -59,11 +64,12 @@ const DEFAULT_LAYOUT: GridItemConfig[] = [
   { id: "ace", x: 14, y: 8, colSpan: 5, rowSpan: 1, visible: true },
   { id: "kast", x: 19, y: 8, colSpan: 5, rowSpan: 1, visible: true },
   { id: "dd", x: 24, y: 8, colSpan: 5, rowSpan: 1, visible: true },
-  { id: "wins", x: 0, y: 9, colSpan: 14, rowSpan: 1, visible: true },
-  { id: "matches", x: 14, y: 9, colSpan: 15, rowSpan: 1, visible: true },
+  { id: "wins", x: 0, y: 10, colSpan: 14, rowSpan: 1, visible: true },
+  { id: "matches", x: 14, y: 10, colSpan: 15, rowSpan: 1, visible: true },
 ];
 
 export const ITEM_ICONS: Record<string, React.ReactNode> = {
+  performanceScore: <IconTrophy size={14} />,
   chart: <IconChart size={14} />,
   weapons: <IconCrosshair size={14} />,
   kills: <IconCrosshair size={14} />,
@@ -83,6 +89,7 @@ export const ITEM_ICONS: Record<string, React.ReactNode> = {
 };
 
 const ITEM_LABELS: Record<string, { label: string; desc: string }> = {
+  performanceScore: { label: "Score de Performance (SPI)", desc: "Score intelligent sur 1 000 points" },
   chart: { label: "Graphique de Progression", desc: "Courbe d'évolution K/D, ACS et Headshot" },
   weapons: { label: "Top Armes & Précision", desc: "Top 3 armes et zones de tir" },
   kills: { label: "Éliminations", desc: "Total des éliminations" },
@@ -105,6 +112,7 @@ const ITEM_LABELS: Record<string, { label: string; desc: string }> = {
 export function getMinItemDimensions(itemId: string): { minCol: number; minRow: number } {
   if (itemId === "chart") return { minCol: 8, minRow: 3 };
   if (itemId === "weapons") return { minCol: 7, minRow: 3 };
+  if (itemId === "performanceScore") return { minCol: 6, minRow: 2 };
   if (["fb", "ace", "kast", "dd"].includes(itemId)) return { minCol: 3, minRow: 1 };
   // Standard stat cards (K/D, ACS, HS %, etc.) need at least 5 cols (~160px) to prevent truncation
   return { minCol: 5, minRow: 1 };
@@ -193,6 +201,8 @@ export default function DashboardGrid({
   hiddenStatsByPrivacy = [],
   userStorageKey = "default",
   initialGridData,
+  performanceScoreResult,
+  onOpenPerformanceModal,
 }: DashboardGridProps) {
   const storageKey = `spycam_grid_layout_v8_29_${userStorageKey}`;
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -719,6 +729,16 @@ export default function DashboardGrid({
   // Render individual widget content
   const renderItemContent = (id: string) => {
     switch (id) {
+      case "performanceScore":
+        if (!performanceScoreResult) return null;
+        return (
+          <PerformanceScoreCard
+            result={performanceScoreResult}
+            onClickDetail={onOpenPerformanceModal}
+            isOwner={canEdit}
+            isPublic={!hiddenStatsByPrivacy?.includes("performanceScore")}
+          />
+        );
       case "chart":
         return <PerformanceCharts matchHistory={matchHistory} />;
       case "weapons":

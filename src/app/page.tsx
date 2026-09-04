@@ -27,9 +27,12 @@ import HotkeysHelpModal from "@/components/HotkeysHelpModal";
 import { registerServiceWorker } from "@/lib/pushNotifications";
 import FloatingVoiceBar from "@/components/FloatingVoiceBar";
 import { VoiceManager } from "@/lib/voiceManager";
-import { LobbyItem } from "@/app/api/lobbies/route";
 import SgsLegalModal from "@/components/SgsLegalModal";
 import LoginModal from "@/components/LoginModal";
+import PerformanceScoreModal from "@/components/PerformanceScoreModal";
+import PerformanceScoreCard from "@/components/PerformanceScoreCard";
+import { calculatePerformanceScore, detectDominantRole } from "@/lib/valorant/performanceScore";
+import type { LobbyItem } from "@/app/api/lobbies/route";
 
 function DebugPanel({ isOpen, onClose, onGenerate }: any) {
   return null;
@@ -549,6 +552,7 @@ export function HomeContent({
   const [showMobileDrawer, setShowMobileDrawer] = useState<boolean>(false);
   const [showLegalModal, setShowLegalModal] = useState<boolean>(false);
   const [legalModalTab, setLegalModalTab] = useState<"cgu" | "mentions" | "privacy" | "riot">("cgu");
+  const [showPerformanceModal, setShowPerformanceModal] = useState<boolean>(false);
 
   const toggleFullscreen = () => {
     if (typeof document !== "undefined") {
@@ -976,6 +980,16 @@ export function HomeContent({
       aceCount: totalAces,
     };
   }, [rawStats, gameMode, selectedSeason, filteredMatches]);
+
+  const dominantRole = useMemo(() => {
+    return detectDominantRole(filteredAgents);
+  }, [filteredAgents]);
+
+  const performanceScoreResult = useMemo(() => {
+    const s = filteredStats || rawStats;
+    if (!s) return null;
+    return calculatePerformanceScore(s, filteredMatches, dominantRole);
+  }, [filteredStats, rawStats, filteredMatches, dominantRole]);
 
   // Apply logged-in user's theme to body
   useEffect(() => {
@@ -1448,8 +1462,19 @@ export function HomeContent({
                           </div>
                         </div>
 
-                        {/* Droite : Rang + Bouton Export Carte (si proprio) ou Favori */}
+                        {/* Droite : Score SPI + Rang + Bouton Export Carte (si proprio) ou Favori */}
                         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 flex-shrink-0">
+                          {/* Score de Performance Spycam (SPI) */}
+                          {performanceScoreResult && (
+                            <PerformanceScoreCard
+                              result={performanceScoreResult}
+                              onClickDetail={() => setShowPerformanceModal(true)}
+                              compact={true}
+                              isOwner={canEditProfile}
+                              isPublic={!hiddenStats.includes("performanceScore")}
+                            />
+                          )}
+
                           <div className="flex flex-col items-end hidden md:flex" style={{ textShadow: "0px 2px 10px rgba(0,0,0,0.8)" }}>
                             <span className="text-[9px] sm:text-[10px] text-[var(--color-text-secondary)] uppercase tracking-[0.2em] font-bold">Rang</span>
                             <span className="text-xs sm:text-lg font-black text-white uppercase tracking-wider">{p.rank}</span>
@@ -1632,6 +1657,8 @@ export function HomeContent({
                                 hiddenStatsByPrivacy={appliedHiddenStats}
                                 userStorageKey={userKey}
                                 initialGridData={playerData?.player?.dashboardGrid}
+                                performanceScoreResult={performanceScoreResult}
+                                onOpenPerformanceModal={() => setShowPerformanceModal(true)}
                               />
                             </div>
                           );
@@ -1897,6 +1924,29 @@ export function HomeContent({
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
       />
+
+      {/* Spycam Performance Index (SPI) Modal */}
+      {performanceScoreResult && (
+        <PerformanceScoreModal
+          isOpen={showPerformanceModal}
+          onClose={() => setShowPerformanceModal(false)}
+          result={performanceScoreResult}
+          isOwner={canEditProfile}
+          isPublic={!hiddenStats.includes("performanceScore")}
+          onTogglePrivacy={() => {
+            const isCurrentlyHidden = hiddenStats.includes("performanceScore");
+            const newHidden = isCurrentlyHidden
+              ? hiddenStats.filter((id) => id !== "performanceScore")
+              : [...hiddenStats, "performanceScore"];
+            setHiddenStats(newHidden);
+            fetch("/api/user/settings", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hiddenStats: JSON.stringify(newHidden) }),
+            }).catch(() => {});
+          }}
+        />
+      )}
     </>
   );
 }
