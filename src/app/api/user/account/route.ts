@@ -144,6 +144,51 @@ export async function POST(req: NextRequest) {
 
     const { action, data } = body;
 
+    // ACTION: Add password for OAuth-only users
+    if (action === "add-password") {
+      const { newPassword } = data || {};
+      if (!newPassword || newPassword.length < 6) {
+        return NextResponse.json({ error: "Le mot de passe doit contenir au moins 6 caractères" }, { status: 400 });
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Mot de passe configuré avec succès ! Vous pouvez désormais vous connecter avec votre email.",
+      });
+    }
+
+    // ACTION: Remove password (only allowed if Google or another provider is linked)
+    if (action === "remove-password") {
+      const isGoogleLinked =
+        user.googleConnected ||
+        (await prisma.account.findFirst({
+          where: { userId: user.id, provider: "google" },
+        }));
+
+      if (!isGoogleLinked) {
+        return NextResponse.json(
+          {
+            error:
+              "Impossible de supprimer le mot de passe : vous devez conserver au moins un moyen de connexion actif (liez un compte Google au préalable).",
+          },
+          { status: 400 }
+        );
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: null },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Mot de passe supprimé. Vous vous connecterez désormais exclusivement via Google.",
+      });
+    }
+
     if (action === "link-riot") {
       const { riotGameName, riotPuuid } = data || {};
       if (!riotGameName || !riotGameName.trim()) {
@@ -186,6 +231,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "unlink-google") {
+      // Vérification stricte : l'utilisateur doit avoir un mot de passe pour ne pas perdre l'accès
+      if (!user.password) {
+        return NextResponse.json(
+          {
+            error:
+              "Impossible de dissocier Google : vous devez d'abord configurer un mot de passe pour conserver au moins un moyen de connexion.",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Supprimer l'association de table Account et réinitialiser les flags
+      await prisma.account.deleteMany({
+        where: { userId: user.id, provider: "google" },
+      });
+
       await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -193,7 +254,7 @@ export async function POST(req: NextRequest) {
           googleEmail: null,
         },
       });
-      return NextResponse.json({ success: true, message: "Compte Google délié" });
+      return NextResponse.json({ success: true, message: "Compte Google dissocié avec succès" });
     }
 
     return NextResponse.json({ error: "Action non reconnue" }, { status: 400 });
